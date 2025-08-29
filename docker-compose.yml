@@ -2,6 +2,10 @@ version: "3.9"
 
 services:
   n8n:
+    # TODO: Build custom image with our hooks
+    # build:
+    #   context: ./packages/n8n-ai-hooks
+    #   dockerfile: Dockerfile
     image: n8nio/n8n:1.71.1
     container_name: n8n-ai-hooks
     ports:
@@ -13,8 +17,13 @@ services:
       - N8N_HOST=${N8N_HOST:-localhost}
       - N8N_PROTOCOL=http
       - WEBHOOK_URL=${N8N_WEBHOOK_URL:-http://localhost:5678/}
+      # AI-specific env vars
+      - N8N_AI_ENABLED=true
+      - N8N_AI_ORCHESTRATOR_URL=http://orchestrator:3000
     volumes:
       - n8n_data:/home/node/.n8n
+      # Mount our hooks for development
+      - ./packages/n8n-ai-hooks:/opt/n8n-ai-hooks
     depends_on:
       - redis
       - qdrant

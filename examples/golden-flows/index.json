@@ -1,0 +1,67 @@
+{
+  "name": "n8n-ai Golden Flows",
+  "description": "Test cases for AI-driven workflow generation",
+  "version": "1.0.0",
+  "flows": [
+    {
+      "id": "01-simple-http-get",
+      "name": "Simple HTTP GET",
+      "difficulty": "easy",
+      "category": "http"
+    },
+    {
+      "id": "02-webhook-to-http",
+      "name": "Webhook to HTTP",
+      "difficulty": "easy",
+      "category": "webhook"
+    },
+    {
+      "id": "03-scheduled-data-fetch",
+      "name": "Scheduled Data Fetch",
+      "difficulty": "easy",
+      "category": "schedule"
+    },
+    {
+      "id": "04-data-transformation",
+      "name": "Data Transformation",
+      "difficulty": "medium",
+      "category": "transformation"
+    },
+    {
+      "id": "05-conditional-routing",
+      "name": "Conditional Routing",
+      "difficulty": "medium",
+      "category": "logic"
+    },
+    {
+      "id": "06-database-operations",
+      "name": "Database Operations",
+      "difficulty": "medium",
+      "category": "database"
+    },
+    {
+      "id": "07-email-notification",
+      "name": "Email Notification",
+      "difficulty": "medium",
+      "category": "notification"
+    },
+    {
+      "id": "08-file-processing",
+      "name": "File Processing",
+      "difficulty": "medium",
+      "category": "files"
+    },
+    {
+      "id": "09-api-pagination",
+      "name": "API Pagination",
+      "difficulty": "hard",
+      "category": "advanced"
+    },
+    {
+      "id": "10-multi-step-etl",
+      "name": "Multi-step ETL",
+      "difficulty": "hard",
+      "category": "etl"
+    }
+  ]
+}

@@ -1,0 +1,58 @@
+{
+  "name": "03 Scheduled Data Fetch",
+  "description": "Cron job that fetches data daily",
+  "prompt": "Create scheduled workflow that runs every day at 9 AM to fetch weather data",
+  "expectedOperations": {
+    "version": "v1",
+    "ops": [
+      {
+        "op": "add_node",
+        "node": {
+          "id": "schedule-1",
+          "name": "Daily at 9 AM",
+          "type": "n8n-nodes-base.scheduleTrigger",
+          "typeVersion": 1,
+          "position": [250, 300],
+          "parameters": {
+            "rule": {
+              "cronExpression": "0 9 * * *"
+            }
+          }
+        }
+      },
+      {
+        "op": "add_node",
+        "node": {
+          "id": "http-1",
+          "name": "Fetch Weather",
+          "type": "n8n-nodes-base.httpRequest",
+          "typeVersion": 4,
+          "position": [600, 300],
+          "parameters": {
+            "method": "GET",
+            "url": "https://api.weatherapi.com/v1/current.json",
+            "queryParametersUi": {
+              "parameter": [
+                {
+                  "name": "q",
+                  "value": "London"
+                }
+              ]
+            }
+          }
+        }
+      },
+      {
+        "op": "connect",
+        "from": "Daily at 9 AM",
+        "to": "Fetch Weather"
+      }
+    ]
+  },
+  "validation": {
+    "expectedNodes": 2,
+    "expectedConnections": 1,
+    "mustHaveNodes": ["Daily at 9 AM", "Fetch Weather"],
+    "cronExpression": "0 9 * * *"
+  }
+}

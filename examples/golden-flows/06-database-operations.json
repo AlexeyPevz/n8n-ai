@@ -1,0 +1,42 @@
+{
+  "name": "06 Database Operations",
+  "description": "Insert data into PostgreSQL database",
+  "prompt": "Create workflow to insert user data into PostgreSQL database table",
+  "expectedOperations": {
+    "version": "v1",
+    "ops": [
+      {
+        "op": "add_node",
+        "node": {
+          "id": "postgres-1",
+          "name": "Insert User",
+          "type": "n8n-nodes-base.postgres",
+          "typeVersion": 2,
+          "position": [600, 300],
+          "parameters": {
+            "operation": "insert",
+            "table": "users",
+            "columns": "name,email,created_at",
+            "additionalFields": {}
+          }
+        }
+      },
+      {
+        "op": "connect",
+        "from": "Manual Trigger",
+        "to": "Insert User"
+      },
+      {
+        "op": "annotate",
+        "name": "Insert User",
+        "text": "Requires PostgreSQL credentials to be configured"
+      }
+    ]
+  },
+  "validation": {
+    "expectedNodes": 2,
+    "expectedConnections": 1,
+    "mustHaveNodes": ["Manual Trigger", "Insert User"],
+    "requiresCredentials": ["postgres"]
+  }
+}
