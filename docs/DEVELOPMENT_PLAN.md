@@ -30,6 +30,10 @@ _Last updated: 2025-08-29_
 - Set up pnpm workspace, docker-compose dev stack (n8n fork, orchestrator, redis, qdrant).
 - Bootstrap baseline SGR schemas.
 
+#### Acceptance
+- `pnpm run dev` поднимает стек (n8n, orchestrator, panel, redis, qdrant).
+- `GET /introspect/nodes` отвечает 200, линтер и typecheck зелёные.
+
 ### Sprint 1 — Vertical Slice 0 (2 weeks)
 - **Backend**: Introspect API v0 (static `NodeDescription`, no `loadOptions`).
 - **Backend**: Graph Mutation API `add_node` + pre-validation.
@@ -37,11 +41,19 @@ _Last updated: 2025-08-29_
 - **Frontend**: AI panel MVP — Describe → HTTP GET node → diff (list) → Apply/Undo.
 - **QA**: 10 golden flows scripted; CI regression pipeline.
 
+#### Acceptance
+- Из промпта “HTTP GET JSONPlaceholder” формируется валидный `add_node` и diff.
+- Сервер отклоняет невалидные батчи; golden flows проходят локально (скриншоты, снапшоты diff).
+
 ### Sprint 2 — Connections & Validation (2 weeks)
 - Add Graph ops: `connect`, `set_params`, `delete`, `annotate`.
 - Implement lints v0: missing trigger, dangling branches, enum/required.
 - Execution Events (SSE) stub.
 - Canvas diff colours & “Changes” panel.
+
+#### Acceptance
+- Минимальный ETL собирается через дифф; ошибки уровня error блокируют Apply.
+- SSE отдаёт heartbeat каждые 15s; события build_progress приходят.
 
 ### Sprint 3 — Dynamics & Simulation (3 weeks)
 - **Backend**: Sandbox `loadOptions` with timeout/cache/ETag.
@@ -49,20 +61,38 @@ _Last updated: 2025-08-29_
 - **Orchestrator**: Critic v1 auto-fix loop.
 - **Frontend**: Autocomplete for `={{ }}` expressions (stub).
 
+#### Acceptance
+- loadOptions из sandbox кэшируется (TTL) и инвалидируется по хешу кредов/установке нод.
+- Отчёт симуляции содержит p95 оценку и предупреждения линтов; авто‑фикс правит enum.
+
 ### Sprint 4 — Workflow Map (2 weeks)
 - Build dependency indexer (Execute Workflow, HTTP→Webhook heuristic).
 - Expose REST `/workflow-map` and WS `/live` endpoints.
 - Map tab: static view first, then live statuses overlay.
+
+#### Acceptance
+- Покрытие Execute Workflow ≥ 95%; HTTP→Webhook ≥ 70% (с подтверждением).
+- WS `/live` отдаёт статусы и базовую стоимость; карта кликабельна.
 
 ### Sprint 5 — Governance, Git & Refactors (2 weeks)
 - Implement diff policies (whitelist/limits), audit log (user, promptHash, diffHash, model, cost).
 - Git integration: Apply → commit/PR, CI Validate/Simulate.
 - New Graph ops: `replace_node`, `extract_subworkflow`, `optimize_batches`.
 
+#### Acceptance
+- Политики применяются до Apply (4xx `policy_violation` при нарушении).
+- Кнопка Git создаёт PR с ссылкой на визуальный diff и отчёт симуляции.
+- `replace_node` проходит без потери параметров; undo/redo работает.
+
 ### Polish & Release (1 week)
 - Performance: schema cache, RAG context trimming, pre-warm hot nodes.
 - UX: Secrets Wizard v1, Explain-node snippet, map cost tooltips.
 - Documentation, demo video, upstream PRs for extension points.
+
+#### Acceptance
+- MVP метрики достигнуты: Describe→Apply для ETL ≤ 5 мин; 
+  первый Apply ≥ 80%; авто‑исправления ≥ 70%; карта показывает связи/статусы/стоимость; 
+  credentials‑only соблюдается, аудит и политики включены.
 
 ---
 

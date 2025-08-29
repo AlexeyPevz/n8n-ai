@@ -186,6 +186,8 @@ pnpm e2e         # golden flows regression (Playwright)
 `POST /graph/:id/validate` → lint report
 `POST /graph/:id/simulate` → dry-run stats
 
+OpenAPI spec is available at `docs/OPENAPI.yaml`.
+
 ### 8.4 Events
 `/events` (SSE) → `workflow_start|finish|error`, `node_start|finish` …
 

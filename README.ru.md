@@ -167,6 +167,7 @@ pnpm e2e    # регрессия golden flows (Playwright)
 * `POST /graph/:id/validate`
 * `POST /graph/:id/simulate`
 * SSE `/events`
+* OpenAPI: см. `docs/OPENAPI.yaml`
 
 ---
 
