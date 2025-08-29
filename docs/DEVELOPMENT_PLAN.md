@@ -15,7 +15,7 @@ _Last updated: 2025-08-29_
 ## Timeline (12 weeks)
 | № | Sprint | Dates (2025) | Scope (short) | Status |
 |---|--------|--------------|---------------|--------|
-| 0 | Initialisation | **Sep 1 – Sep 7** | Repos scaffold, dev-stack, baseline schemas | 🚧 In Progress |
+| 0 | Initialisation | **Aug 29** | Repos scaffold, dev-stack, baseline schemas | ✅ Completed |
 | 1 | Vertical Slice 0 | **Sep 8 – Sep 21** | Introspect v0, `add_node`, AI panel MVP, golden flows | 🗓 Planned |
 | 2 | Connections & Validation | **Sep 22 – Oct 5** | Batch ops (`connect`, `set_params`, …), lints v0, canvas diff | 🗓 Planned |
 | 3 | Dynamics & Simulation | **Oct 6 – Oct 26** | Sandbox `loadOptions`, Simulate API, Critic v1, expressions | 🗓 Planned |
