@@ -74,8 +74,12 @@ export class IntrospectAPI {
     let latestNode: INodeTypeDescription | null = null;
     
     for (const [key, nodeType] of this.nodeTypes) {
-      if (nodeType.name === type && nodeType.version > latestVersion) {
-        latestVersion = nodeType.version;
+      const nodeVersion = Array.isArray(nodeType.version) 
+        ? nodeType.version[nodeType.version.length - 1] 
+        : nodeType.version;
+        
+      if (nodeType.name === type && nodeVersion > latestVersion) {
+        latestVersion = nodeVersion;
         latestNode = nodeType;
       }
     }
@@ -87,24 +91,38 @@ export class IntrospectAPI {
    * Конвертирует INodeTypeDescription в упрощенный формат для AI
    */
   private convertToIntrospection(nodeType: INodeTypeDescription): NodeIntrospection {
+    // Обрабатываем версию (может быть массивом)
+    const version = Array.isArray(nodeType.version) 
+      ? nodeType.version[nodeType.version.length - 1] 
+      : nodeType.version;
+    
+    // Обрабатываем inputs/outputs (могут быть сложными типами)
+    const inputs = Array.isArray(nodeType.inputs) 
+      ? nodeType.inputs.map(input => typeof input === 'string' ? input : 'main')
+      : ['main'];
+    
+    const outputs = Array.isArray(nodeType.outputs)
+      ? nodeType.outputs.map(output => typeof output === 'string' ? output : 'main') 
+      : ['main'];
+    
     return {
       name: nodeType.name,
       displayName: nodeType.displayName,
       type: nodeType.name,
-      version: nodeType.version,
+      version: version,
       description: nodeType.description,
       defaults: nodeType.defaults,
-      inputs: nodeType.inputs,
-      outputs: nodeType.outputs,
+      inputs: inputs,
+      outputs: outputs,
       properties: nodeType.properties.map(prop => ({
         name: prop.name,
         displayName: prop.displayName,
-        type: prop.type,
+        type: prop.type as string,
         default: prop.default,
         required: prop.required,
-        options: prop.options,
-        typeOptions: prop.typeOptions,
-        displayOptions: prop.displayOptions,
+        options: prop.options as INodePropertyOptions[] | undefined,
+        typeOptions: prop.typeOptions as Record<string, any> | undefined,
+        displayOptions: prop.displayOptions as Record<string, any> | undefined,
       })),
       credentials: nodeType.credentials,
     };
