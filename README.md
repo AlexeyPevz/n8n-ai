@@ -102,16 +102,46 @@ State machine: `Idle → Clarifying → Planning → Review → Secrets → Buil
 ```bash
 git clone https://github.com/your-org/n8n-ai.git
 cd n8n-ai
+corepack enable
 pnpm install
-pnpm run dev        # spins docker-compose with hot-reload
+docker compose up -d        # start n8n, redis, qdrant
+pnpm -r run dev             # start orchestrator and panel in parallel
 ```
-UI is served on `http://localhost:5678` (n8n) and `http://localhost:3000` (AI panel).
+UI/services:
+- `http://localhost:5678` – n8n
+- `http://localhost:3000` – Orchestrator API
+- `http://localhost:3001` – AI Panel (dev)
 
 ### 5.3 Running tests
 ```bash
 pnpm test        # unit + lints
 pnpm e2e         # golden flows regression (Playwright)
 ```
+
+### 5.4 Quick smoke tests
+```bash
+# Introspect
+curl -s http://localhost:3000/introspect/nodes | jq .
+
+# Plan (returns OperationBatch)
+curl -s -X POST http://localhost:3000/plan \
+  -H 'content-type: application/json' \
+  -d '{"prompt":"HTTP GET JSONPlaceholder"}' | jq .
+
+# Apply batch (mock OK response for now)
+curl -s -X POST http://localhost:3000/graph/demo/batch \
+  -H 'content-type: application/json' \
+  -d '{"version":"v1","ops":[{"op":"annotate","name":"Manual Trigger","text":"demo"}]}' | jq .
+
+# SSE events (hit Ctrl+C to stop)
+curl -N http://localhost:3000/events | sed -n '1,10p'
+```
+
+### 5.5 Troubleshooting
+- pnpm not found: `corepack enable && corepack prepare pnpm@8.15.0 --activate`.
+- Node version: require Node ≥ 20 (`node -v`).
+- Ports in use: adjust `.env` or exported env vars (`N8N_PORT`, `ORCH_PORT`).
+- CORS: orchestrator enables CORS (`@fastify/cors`) for dev; if panel can’t reach API, check port 3000.
 
 ---
 

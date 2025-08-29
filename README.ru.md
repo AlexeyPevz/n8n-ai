@@ -103,16 +103,46 @@
 ```bash
 git clone https://github.com/your-org/n8n-ai.git
 cd n8n-ai
+corepack enable
 pnpm install
-pnpm run dev
+docker compose up -d         # n8n, redis, qdrant
+pnpm -r run dev              # оркестратор и панель
 ```
-UI: `http://localhost:5678` (n8n) и `http://localhost:3000` (AI-панель).
+Сервисы:
+- `http://localhost:5678` — n8n
+- `http://localhost:3000` — Orchestrator API
+- `http://localhost:3001` — AI Panel (dev)
 
 ### 5.3 Тесты
 ```bash
 pnpm test   # unit + lints
 pnpm e2e    # регрессия golden flows (Playwright)
 ```
+
+### 5.4 Быстрые проверки (smoke)
+```bash
+# Introspect
+curl -s http://localhost:3000/introspect/nodes | jq .
+
+# План (вернёт OperationBatch)
+curl -s -X POST http://localhost:3000/plan \
+  -H 'content-type: application/json' \
+  -d '{"prompt":"HTTP GET JSONPlaceholder"}' | jq .
+
+# Применение батча (пока мок-ответ OK)
+curl -s -X POST http://localhost:3000/graph/demo/batch \
+  -H 'content-type: application/json' \
+  -d '{"version":"v1","ops":[{"op":"annotate","name":"Manual Trigger","text":"demo"}]}' | jq .
+
+# SSE события (Ctrl+C чтобы остановить)
+curl -N http://localhost:3000/events | sed -n '1,10p'
+```
+
+### 5.5 Troubleshooting
+- pnpm не находится: `corepack enable && corepack prepare pnpm@8.15.0 --activate`.
+- Node версия: нужна ≥ 20 (`node -v`).
+- Заняты порты: настройте `.env` (`N8N_PORT`, `ORCH_PORT`).
+- CORS: в dev включен (`@fastify/cors`); если панель не видит API — проверьте порт 3000.
 
 ---
 
