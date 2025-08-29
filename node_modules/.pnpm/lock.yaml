@@ -12,6 +12,8 @@ importers:
         specifier: ^5.5.4
         version: 5.9.2
 
+  packages/n8n-ai-hooks: {}
+
   packages/n8n-ai-orchestrator:
     dependencies:
       '@fastify/cors':
