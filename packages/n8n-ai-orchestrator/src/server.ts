@@ -19,6 +19,30 @@ server.get("/introspect/nodes", async () => {
   ];
 });
 
+server.post<{ Body: { prompt?: string } }>("/plan", async (req) => {
+  const prompt = req.body?.prompt ?? "";
+  // Very naive stub: return a deterministic small batch
+  const batch = {
+    version: "v1",
+    ops: [
+      {
+        op: "add_node" as const,
+        node: {
+          id: "http-1",
+          name: "Fetch",
+          type: "n8n-nodes-base.httpRequest",
+          typeVersion: 4,
+          position: [600, 300] as [number, number],
+          parameters: { method: "GET", url: "https://jsonplaceholder.typicode.com/todos/1" }
+        }
+      },
+      { op: "connect" as const, from: "Manual Trigger", to: "Fetch", index: 0 },
+      { op: "annotate" as const, name: "Fetch", text: `Plan from prompt: ${prompt.slice(0, 64)}` }
+    ]
+  };
+  return batch;
+});
+
 server.post<{
   Params: { id: string };
   Body: unknown;

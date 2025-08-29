@@ -34,16 +34,18 @@ function plan() {
   planItems.value = ["Add HTTP Request node", "Connect to Manual Trigger"];
 }
 function preview() {
-  diff.value = JSON.stringify(
-    {
-      ops: [
-        { op: "add_node", node: { id: "http-1", type: "n8n-nodes-base.httpRequest" } },
-        { op: "connect", from: "Manual Trigger", to: "http-1" }
-      ]
-    },
-    null,
-    2
-  );
+  fetch("http://localhost:3000/plan", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ prompt: prompt.value })
+  })
+    .then((r) => r.json())
+    .then((json) => {
+      diff.value = JSON.stringify(json, null, 2);
+    })
+    .catch((e) => {
+      diff.value = `Error: ${String(e)}`;
+    });
 }
 function apply() {
   alert("Apply clicked");
