@@ -1,0 +1,27 @@
+graph LR
+  subgraph n8n["n8n (fork)"]
+    A[Introspect API]
+    B[Graph Mutation API]
+    C[Validate/Simulate API]
+    D[Events (SSE/WS)]
+  end
+  subgraph Orchestrator["Orchestrator (sidecar)"]
+    P[Planner]
+    U[Builder]
+    V[Validator]
+    R[Critic]
+    S[Schemas Cache]
+    G[RAG]
+  end
+  subgraph UI["UI"]
+    E[Editor]
+    X[AI Panel]
+    M[Workflow Map]
+  end
+  E <--> X
+  X -->|/plan| Orchestrator
+  Orchestrator -->|/graph/*| n8n
+  n8n -->|/events| X
+  Orchestrator -->|/simulate, /validate| n8n
+  Orchestrator --> S
+  Orchestrator --> G

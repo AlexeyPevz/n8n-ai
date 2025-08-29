@@ -29,6 +29,8 @@ Key goals:
         └────────────────┘                      └─────────────────┘
 ```
 
+See diagram at `docs/diagrams/architecture.mmd` (Mermaid).
+
 ### 2.1 Thin fork of n8n (`n8n-ai-hooks`)
 * Adds **Introspect API** – runtime node description & sandbox `loadOptions`.
 * **Graph Mutation API** – typed batch ops (`add_node`, `set_params`, …) with pre-validation & undo/redo.
@@ -104,6 +106,7 @@ git clone https://github.com/your-org/n8n-ai.git
 cd n8n-ai
 corepack enable
 pnpm install
+cp .env.example .env
 docker compose up -d        # start n8n, redis, qdrant
 pnpm -r run dev             # start orchestrator and panel in parallel
 ```
@@ -216,7 +219,7 @@ curl -N http://localhost:3000/events | sed -n '1,10p'
 `POST /graph/:id/validate` → lint report
 `POST /graph/:id/simulate` → dry-run stats
 
-OpenAPI spec is available at `docs/OPENAPI.yaml`.
+Hooks API OpenAPI: `docs/OPENAPI.yaml`. Orchestrator (Planner) OpenAPI: `docs/OPENAPI.orchestrator.yaml`.
 
 ### 8.4 Events
 `/events` (SSE) → `workflow_start|finish|error`, `node_start|finish` …
