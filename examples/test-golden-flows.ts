@@ -1,5 +1,6 @@
 import { readFileSync } from 'fs';
-import { join } from 'path';
+import { join, dirname } from 'path';
+import { fileURLToPath } from 'url';
 import { OperationBatchSchema } from '@n8n-ai/schemas';
 
 interface GoldenFlow {
@@ -64,6 +65,8 @@ async function testGoldenFlow(flowPath: string): Promise<boolean> {
 async function runTests() {
   console.log('🧪 Testing Golden Flows for n8n-ai\n');
   
+  const __filename = fileURLToPath(import.meta.url);
+  const __dirname = dirname(__filename);
   const goldenFlowsDir = join(__dirname, 'golden-flows');
   const indexPath = join(goldenFlowsDir, 'index.json');
   

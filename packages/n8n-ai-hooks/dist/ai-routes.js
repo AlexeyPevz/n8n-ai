@@ -3,6 +3,7 @@
  */
 import { Router } from 'express';
 import { introspectAPI } from './introspect-api';
+import { OperationBatchSchema } from '@n8n-ai/schemas';
 export function createAIRoutes() {
     const router = Router();
     // Introspect API endpoints
@@ -62,29 +63,24 @@ export function createAIRoutes() {
     router.post('/api/v1/ai/graph/:id/batch', async (req, res) => {
         try {
             const { id } = req.params;
-            const batch = req.body;
-            // TODO: Валидация через схемы
+            const parsed = OperationBatchSchema.safeParse(req.body);
+            if (!parsed.success) {
+                return res.status(400).json({ ok: false, error: 'invalid_operation_batch', issues: parsed.error.format() });
+            }
+            const batch = parsed.data;
             // TODO: Применение операций к воркфлоу
-            res.json({
-                success: true,
-                workflowId: id,
-                appliedOperations: batch.ops.length,
-                undoId: `undo_${Date.now()}`
-            });
+            return res.json({ ok: true, workflowId: id, appliedOperations: batch.ops.length, undoId: `undo_${Date.now()}` });
         }
         catch (error) {
-            res.status(500).json({
-                error: 'Failed to apply batch',
-                message: error instanceof Error ? error.message : 'Unknown error'
-            });
+            return res.status(500).json({ ok: false, error: 'failed_to_apply_batch', message: error instanceof Error ? error.message : 'Unknown error' });
         }
     });
     router.post('/api/v1/ai/graph/:id/validate', async (req, res) => {
         try {
             const { id } = req.params;
             // TODO: Реальная валидация воркфлоу
-            res.json({
-                valid: true,
+            return res.json({
+                ok: true,
                 lints: [
                     {
                         code: 'no_error_handling',
@@ -96,10 +92,7 @@ export function createAIRoutes() {
             });
         }
         catch (error) {
-            res.status(500).json({
-                error: 'Failed to validate',
-                message: error instanceof Error ? error.message : 'Unknown error'
-            });
+            return res.status(500).json({ ok: false, error: 'failed_to_validate', message: error instanceof Error ? error.message : 'Unknown error' });
         }
     });
     router.post('/api/v1/ai/graph/:id/simulate', async (req, res) => {
@@ -107,8 +100,8 @@ export function createAIRoutes() {
             const { id } = req.params;
             const { inputData } = req.body;
             // TODO: Реальная симуляция с mock данными
-            res.json({
-                success: true,
+            return res.json({
+                ok: true,
                 stats: {
                     nodesVisited: 3,
                     estimatedDurationMs: 1500,
@@ -121,10 +114,7 @@ export function createAIRoutes() {
             });
         }
         catch (error) {
-            res.status(500).json({
-                error: 'Failed to simulate',
-                message: error instanceof Error ? error.message : 'Unknown error'
-            });
+            return res.status(500).json({ ok: false, error: 'failed_to_simulate', message: error instanceof Error ? error.message : 'Unknown error' });
         }
     });
     // Health check

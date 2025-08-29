@@ -24,6 +24,16 @@ importers:
         specifier: ^5.5.4
         version: 5.9.2
 
+  examples:
+    dependencies:
+      '@n8n-ai/schemas':
+        specifier: workspace:*
+        version: link:../packages/n8n-ai-schemas
+    devDependencies:
+      tsx:
+        specifier: ^4.20.5
+        version: 4.20.5
+
   packages/n8n-ai-hooks:
     dependencies:
       '@n8n-ai/schemas':
