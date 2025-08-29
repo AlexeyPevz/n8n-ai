@@ -5,6 +5,11 @@
 import { Router } from 'express';
 import { introspectAPI } from './introspect-api';
 import { OperationBatchSchema } from '@n8n-ai/schemas';
+import { loadBuiltinNodes } from './load-builtin-nodes';
+
+// Инициализируем introspect API с встроенными нодами
+const builtinNodes = loadBuiltinNodes();
+introspectAPI.registerNodeTypes(builtinNodes);
 
 // Простейший in-memory стек для Undo по workflowId
 const undoStacks: Map<string, Array<{ undoId: string; batch: unknown }>> = new Map();
