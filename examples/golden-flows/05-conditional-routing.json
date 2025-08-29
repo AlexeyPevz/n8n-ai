@@ -1,0 +1,97 @@
+{
+  "name": "05 Conditional Routing",
+  "description": "Route data based on conditions",
+  "prompt": "Create workflow that checks if number is greater than 100 and routes to different paths",
+  "expectedOperations": {
+    "version": "v1",
+    "ops": [
+      {
+        "op": "add_node",
+        "node": {
+          "id": "if-1",
+          "name": "Check Value",
+          "type": "n8n-nodes-base.if",
+          "typeVersion": 1,
+          "position": [600, 300],
+          "parameters": {
+            "conditions": {
+              "number": [
+                {
+                  "value1": "={{ $json.value }}",
+                  "operation": "larger",
+                  "value2": 100
+                }
+              ]
+            }
+          }
+        }
+      },
+      {
+        "op": "add_node",
+        "node": {
+          "id": "set-1",
+          "name": "Large Value",
+          "type": "n8n-nodes-base.set",
+          "typeVersion": 3,
+          "position": [800, 200],
+          "parameters": {
+            "assignments": {
+              "assignments": [
+                {
+                  "id": "1",
+                  "name": "status",
+                  "value": "large",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        }
+      },
+      {
+        "op": "add_node",
+        "node": {
+          "id": "set-2",
+          "name": "Small Value",
+          "type": "n8n-nodes-base.set",
+          "typeVersion": 3,
+          "position": [800, 400],
+          "parameters": {
+            "assignments": {
+              "assignments": [
+                {
+                  "id": "1",
+                  "name": "status",
+                  "value": "small",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        }
+      },
+      {
+        "op": "connect",
+        "from": "Manual Trigger",
+        "to": "Check Value"
+      },
+      {
+        "op": "connect",
+        "from": "Check Value",
+        "to": "Large Value",
+        "index": 0
+      },
+      {
+        "op": "connect",
+        "from": "Check Value",
+        "to": "Small Value",
+        "index": 1
+      }
+    ]
+  },
+  "validation": {
+    "expectedNodes": 4,
+    "expectedConnections": 3,
+    "mustHaveNodes": ["Manual Trigger", "Check Value", "Large Value", "Small Value"]
+  }
+}

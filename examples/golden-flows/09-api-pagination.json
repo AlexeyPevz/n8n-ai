@@ -1,0 +1,83 @@
+{
+  "name": "09 API Pagination",
+  "description": "Handle paginated API responses",
+  "prompt": "Fetch all pages from paginated API endpoint",
+  "expectedOperations": {
+    "version": "v1",
+    "ops": [
+      {
+        "op": "add_node",
+        "node": {
+          "id": "http-1",
+          "name": "Fetch Page",
+          "type": "n8n-nodes-base.httpRequest",
+          "typeVersion": 4,
+          "position": [600, 300],
+          "parameters": {
+            "method": "GET",
+            "url": "https://api.example.com/items",
+            "queryParametersUi": {
+              "parameter": [
+                {
+                  "name": "page",
+                  "value": "={{ $json.page || 1 }}"
+                },
+                {
+                  "name": "limit",
+                  "value": "100"
+                }
+              ]
+            },
+            "options": {
+              "response": {
+                "response": {
+                  "responseFormat": "json"
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        "op": "add_node",
+        "node": {
+          "id": "if-1",
+          "name": "Has More Pages?",
+          "type": "n8n-nodes-base.if",
+          "typeVersion": 1,
+          "position": [800, 300],
+          "parameters": {
+            "conditions": {
+              "boolean": [
+                {
+                  "value1": "={{ $json.hasNextPage }}",
+                  "value2": true
+                }
+              ]
+            }
+          }
+        }
+      },
+      {
+        "op": "connect",
+        "from": "Manual Trigger",
+        "to": "Fetch Page"
+      },
+      {
+        "op": "connect",
+        "from": "Fetch Page",
+        "to": "Has More Pages?"
+      },
+      {
+        "op": "annotate",
+        "name": "Fetch Page",
+        "text": "Loop back to fetch next page if hasNextPage is true"
+      }
+    ]
+  },
+  "validation": {
+    "expectedNodes": 3,
+    "expectedConnections": 2,
+    "mustHaveNodes": ["Manual Trigger", "Fetch Page", "Has More Pages?"]
+  }
+}

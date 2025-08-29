@@ -1,0 +1,70 @@
+{
+  "name": "08 File Processing",
+  "description": "Read CSV file and process data",
+  "prompt": "Read CSV file from disk and process each row",
+  "expectedOperations": {
+    "version": "v1",
+    "ops": [
+      {
+        "op": "add_node",
+        "node": {
+          "id": "read-file-1",
+          "name": "Read CSV",
+          "type": "n8n-nodes-base.readBinaryFile",
+          "typeVersion": 1,
+          "position": [400, 300],
+          "parameters": {
+            "filePath": "/data/users.csv"
+          }
+        }
+      },
+      {
+        "op": "add_node",
+        "node": {
+          "id": "csv-1",
+          "name": "Parse CSV",
+          "type": "n8n-nodes-base.spreadsheetFile",
+          "typeVersion": 2,
+          "position": [600, 300],
+          "parameters": {
+            "operation": "fromFile",
+            "fileFormat": "csv"
+          }
+        }
+      },
+      {
+        "op": "add_node",
+        "node": {
+          "id": "loop-1",
+          "name": "Process Each Row",
+          "type": "n8n-nodes-base.splitInBatches",
+          "typeVersion": 3,
+          "position": [800, 300],
+          "parameters": {
+            "batchSize": 1
+          }
+        }
+      },
+      {
+        "op": "connect",
+        "from": "Manual Trigger",
+        "to": "Read CSV"
+      },
+      {
+        "op": "connect",
+        "from": "Read CSV",
+        "to": "Parse CSV"
+      },
+      {
+        "op": "connect",
+        "from": "Parse CSV",
+        "to": "Process Each Row"
+      }
+    ]
+  },
+  "validation": {
+    "expectedNodes": 4,
+    "expectedConnections": 3,
+    "mustHaveNodes": ["Manual Trigger", "Read CSV", "Parse CSV", "Process Each Row"]
+  }
+}

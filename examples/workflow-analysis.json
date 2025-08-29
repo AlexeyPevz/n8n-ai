@@ -1,0 +1,522 @@
+{
+  "analyzedAt": "2025-08-29T19:35:55.875Z",
+  "totalWorkflows": 6,
+  "commonNodeTypes": [
+    "@n8n/n8n-nodes-langchain.agent",
+    "@n8n/n8n-nodes-langchain.embeddingsCohere",
+    "@n8n/n8n-nodes-langchain.embeddingsOpenAi",
+    "@n8n/n8n-nodes-langchain.lmChatAnthropic",
+    "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+    "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+    "@n8n/n8n-nodes-langchain.textSplitterCharacterTextSplitter",
+    "@n8n/n8n-nodes-langchain.toolVectorStore",
+    "@n8n/n8n-nodes-langchain.vectorStorePinecone",
+    "@n8n/n8n-nodes-langchain.vectorStoreSupabase",
+    "n8n-nodes-base.googleSheets",
+    "n8n-nodes-base.slack",
+    "n8n-nodes-base.stickyNote",
+    "n8n-nodes-base.webhook"
+  ],
+  "patterns": [
+    {
+      "name": "Abandoned Cart Email",
+      "description": "Workflow that triggers on webhook, sends Slack messages",
+      "nodeTypes": [
+        "n8n-nodes-base.stickyNote",
+        "n8n-nodes-base.webhook",
+        "@n8n/n8n-nodes-langchain.textSplitterCharacterTextSplitter",
+        "@n8n/n8n-nodes-langchain.embeddingsCohere",
+        "@n8n/n8n-nodes-langchain.vectorStoreSupabase",
+        "@n8n/n8n-nodes-langchain.toolVectorStore",
+        "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+        "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+        "@n8n/n8n-nodes-langchain.agent",
+        "n8n-nodes-base.googleSheets",
+        "n8n-nodes-base.slack"
+      ],
+      "commonParameters": {},
+      "connectionPatterns": []
+    },
+    {
+      "name": "Daily Email Digest",
+      "description": "Workflow that triggers on webhook, sends Slack messages",
+      "nodeTypes": [
+        "n8n-nodes-base.stickyNote",
+        "n8n-nodes-base.webhook",
+        "@n8n/n8n-nodes-langchain.textSplitterCharacterTextSplitter",
+        "@n8n/n8n-nodes-langchain.embeddingsOpenAi",
+        "@n8n/n8n-nodes-langchain.vectorStoreSupabase",
+        "@n8n/n8n-nodes-langchain.toolVectorStore",
+        "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+        "@n8n/n8n-nodes-langchain.lmChatAnthropic",
+        "@n8n/n8n-nodes-langchain.agent",
+        "n8n-nodes-base.googleSheets",
+        "n8n-nodes-base.slack"
+      ],
+      "commonParameters": {},
+      "connectionPatterns": []
+    },
+    {
+      "name": "GitHub Commit Jenkins",
+      "description": "Workflow that triggers on webhook, sends Slack messages",
+      "nodeTypes": [
+        "n8n-nodes-base.stickyNote",
+        "n8n-nodes-base.webhook",
+        "@n8n/n8n-nodes-langchain.textSplitterCharacterTextSplitter",
+        "@n8n/n8n-nodes-langchain.embeddingsOpenAi",
+        "@n8n/n8n-nodes-langchain.vectorStoreSupabase",
+        "@n8n/n8n-nodes-langchain.toolVectorStore",
+        "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+        "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+        "@n8n/n8n-nodes-langchain.agent",
+        "n8n-nodes-base.googleSheets",
+        "n8n-nodes-base.slack"
+      ],
+      "commonParameters": {},
+      "connectionPatterns": []
+    },
+    {
+      "name": "Inventory Slack Alert",
+      "description": "Workflow that triggers on webhook, sends Slack messages",
+      "nodeTypes": [
+        "n8n-nodes-base.stickyNote",
+        "n8n-nodes-base.webhook",
+        "@n8n/n8n-nodes-langchain.textSplitterCharacterTextSplitter",
+        "@n8n/n8n-nodes-langchain.embeddingsCohere",
+        "@n8n/n8n-nodes-langchain.vectorStorePinecone",
+        "@n8n/n8n-nodes-langchain.toolVectorStore",
+        "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+        "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+        "@n8n/n8n-nodes-langchain.agent",
+        "n8n-nodes-base.googleSheets",
+        "n8n-nodes-base.slack"
+      ],
+      "commonParameters": {},
+      "connectionPatterns": []
+    },
+    {
+      "name": "RSS Headlines Slack",
+      "description": "Workflow that triggers on webhook, sends Slack messages",
+      "nodeTypes": [
+        "n8n-nodes-base.stickyNote",
+        "n8n-nodes-base.webhook",
+        "@n8n/n8n-nodes-langchain.textSplitterCharacterTextSplitter",
+        "@n8n/n8n-nodes-langchain.embeddingsCohere",
+        "@n8n/n8n-nodes-langchain.vectorStorePinecone",
+        "@n8n/n8n-nodes-langchain.toolVectorStore",
+        "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+        "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+        "@n8n/n8n-nodes-langchain.agent",
+        "n8n-nodes-base.googleSheets",
+        "n8n-nodes-base.slack"
+      ],
+      "commonParameters": {},
+      "connectionPatterns": []
+    },
+    {
+      "name": "Stripe to QuickBooks",
+      "description": "Workflow that triggers on webhook, sends Slack messages",
+      "nodeTypes": [
+        "n8n-nodes-base.stickyNote",
+        "n8n-nodes-base.webhook",
+        "@n8n/n8n-nodes-langchain.textSplitterCharacterTextSplitter",
+        "@n8n/n8n-nodes-langchain.embeddingsOpenAi",
+        "@n8n/n8n-nodes-langchain.vectorStoreSupabase",
+        "@n8n/n8n-nodes-langchain.toolVectorStore",
+        "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+        "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+        "@n8n/n8n-nodes-langchain.agent",
+        "n8n-nodes-base.googleSheets",
+        "n8n-nodes-base.slack"
+      ],
+      "commonParameters": {},
+      "connectionPatterns": []
+    }
+  ],
+  "promptExamples": [
+    {
+      "name": "Abandoned Cart Email",
+      "prompt": "Create email workflow for Abandoned Cart Email",
+      "nodeTypes": [
+        "n8n-nodes-base.stickyNote",
+        "n8n-nodes-base.webhook",
+        "@n8n/n8n-nodes-langchain.textSplitterCharacterTextSplitter",
+        "@n8n/n8n-nodes-langchain.embeddingsCohere",
+        "@n8n/n8n-nodes-langchain.vectorStoreSupabase",
+        "@n8n/n8n-nodes-langchain.toolVectorStore",
+        "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+        "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+        "@n8n/n8n-nodes-langchain.agent",
+        "n8n-nodes-base.googleSheets",
+        "n8n-nodes-base.slack"
+      ],
+      "operations": [
+        {
+          "op": "add_node",
+          "type": "stickyNote"
+        },
+        {
+          "op": "add_node",
+          "type": "webhook"
+        },
+        {
+          "op": "add_node",
+          "type": "textSplitterCharacterTextSplitter"
+        },
+        {
+          "op": "add_node",
+          "type": "embeddingsCohere"
+        },
+        {
+          "op": "add_node",
+          "type": "vectorStoreSupabase"
+        },
+        {
+          "op": "add_node",
+          "type": "toolVectorStore"
+        },
+        {
+          "op": "add_node",
+          "type": "memoryBufferWindow"
+        },
+        {
+          "op": "add_node",
+          "type": "lmChatOpenAi"
+        },
+        {
+          "op": "add_node",
+          "type": "agent"
+        },
+        {
+          "op": "add_node",
+          "type": "googleSheets"
+        },
+        {
+          "op": "add_node",
+          "type": "slack"
+        }
+      ],
+      "connectionPatterns": []
+    },
+    {
+      "name": "Daily Email Digest",
+      "prompt": "Create email workflow for Daily Email Digest",
+      "nodeTypes": [
+        "n8n-nodes-base.stickyNote",
+        "n8n-nodes-base.webhook",
+        "@n8n/n8n-nodes-langchain.textSplitterCharacterTextSplitter",
+        "@n8n/n8n-nodes-langchain.embeddingsOpenAi",
+        "@n8n/n8n-nodes-langchain.vectorStoreSupabase",
+        "@n8n/n8n-nodes-langchain.toolVectorStore",
+        "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+        "@n8n/n8n-nodes-langchain.lmChatAnthropic",
+        "@n8n/n8n-nodes-langchain.agent",
+        "n8n-nodes-base.googleSheets",
+        "n8n-nodes-base.slack"
+      ],
+      "operations": [
+        {
+          "op": "add_node",
+          "type": "stickyNote"
+        },
+        {
+          "op": "add_node",
+          "type": "webhook"
+        },
+        {
+          "op": "add_node",
+          "type": "textSplitterCharacterTextSplitter"
+        },
+        {
+          "op": "add_node",
+          "type": "embeddingsOpenAi"
+        },
+        {
+          "op": "add_node",
+          "type": "vectorStoreSupabase"
+        },
+        {
+          "op": "add_node",
+          "type": "toolVectorStore"
+        },
+        {
+          "op": "add_node",
+          "type": "memoryBufferWindow"
+        },
+        {
+          "op": "add_node",
+          "type": "lmChatAnthropic"
+        },
+        {
+          "op": "add_node",
+          "type": "agent"
+        },
+        {
+          "op": "add_node",
+          "type": "googleSheets"
+        },
+        {
+          "op": "add_node",
+          "type": "slack"
+        }
+      ],
+      "connectionPatterns": []
+    },
+    {
+      "name": "GitHub Commit Jenkins",
+      "prompt": "Integrate GitHub GitHub Commit Jenkins with automation",
+      "nodeTypes": [
+        "n8n-nodes-base.stickyNote",
+        "n8n-nodes-base.webhook",
+        "@n8n/n8n-nodes-langchain.textSplitterCharacterTextSplitter",
+        "@n8n/n8n-nodes-langchain.embeddingsOpenAi",
+        "@n8n/n8n-nodes-langchain.vectorStoreSupabase",
+        "@n8n/n8n-nodes-langchain.toolVectorStore",
+        "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+        "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+        "@n8n/n8n-nodes-langchain.agent",
+        "n8n-nodes-base.googleSheets",
+        "n8n-nodes-base.slack"
+      ],
+      "operations": [
+        {
+          "op": "add_node",
+          "type": "stickyNote"
+        },
+        {
+          "op": "add_node",
+          "type": "webhook"
+        },
+        {
+          "op": "add_node",
+          "type": "textSplitterCharacterTextSplitter"
+        },
+        {
+          "op": "add_node",
+          "type": "embeddingsOpenAi"
+        },
+        {
+          "op": "add_node",
+          "type": "vectorStoreSupabase"
+        },
+        {
+          "op": "add_node",
+          "type": "toolVectorStore"
+        },
+        {
+          "op": "add_node",
+          "type": "memoryBufferWindow"
+        },
+        {
+          "op": "add_node",
+          "type": "lmChatOpenAi"
+        },
+        {
+          "op": "add_node",
+          "type": "agent"
+        },
+        {
+          "op": "add_node",
+          "type": "googleSheets"
+        },
+        {
+          "op": "add_node",
+          "type": "slack"
+        }
+      ],
+      "connectionPatterns": []
+    },
+    {
+      "name": "Inventory Slack Alert",
+      "prompt": "Send Inventory Slack Alert notifications to Slack",
+      "nodeTypes": [
+        "n8n-nodes-base.stickyNote",
+        "n8n-nodes-base.webhook",
+        "@n8n/n8n-nodes-langchain.textSplitterCharacterTextSplitter",
+        "@n8n/n8n-nodes-langchain.embeddingsCohere",
+        "@n8n/n8n-nodes-langchain.vectorStorePinecone",
+        "@n8n/n8n-nodes-langchain.toolVectorStore",
+        "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+        "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+        "@n8n/n8n-nodes-langchain.agent",
+        "n8n-nodes-base.googleSheets",
+        "n8n-nodes-base.slack"
+      ],
+      "operations": [
+        {
+          "op": "add_node",
+          "type": "stickyNote"
+        },
+        {
+          "op": "add_node",
+          "type": "webhook"
+        },
+        {
+          "op": "add_node",
+          "type": "textSplitterCharacterTextSplitter"
+        },
+        {
+          "op": "add_node",
+          "type": "embeddingsCohere"
+        },
+        {
+          "op": "add_node",
+          "type": "vectorStorePinecone"
+        },
+        {
+          "op": "add_node",
+          "type": "toolVectorStore"
+        },
+        {
+          "op": "add_node",
+          "type": "memoryBufferWindow"
+        },
+        {
+          "op": "add_node",
+          "type": "lmChatOpenAi"
+        },
+        {
+          "op": "add_node",
+          "type": "agent"
+        },
+        {
+          "op": "add_node",
+          "type": "googleSheets"
+        },
+        {
+          "op": "add_node",
+          "type": "slack"
+        }
+      ],
+      "connectionPatterns": []
+    },
+    {
+      "name": "RSS Headlines Slack",
+      "prompt": "Send RSS Headlines Slack notifications to Slack",
+      "nodeTypes": [
+        "n8n-nodes-base.stickyNote",
+        "n8n-nodes-base.webhook",
+        "@n8n/n8n-nodes-langchain.textSplitterCharacterTextSplitter",
+        "@n8n/n8n-nodes-langchain.embeddingsCohere",
+        "@n8n/n8n-nodes-langchain.vectorStorePinecone",
+        "@n8n/n8n-nodes-langchain.toolVectorStore",
+        "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+        "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+        "@n8n/n8n-nodes-langchain.agent",
+        "n8n-nodes-base.googleSheets",
+        "n8n-nodes-base.slack"
+      ],
+      "operations": [
+        {
+          "op": "add_node",
+          "type": "stickyNote"
+        },
+        {
+          "op": "add_node",
+          "type": "webhook"
+        },
+        {
+          "op": "add_node",
+          "type": "textSplitterCharacterTextSplitter"
+        },
+        {
+          "op": "add_node",
+          "type": "embeddingsCohere"
+        },
+        {
+          "op": "add_node",
+          "type": "vectorStorePinecone"
+        },
+        {
+          "op": "add_node",
+          "type": "toolVectorStore"
+        },
+        {
+          "op": "add_node",
+          "type": "memoryBufferWindow"
+        },
+        {
+          "op": "add_node",
+          "type": "lmChatOpenAi"
+        },
+        {
+          "op": "add_node",
+          "type": "agent"
+        },
+        {
+          "op": "add_node",
+          "type": "googleSheets"
+        },
+        {
+          "op": "add_node",
+          "type": "slack"
+        }
+      ],
+      "connectionPatterns": []
+    },
+    {
+      "name": "Stripe to QuickBooks",
+      "prompt": "Create Stripe to QuickBooks workflow",
+      "nodeTypes": [
+        "n8n-nodes-base.stickyNote",
+        "n8n-nodes-base.webhook",
+        "@n8n/n8n-nodes-langchain.textSplitterCharacterTextSplitter",
+        "@n8n/n8n-nodes-langchain.embeddingsOpenAi",
+        "@n8n/n8n-nodes-langchain.vectorStoreSupabase",
+        "@n8n/n8n-nodes-langchain.toolVectorStore",
+        "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+        "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+        "@n8n/n8n-nodes-langchain.agent",
+        "n8n-nodes-base.googleSheets",
+        "n8n-nodes-base.slack"
+      ],
+      "operations": [
+        {
+          "op": "add_node",
+          "type": "stickyNote"
+        },
+        {
+          "op": "add_node",
+          "type": "webhook"
+        },
+        {
+          "op": "add_node",
+          "type": "textSplitterCharacterTextSplitter"
+        },
+        {
+          "op": "add_node",
+          "type": "embeddingsOpenAi"
+        },
+        {
+          "op": "add_node",
+          "type": "vectorStoreSupabase"
+        },
+        {
+          "op": "add_node",
+          "type": "toolVectorStore"
+        },
+        {
+          "op": "add_node",
+          "type": "memoryBufferWindow"
+        },
+        {
+          "op": "add_node",
+          "type": "lmChatOpenAi"
+        },
+        {
+          "op": "add_node",
+          "type": "agent"
+        },
+        {
+          "op": "add_node",
+          "type": "googleSheets"
+        },
+        {
+          "op": "add_node",
+          "type": "slack"
+        }
+      ],
+      "connectionPatterns": []
+    }
+  ]
+}

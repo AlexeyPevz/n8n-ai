@@ -1,0 +1,34 @@
+{
+  "name": "01 Simple HTTP GET",
+  "description": "Basic HTTP GET request to fetch data",
+  "prompt": "Create HTTP GET request to fetch user data from JSONPlaceholder API",
+  "expectedOperations": {
+    "version": "v1",
+    "ops": [
+      {
+        "op": "add_node",
+        "node": {
+          "id": "http-1",
+          "name": "HTTP Request",
+          "type": "n8n-nodes-base.httpRequest",
+          "typeVersion": 4,
+          "position": [600, 300],
+          "parameters": {
+            "method": "GET",
+            "url": "https://jsonplaceholder.typicode.com/users"
+          }
+        }
+      },
+      {
+        "op": "connect",
+        "from": "Manual Trigger",
+        "to": "HTTP Request"
+      }
+    ]
+  },
+  "validation": {
+    "expectedNodes": 2,
+    "expectedConnections": 1,
+    "mustHaveNodes": ["Manual Trigger", "HTTP Request"]
+  }
+}

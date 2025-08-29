@@ -1,0 +1,99 @@
+{
+  "name": "10 Multi-step ETL",
+  "description": "Extract, transform and load data workflow",
+  "prompt": "Create ETL workflow: fetch data from API, transform it, filter records, and save to database",
+  "expectedOperations": {
+    "version": "v1",
+    "ops": [
+      {
+        "op": "add_node",
+        "node": {
+          "id": "http-1",
+          "name": "Extract Data",
+          "type": "n8n-nodes-base.httpRequest",
+          "typeVersion": 4,
+          "position": [400, 300],
+          "parameters": {
+            "method": "GET",
+            "url": "https://api.example.com/products"
+          }
+        }
+      },
+      {
+        "op": "add_node",
+        "node": {
+          "id": "code-1",
+          "name": "Transform Data",
+          "type": "n8n-nodes-base.code",
+          "typeVersion": 2,
+          "position": [600, 300],
+          "parameters": {
+            "jsCode": "return items.map(item => ({\n  json: {\n    id: item.json.id,\n    name: item.json.title.toUpperCase(),\n    price: parseFloat(item.json.price),\n    inStock: item.json.quantity > 0\n  }\n}));"
+          }
+        }
+      },
+      {
+        "op": "add_node",
+        "node": {
+          "id": "filter-1",
+          "name": "Filter In Stock",
+          "type": "n8n-nodes-base.filter",
+          "typeVersion": 1,
+          "position": [800, 300],
+          "parameters": {
+            "conditions": {
+              "boolean": [
+                {
+                  "value1": "={{ $json.inStock }}",
+                  "value2": true
+                }
+              ]
+            }
+          }
+        }
+      },
+      {
+        "op": "add_node",
+        "node": {
+          "id": "postgres-1",
+          "name": "Load to Database",
+          "type": "n8n-nodes-base.postgres",
+          "typeVersion": 2,
+          "position": [1000, 300],
+          "parameters": {
+            "operation": "insert",
+            "table": "products",
+            "columns": "id,name,price",
+            "additionalFields": {}
+          }
+        }
+      },
+      {
+        "op": "connect",
+        "from": "Manual Trigger",
+        "to": "Extract Data"
+      },
+      {
+        "op": "connect",
+        "from": "Extract Data",
+        "to": "Transform Data"
+      },
+      {
+        "op": "connect",
+        "from": "Transform Data",
+        "to": "Filter In Stock"
+      },
+      {
+        "op": "connect",
+        "from": "Filter In Stock",
+        "to": "Load to Database"
+      }
+    ]
+  },
+  "validation": {
+    "expectedNodes": 5,
+    "expectedConnections": 4,
+    "mustHaveNodes": ["Manual Trigger", "Extract Data", "Transform Data", "Filter In Stock", "Load to Database"],
+    "requiresCredentials": ["postgres"]
+  }
+}

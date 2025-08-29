@@ -1,0 +1,52 @@
+{
+  "name": "04 Data Transformation",
+  "description": "Fetch data and transform with code",
+  "prompt": "Get users from API and transform data to extract only names and emails",
+  "expectedOperations": {
+    "version": "v1",
+    "ops": [
+      {
+        "op": "add_node",
+        "node": {
+          "id": "http-1",
+          "name": "Get Users",
+          "type": "n8n-nodes-base.httpRequest",
+          "typeVersion": 4,
+          "position": [400, 300],
+          "parameters": {
+            "method": "GET",
+            "url": "https://jsonplaceholder.typicode.com/users"
+          }
+        }
+      },
+      {
+        "op": "add_node",
+        "node": {
+          "id": "code-1",
+          "name": "Extract Names & Emails",
+          "type": "n8n-nodes-base.code",
+          "typeVersion": 2,
+          "position": [700, 300],
+          "parameters": {
+            "jsCode": "return items.map(item => ({\n  json: {\n    name: item.json.name,\n    email: item.json.email\n  }\n}));"
+          }
+        }
+      },
+      {
+        "op": "connect",
+        "from": "Manual Trigger",
+        "to": "Get Users"
+      },
+      {
+        "op": "connect",
+        "from": "Get Users",
+        "to": "Extract Names & Emails"
+      }
+    ]
+  },
+  "validation": {
+    "expectedNodes": 3,
+    "expectedConnections": 2,
+    "mustHaveNodes": ["Manual Trigger", "Get Users", "Extract Names & Emails"]
+  }
+}

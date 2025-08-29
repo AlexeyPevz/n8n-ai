@@ -1,6 +1,8 @@
 import Fastify from "fastify";
 import cors from "@fastify/cors";
 import { OperationBatchSchema } from "@n8n-ai/schemas";
+import { SimplePlanner } from "./planner.js";
+import { patternMatcher } from "./pattern-matcher.js";
 const server = Fastify({ logger: true });
 await server.register(cors, { origin: true });
 server.get("/introspect/nodes", async () => {
@@ -15,28 +17,18 @@ server.get("/introspect/nodes", async () => {
         }
     ];
 });
+const planner = new SimplePlanner();
 server.post("/plan", async (req) => {
     const prompt = req.body?.prompt ?? "";
-    // Very naive stub: return a deterministic small batch
-    const batch = {
-        version: "v1",
-        ops: [
-            {
-                op: "add_node",
-                node: {
-                    id: "http-1",
-                    name: "Fetch",
-                    type: "n8n-nodes-base.httpRequest",
-                    typeVersion: 4,
-                    position: [600, 300],
-                    parameters: { method: "GET", url: "https://jsonplaceholder.typicode.com/todos/1" }
-                }
-            },
-            { op: "connect", from: "Manual Trigger", to: "Fetch", index: 0 },
-            { op: "annotate", name: "Fetch", text: `Plan from prompt: ${prompt.slice(0, 64)}` }
-        ]
-    };
-    return batch;
+    try {
+        const batch = await planner.plan({ prompt });
+        server.log.info({ prompt, operationsCount: batch.ops.length }, "Plan created");
+        return batch;
+    }
+    catch (error) {
+        server.log.error({ error, prompt }, "Planning failed");
+        throw error;
+    }
 });
 server.post("/graph/:id/batch", async (req) => {
     const parsed = OperationBatchSchema.safeParse(req.body);
@@ -57,6 +49,44 @@ server.post("/graph/:id/simulate", async () => {
     return {
         ok: true,
         stats: { nodesVisited: 5, estimatedDurationMs: 1200 }
+    };
+});
+server.get("/patterns", async () => {
+    const categories = patternMatcher.getCategories();
+    return {
+        categories,
+        totalPatterns: patternMatcher['patterns'].length,
+        examples: categories.slice(0, 5).map(cat => ({
+            category: cat,
+            patterns: patternMatcher.suggestByCategory(cat).slice(0, 3).map(p => ({
+                name: p.name,
+                keywords: p.keywords,
+                nodeCount: p.nodes.length
+            }))
+        }))
+    };
+});
+server.post("/suggest", async (req) => {
+    const { prompt, category } = req.body;
+    if (category) {
+        const patterns = patternMatcher.suggestByCategory(category);
+        return {
+            category,
+            patterns: patterns.map(p => ({
+                name: p.name,
+                description: `Workflow with ${p.nodes.length} nodes: ${p.nodes.map(n => n.name).join(' → ')}`
+            }))
+        };
+    }
+    const matches = patternMatcher.findMatchingPatterns(prompt);
+    return {
+        prompt,
+        suggestions: matches.slice(0, 5).map(m => ({
+            pattern: m.pattern.name,
+            score: m.score,
+            matchedKeywords: m.matchedKeywords,
+            preview: m.pattern.nodes.map(n => n.name).join(' → ')
+        }))
     };
 });
 server.get("/events", async (req, reply) => {

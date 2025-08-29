@@ -1,0 +1,48 @@
+{
+  "name": "07 Email Notification",
+  "description": "Send email notification on error",
+  "prompt": "Create error handler that sends email notification when workflow fails",
+  "expectedOperations": {
+    "version": "v1",
+    "ops": [
+      {
+        "op": "add_node",
+        "node": {
+          "id": "error-trigger-1",
+          "name": "Error Trigger",
+          "type": "n8n-nodes-base.errorTrigger",
+          "typeVersion": 1,
+          "position": [250, 300],
+          "parameters": {}
+        }
+      },
+      {
+        "op": "add_node",
+        "node": {
+          "id": "email-1",
+          "name": "Send Error Email",
+          "type": "n8n-nodes-base.emailSend",
+          "typeVersion": 2,
+          "position": [600, 300],
+          "parameters": {
+            "sendTo": "admin@example.com",
+            "subject": "Workflow Error: {{ $json.workflow.name }}",
+            "emailType": "text",
+            "message": "Error occurred in workflow {{ $json.workflow.name }}:\n\n{{ $json.execution.error.message }}"
+          }
+        }
+      },
+      {
+        "op": "connect",
+        "from": "Error Trigger",
+        "to": "Send Error Email"
+      }
+    ]
+  },
+  "validation": {
+    "expectedNodes": 2,
+    "expectedConnections": 1,
+    "mustHaveNodes": ["Error Trigger", "Send Error Email"],
+    "requiresCredentials": ["email"]
+  }
+}
