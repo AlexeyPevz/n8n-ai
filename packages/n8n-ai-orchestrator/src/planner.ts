@@ -1,5 +1,6 @@
 import type { OperationBatch } from "@n8n-ai/schemas";
-import { findMatchingPattern, generateOperationsFromPattern } from "./workflow-patterns.js";
+import { generateOperationsFromPattern } from "./workflow-patterns.js";
+import { patternMatcher } from "./pattern-matcher.js";
 
 interface PlannerContext {
   prompt: string;
@@ -14,17 +15,21 @@ export class SimplePlanner {
     const { prompt } = context;
     const promptLower = prompt.toLowerCase();
     
-    // Сначала пробуем найти подходящий паттерн
-    const pattern = findMatchingPattern(prompt);
-    if (pattern) {
-      console.log(`Found matching pattern: ${pattern.name}`);
-      const operations = generateOperationsFromPattern(pattern);
+    // Используем улучшенный матчер паттернов
+    const matchResults = patternMatcher.findMatchingPatterns(prompt);
+    
+    if (matchResults.length > 0) {
+      const bestMatch = matchResults[0];
+      console.log(`Found matching pattern: ${bestMatch.pattern.name} (score: ${bestMatch.score})`);
+      console.log(`Matched keywords: ${bestMatch.matchedKeywords.join(', ')}`);
+      
+      const operations = generateOperationsFromPattern(bestMatch.pattern);
       
       // Добавляем аннотацию с информацией о паттерне
       operations.push({
         op: "annotate",
-        name: pattern.nodes[0].name,
-        text: `Generated from pattern: ${pattern.name}`
+        name: bestMatch.pattern.nodes[0].name,
+        text: `Generated from pattern: ${bestMatch.pattern.name} (confidence: ${Math.round(bestMatch.score * 10)}%)`
       });
       
       return {
