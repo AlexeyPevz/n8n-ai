@@ -16,8 +16,12 @@
 
     <section v-if="diff">
       <h3>Diff Preview</h3>
-      <pre>{{ diff }}</pre>
+      <ul v-if="diffList.length">
+        <li v-for="(d, i) in diffList" :key="i">{{ d }}</li>
+      </ul>
+      <pre v-else>{{ diff }}</pre>
       <button @click="apply">Apply</button>
+      <button @click="undo">Undo</button>
       <button @click="test">Test</button>
     </section>
   </main>
@@ -29,6 +33,8 @@ import { ref } from "vue";
 const prompt = ref("");
 const planItems = ref<string[]>([]);
 const diff = ref<string>("");
+const diffList = ref<string[]>([]);
+const lastUndoId = ref<string|undefined>();
 const apiBase = (import.meta as any).env?.VITE_API_BASE || window.location.origin.replace(/:\d+$/, ":3000");
 const workflowId = "demo";
 
@@ -44,6 +50,16 @@ async function preview() {
     });
     const json = await r.json();
     diff.value = JSON.stringify(json, null, 2);
+    diffList.value = Array.isArray(json?.ops)
+      ? json.ops.map((op: any) => {
+          if (op.op === 'add_node') return `+ add_node: ${op.node?.name}`;
+          if (op.op === 'connect') return `→ connect: ${op.from} -> ${op.to}`;
+          if (op.op === 'annotate') return `✎ annotate: ${op.name}`;
+          if (op.op === 'set_params') return `⋯ set_params: ${op.name}`;
+          if (op.op === 'delete') return `− delete: ${op.name}`;
+          return op.op;
+        })
+      : [];
   } catch (e) {
     diff.value = `Error: ${String(e)}`;
   }
@@ -61,9 +77,27 @@ async function apply() {
       body: JSON.stringify(batch)
     });
     const json = await r.json();
-    alert(json.ok ? `Applied: ${json.appliedOperations}` : `Error: ${json.error}`);
+    if (json.ok) {
+      lastUndoId.value = json.undoId;
+      alert(`Applied: ${json.appliedOperations}`);
+    } else {
+      alert(`Error: ${json.error}`);
+    }
   } catch (e) {
     alert(`Apply error: ${String(e)}`);
+  }
+}
+async function undo() {
+  try {
+    const r = await fetch(`${apiBase}/graph/${workflowId}/undo`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ undoId: lastUndoId.value })
+    });
+    const json = await r.json();
+    alert(json.ok ? `Undone ops: ${json.undoneOperations}` : `Error: ${json.error}`);
+  } catch (e) {
+    alert(`Undo error: ${String(e)}`);
   }
 }
 async function test() {

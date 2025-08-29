@@ -4,6 +4,8 @@
 import { Router } from 'express';
 import { introspectAPI } from './introspect-api';
 import { OperationBatchSchema } from '@n8n-ai/schemas';
+// Простейший in-memory стек для Undo по workflowId
+const undoStacks = new Map();
 export function createAIRoutes() {
     const router = Router();
     // Introspect API endpoints
@@ -69,10 +71,41 @@ export function createAIRoutes() {
             }
             const batch = parsed.data;
             // TODO: Применение операций к воркфлоу
-            return res.json({ ok: true, workflowId: id, appliedOperations: batch.ops.length, undoId: `undo_${Date.now()}` });
+            const undoId = `undo_${Date.now()}`;
+            const stack = undoStacks.get(id) ?? [];
+            stack.push({ undoId, batch });
+            undoStacks.set(id, stack);
+            return res.json({ ok: true, workflowId: id, appliedOperations: batch.ops.length, undoId });
         }
         catch (error) {
             return res.status(500).json({ ok: false, error: 'failed_to_apply_batch', message: error instanceof Error ? error.message : 'Unknown error' });
+        }
+    });
+    // Undo последнего применённого батча
+    router.post('/api/v1/ai/graph/:id/undo', async (req, res) => {
+        try {
+            const { id } = req.params;
+            const { undoId } = (req.body ?? {});
+            const stack = undoStacks.get(id) ?? [];
+            if (stack.length === 0) {
+                return res.status(404).json({ ok: false, error: 'nothing_to_undo' });
+            }
+            let entry;
+            if (undoId) {
+                const idx = stack.findIndex((e) => e.undoId === undoId);
+                if (idx === -1)
+                    return res.status(404).json({ ok: false, error: 'undo_id_not_found' });
+                entry = stack.splice(idx, 1)[0];
+            }
+            else {
+                entry = stack.pop();
+            }
+            undoStacks.set(id, stack);
+            const undoneOps = entry?.batch?.ops?.length ?? 0;
+            return res.json({ ok: true, workflowId: id, undoneOperations: undoneOps });
+        }
+        catch (error) {
+            return res.status(500).json({ ok: false, error: 'failed_to_undo', message: error instanceof Error ? error.message : 'Unknown error' });
         }
     });
     router.post('/api/v1/ai/graph/:id/validate', async (req, res) => {
