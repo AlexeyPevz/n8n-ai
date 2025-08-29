@@ -29,29 +29,51 @@ import { ref } from "vue";
 const prompt = ref("");
 const planItems = ref<string[]>([]);
 const diff = ref<string>("");
+const apiBase = (import.meta as any).env?.VITE_API_BASE || window.location.origin.replace(/:\d+$/, ":3000");
+const workflowId = "demo";
 
 function plan() {
   planItems.value = ["Add HTTP Request node", "Connect to Manual Trigger"];
 }
-function preview() {
-  fetch("http://localhost:3000/plan", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ prompt: prompt.value })
-  })
-    .then((r) => r.json())
-    .then((json) => {
-      diff.value = JSON.stringify(json, null, 2);
-    })
-    .catch((e) => {
-      diff.value = `Error: ${String(e)}`;
+async function preview() {
+  try {
+    const r = await fetch(`${apiBase}/plan`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ prompt: prompt.value })
     });
+    const json = await r.json();
+    diff.value = JSON.stringify(json, null, 2);
+  } catch (e) {
+    diff.value = `Error: ${String(e)}`;
+  }
 }
-function apply() {
-  alert("Apply clicked");
+async function apply() {
+  try {
+    const batch = diff.value ? JSON.parse(diff.value) : null;
+    if (!batch || !batch.ops) {
+      alert("No batch to apply");
+      return;
+    }
+    const r = await fetch(`${apiBase}/graph/${workflowId}/batch`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(batch)
+    });
+    const json = await r.json();
+    alert(json.ok ? `Applied: ${json.appliedOperations}` : `Error: ${json.error}`);
+  } catch (e) {
+    alert(`Apply error: ${String(e)}`);
+  }
 }
-function test() {
-  alert("Test clicked");
+async function test() {
+  try {
+    const r = await fetch(`${apiBase}/graph/${workflowId}/validate`, { method: "POST" });
+    const json = await r.json();
+    alert(json.ok ? `Lints: ${json.lints?.length || 0}` : `Error: ${json.error}`);
+  } catch (e) {
+    alert(`Test error: ${String(e)}`);
+  }
 }
 </script>
 
