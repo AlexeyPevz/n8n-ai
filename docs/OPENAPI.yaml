@@ -1,0 +1,191 @@
+openapi: 3.1.0
+info:
+  title: n8n-ai Hooks API
+  version: 1.0.0
+servers:
+  - url: http://localhost:3000
+tags:
+  - name: Introspect
+  - name: Graph
+  - name: Validate
+  - name: Simulate
+  - name: Events
+paths:
+  /introspect/nodes:
+    get:
+      tags: [Introspect]
+      summary: List node descriptions
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/NodeDescription'
+  /graph/{id}/batch:
+    post:
+      tags: [Graph]
+      summary: Apply OperationBatch to a graph
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OperationBatch'
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BatchResponse'
+  /graph/{id}/validate:
+    post:
+      tags: [Validate]
+      summary: Validate current graph
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Lints
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidateResponse'
+  /graph/{id}/simulate:
+    post:
+      tags: [Simulate]
+      summary: Dry-run simulation
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Stats
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SimulateResponse'
+  /events:
+    get:
+      tags: [Events]
+      summary: Server-Sent Events
+      responses:
+        "200":
+          description: text/event-stream
+components:
+  schemas:
+    NodeDescription:
+      type: object
+      properties:
+        name: { type: string }
+        type: { type: string }
+        typeVersion: { type: integer }
+        parameters:
+          type: object
+          additionalProperties: true
+      required: [name, type, typeVersion]
+    OperationBatch:
+      type: object
+      properties:
+        version: { type: string, default: v1 }
+        ops:
+          type: array
+          items:
+            oneOf:
+              - $ref: '#/components/schemas/AddNode'
+              - $ref: '#/components/schemas/SetParams'
+              - $ref: '#/components/schemas/Connect'
+              - $ref: '#/components/schemas/Delete'
+              - $ref: '#/components/schemas/Annotate'
+      required: [ops]
+    AddNode:
+      type: object
+      properties:
+        op: { const: add_node }
+        node:
+          type: object
+          properties:
+            id: { type: string }
+            name: { type: string }
+            type: { type: string }
+            typeVersion: { type: integer }
+            position:
+              type: array
+              items: { type: number }
+              minItems: 2
+              maxItems: 2
+            parameters: { type: object, additionalProperties: true }
+          required: [id, name, type, typeVersion, position, parameters]
+      required: [op, node]
+    SetParams:
+      type: object
+      properties:
+        op: { const: set_params }
+        name: { type: string }
+        parameters: { type: object, additionalProperties: true }
+      required: [op, name, parameters]
+    Connect:
+      type: object
+      properties:
+        op: { const: connect }
+        from: { type: string }
+        to: { type: string }
+        index: { type: integer }
+      required: [op, from, to]
+    Delete:
+      type: object
+      properties:
+        op: { const: delete }
+        name: { type: string }
+      required: [op, name]
+    Annotate:
+      type: object
+      properties:
+        op: { const: annotate }
+        name: { type: string }
+        text: { type: string }
+      required: [op, name, text]
+    Lint:
+      type: object
+      properties:
+        code: { type: string }
+        level: { type: string, enum: [info, warn, error] }
+        message: { type: string }
+        node: { type: string }
+      required: [code, level, message]
+    BatchResponse:
+      type: object
+      properties:
+        ok: { type: boolean }
+        undoId: { type: string }
+        error: { type: string }
+      required: [ok]
+    ValidateResponse:
+      type: object
+      properties:
+        ok: { type: boolean }
+        lints:
+          type: array
+          items: { $ref: '#/components/schemas/Lint' }
+      required: [ok, lints]
+    SimulateResponse:
+      type: object
+      properties:
+        ok: { type: boolean }
+        stats:
+          type: object
+          additionalProperties: true
+      required: [ok]

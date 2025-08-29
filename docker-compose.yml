@@ -1,0 +1,58 @@
+version: "3.9"
+
+services:
+  n8n:
+    image: n8nio/n8n:1.71.1
+    container_name: n8n-ai-hooks
+    ports:
+      - "${N8N_PORT:-5678}:5678"
+    environment:
+      - N8N_PORT=5678
+      - NODE_FUNCTION_ALLOW_EXTERNAL=*
+      - N8N_ENCRYPTION_KEY=${N8N_ENCRYPTION_KEY:-dev-key}
+      - N8N_HOST=${N8N_HOST:-localhost}
+      - N8N_PROTOCOL=http
+      - WEBHOOK_URL=${N8N_WEBHOOK_URL:-http://localhost:5678/}
+    volumes:
+      - n8n_data:/home/node/.n8n
+    depends_on:
+      - redis
+      - qdrant
+
+  orchestrator:
+    image: node:20
+    container_name: n8n-ai-orchestrator
+    working_dir: /workspace
+    command: sh -c "corepack enable && pnpm -v || npm i -g pnpm@8 && pnpm -C packages/n8n-ai-orchestrator dev"
+    ports:
+      - "${ORCH_PORT:-3000}:3000"
+    environment:
+      - PORT=3000
+      - REDIS_URL=redis://redis:6379
+      - QDRANT_URL=http://qdrant:6333
+      - N8N_URL=http://n8n:5678
+      - LOG_LEVEL=debug
+    volumes:
+      - ./:/workspace
+    depends_on:
+      - redis
+      - qdrant
+      - n8n
+
+  redis:
+    image: redis:7
+    container_name: n8n-ai-redis
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+
+  qdrant:
+    image: qdrant/qdrant:v1.11.0
+    container_name: n8n-ai-qdrant
+    ports:
+      - "${QDRANT_PORT:-6333}:6333"
+    volumes:
+      - qdrant_storage:/qdrant/storage
+
+volumes:
+  n8n_data:
+  qdrant_storage:
