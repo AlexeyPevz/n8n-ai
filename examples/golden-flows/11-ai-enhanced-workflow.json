@@ -1,0 +1,93 @@
+{
+  "name": "11 AI Enhanced Workflow",
+  "description": "AI workflow with embeddings and vector storage",
+  "prompt": "Create AI workflow that processes text with OpenAI embeddings and stores in vector database",
+  "expectedOperations": {
+    "version": "v1",
+    "ops": [
+      {
+        "op": "add_node",
+        "node": {
+          "id": "webhook-1",
+          "name": "Webhook",
+          "type": "n8n-nodes-base.webhook",
+          "typeVersion": 1,
+          "position": [250, 300],
+          "parameters": {
+            "httpMethod": "POST",
+            "path": "ai-process"
+          }
+        }
+      },
+      {
+        "op": "add_node",
+        "node": {
+          "id": "splitter-1",
+          "name": "Split Text",
+          "type": "@n8n/n8n-nodes-langchain.textSplitterCharacterTextSplitter",
+          "typeVersion": 1,
+          "position": [450, 300],
+          "parameters": {
+            "chunkSize": 1000,
+            "chunkOverlap": 100
+          }
+        }
+      },
+      {
+        "op": "add_node",
+        "node": {
+          "id": "embeddings-1",
+          "name": "Create Embeddings",
+          "type": "@n8n/n8n-nodes-langchain.embeddingsOpenAi",
+          "typeVersion": 1,
+          "position": [650, 300],
+          "parameters": {
+            "model": "text-embedding-ada-002"
+          }
+        }
+      },
+      {
+        "op": "add_node",
+        "node": {
+          "id": "vector-1",
+          "name": "Store Vectors",
+          "type": "@n8n/n8n-nodes-langchain.vectorStoreSupabase",
+          "typeVersion": 1,
+          "position": [850, 300],
+          "parameters": {}
+        }
+      },
+      {
+        "op": "connect",
+        "from": "Webhook",
+        "to": "Split Text"
+      },
+      {
+        "op": "connect",
+        "from": "Split Text",
+        "to": "Create Embeddings"
+      },
+      {
+        "op": "connect",
+        "from": "Create Embeddings",
+        "to": "Store Vectors"
+      },
+      {
+        "op": "annotate",
+        "name": "Webhook",
+        "text": "Receives text data for AI processing"
+      },
+      {
+        "op": "annotate",
+        "name": "Store Vectors",
+        "text": "Requires Supabase credentials with pgvector extension"
+      }
+    ]
+  },
+  "validation": {
+    "expectedNodes": 4,
+    "expectedConnections": 3,
+    "mustHaveNodes": ["Webhook", "Split Text", "Create Embeddings", "Store Vectors"],
+    "requiresCredentials": ["openai", "supabase"]
+  }
+}

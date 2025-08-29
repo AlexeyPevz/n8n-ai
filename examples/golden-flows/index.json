@@ -62,6 +62,12 @@
       "name": "Multi-step ETL",
       "difficulty": "hard",
       "category": "etl"
+    },
+    {
+      "id": "11-ai-enhanced-workflow",
+      "name": "AI Enhanced Workflow",
+      "difficulty": "hard",
+      "category": "ai"
     }
   ]
 }

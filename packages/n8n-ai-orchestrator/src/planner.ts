@@ -1,4 +1,5 @@
 import type { OperationBatch } from "@n8n-ai/schemas";
+import { findMatchingPattern, generateOperationsFromPattern } from "./workflow-patterns.js";
 
 interface PlannerContext {
   prompt: string;
@@ -13,7 +14,26 @@ export class SimplePlanner {
     const { prompt } = context;
     const promptLower = prompt.toLowerCase();
     
-    // Простейшая логика на ключевых словах
+    // Сначала пробуем найти подходящий паттерн
+    const pattern = findMatchingPattern(prompt);
+    if (pattern) {
+      console.log(`Found matching pattern: ${pattern.name}`);
+      const operations = generateOperationsFromPattern(pattern);
+      
+      // Добавляем аннотацию с информацией о паттерне
+      operations.push({
+        op: "annotate",
+        name: pattern.nodes[0].name,
+        text: `Generated from pattern: ${pattern.name}`
+      });
+      
+      return {
+        version: "v1",
+        ops: operations
+      };
+    }
+    
+    // Если паттерн не найден, используем простую логику на ключевых словах
     const operations: OperationBatch["ops"] = [];
     
     // Определяем тип операции по ключевым словам
