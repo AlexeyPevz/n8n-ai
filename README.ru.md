@@ -29,6 +29,8 @@
         └────────────────┘                      └─────────────────┘
 ```
 
+См. диаграмму `docs/diagrams/architecture.mmd` (Mermaid).
+
 ### 2.1 Тонкий форк n8n (`n8n-ai-hooks`)
 * **Introspect API** — описание нод в рантайме + sandbox `loadOptions`.
 * **Graph Mutation API** — типизированные batch-операции (`add_node`, `set_params`, …) с предвалидацией и undo/redo.
@@ -105,6 +107,7 @@ git clone https://github.com/your-org/n8n-ai.git
 cd n8n-ai
 corepack enable
 pnpm install
+cp .env.example .env
 docker compose up -d         # n8n, redis, qdrant
 pnpm -r run dev              # оркестратор и панель
 ```
@@ -197,7 +200,8 @@ curl -N http://localhost:3000/events | sed -n '1,10p'
 * `POST /graph/:id/validate`
 * `POST /graph/:id/simulate`
 * SSE `/events`
-* OpenAPI: см. `docs/OPENAPI.yaml`
+* OpenAPI (Hooks): `docs/OPENAPI.yaml`
+* OpenAPI (Orchestrator/Planner): `docs/OPENAPI.orchestrator.yaml`
 
 ---
 

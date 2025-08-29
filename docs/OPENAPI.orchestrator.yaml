@@ -1,0 +1,160 @@
+openapi: 3.1.0
+info:
+  title: n8n-ai Orchestrator API
+  version: 0.1.0
+servers:
+  - url: http://localhost:3000
+tags:
+  - name: Planning
+  - name: Validation
+  - name: Simulation
+  - name: Events
+paths:
+  /plan:
+    post:
+      tags: [Planning]
+      summary: Generate an OperationBatch plan from a natural language prompt
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                prompt:
+                  type: string
+                  description: Natural language goal description
+              required: [prompt]
+      responses:
+        "200":
+          description: OperationBatch plan
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OperationBatch'
+  /graph/{id}/validate:
+    post:
+      tags: [Validation]
+      summary: Validate current graph
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Lints
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidateResponse'
+  /graph/{id}/simulate:
+    post:
+      tags: [Simulation]
+      summary: Dry-run simulation
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Stats
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SimulateResponse'
+  /events:
+    get:
+      tags: [Events]
+      summary: Server-Sent Events
+      responses:
+        "200":
+          description: text/event-stream
+components:
+  schemas:
+    OperationBatch:
+      type: object
+      properties:
+        version: { type: string, default: v1 }
+        ops:
+          type: array
+          items:
+            oneOf:
+              - $ref: '#/components/schemas/AddNode'
+              - $ref: '#/components/schemas/SetParams'
+              - $ref: '#/components/schemas/Connect'
+              - $ref: '#/components/schemas/Delete'
+              - $ref: '#/components/schemas/Annotate'
+      required: [ops]
+    AddNode:
+      type: object
+      properties:
+        op: { const: add_node }
+        node:
+          type: object
+          properties:
+            id: { type: string }
+            name: { type: string }
+            type: { type: string }
+            typeVersion: { type: integer }
+            position:
+              type: array
+              items: { type: number }
+              minItems: 2
+              maxItems: 2
+            parameters: { type: object, additionalProperties: true }
+          required: [id, name, type, typeVersion, position, parameters]
+      required: [op, node]
+    SetParams:
+      type: object
+      properties:
+        op: { const: set_params }
+        name: { type: string }
+        parameters: { type: object, additionalProperties: true }
+      required: [op, name, parameters]
+    Connect:
+      type: object
+      properties:
+        op: { const: connect }
+        from: { type: string }
+        to: { type: string }
+        index: { type: integer }
+      required: [op, from, to]
+    Delete:
+      type: object
+      properties:
+        op: { const: delete }
+        name: { type: string }
+      required: [op, name]
+    Annotate:
+      type: object
+      properties:
+        op: { const: annotate }
+        name: { type: string }
+        text: { type: string }
+      required: [op, name, text]
+    ValidateResponse:
+      type: object
+      properties:
+        ok: { type: boolean }
+        lints:
+          type: array
+          items:
+            type: object
+            properties:
+              code: { type: string }
+              level: { type: string, enum: [info, warn, error] }
+              message: { type: string }
+              node: { type: string }
+            required: [code, level, message]
+      required: [ok, lints]
+    SimulateResponse:
+      type: object
+      properties:
+        ok: { type: boolean }
+        stats:
+          type: object
+          additionalProperties: true
+      required: [ok]
+
