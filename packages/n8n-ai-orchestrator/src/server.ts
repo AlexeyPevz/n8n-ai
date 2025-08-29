@@ -1,6 +1,7 @@
 import Fastify from "fastify";
 import cors from "@fastify/cors";
 import { OperationBatchSchema } from "@n8n-ai/schemas";
+import { SimplePlanner } from "./planner.js";
 
 const server = Fastify({ logger: true });
 
@@ -19,28 +20,19 @@ server.get("/introspect/nodes", async () => {
   ];
 });
 
+const planner = new SimplePlanner();
+
 server.post<{ Body: { prompt?: string } }>("/plan", async (req) => {
   const prompt = req.body?.prompt ?? "";
-  // Very naive stub: return a deterministic small batch
-  const batch = {
-    version: "v1",
-    ops: [
-      {
-        op: "add_node" as const,
-        node: {
-          id: "http-1",
-          name: "Fetch",
-          type: "n8n-nodes-base.httpRequest",
-          typeVersion: 4,
-          position: [600, 300] as [number, number],
-          parameters: { method: "GET", url: "https://jsonplaceholder.typicode.com/todos/1" }
-        }
-      },
-      { op: "connect" as const, from: "Manual Trigger", to: "Fetch", index: 0 },
-      { op: "annotate" as const, name: "Fetch", text: `Plan from prompt: ${prompt.slice(0, 64)}` }
-    ]
-  };
-  return batch;
+  
+  try {
+    const batch = await planner.plan({ prompt });
+    server.log.info({ prompt, operationsCount: batch.ops.length }, "Plan created");
+    return batch;
+  } catch (error) {
+    server.log.error({ error, prompt }, "Planning failed");
+    throw error;
+  }
 });
 
 server.post<{
