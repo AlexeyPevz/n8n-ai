@@ -1,0 +1,66 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+      - name: Enable corepack and pnpm
+        run: |
+          corepack enable
+          corepack prepare pnpm@8.15.0 --activate
+      - name: Install dependencies
+        run: pnpm install --no-frozen-lockfile
+      - name: Build all packages
+        run: pnpm -r run build
+      - name: Run unit tests (schemas)
+        run: pnpm -C packages/n8n-ai-schemas test -- --run
+      - name: Run golden flows
+        run: pnpm -C examples test
+
+  smoke-stack:
+    runs-on: ubuntu-latest
+    needs: build-and-test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+      - name: Enable corepack and pnpm
+        run: |
+          corepack enable
+          corepack prepare pnpm@8.15.0 --activate
+      - name: Install dependencies
+        run: pnpm install --no-frozen-lockfile
+      - name: Build all packages
+        run: pnpm -r run build
+      - name: Start orchestrator
+        run: nohup node packages/n8n-ai-orchestrator/dist/server.js >/dev/null 2>&1 & echo $! > orch.pid
+      - name: Start hooks dev server
+        run: nohup npx tsx packages/n8n-ai-hooks/dev-server.ts >/dev/null 2>&1 & echo $! > hooks.pid
+      - name: Wait for services
+        run: |
+          for i in {1..30}; do nc -z localhost 3000 && break || sleep 1; done
+          for i in {1..30}; do nc -z localhost 4000 && break || sleep 1; done
+      - name: Smoke test orchestrator /plan
+        run: curl -sf -X POST http://localhost:3000/plan -H 'content-type: application/json' -d '{"prompt":"HTTP GET JSONPlaceholder"}' > /dev/null
+      - name: Smoke test hooks health and batch/undo
+        run: |
+          curl -sf http://localhost:4000/api/v1/ai/health > /dev/null
+          curl -sf -X POST http://localhost:4000/api/v1/ai/graph/demo/batch -H 'content-type: application/json' -d '{"version":"v1","ops":[{"op":"annotate","name":"Manual Trigger","text":"demo"}]}' > /dev/null
+          curl -sf -X POST http://localhost:4000/api/v1/ai/graph/demo/undo -H 'content-type: application/json' -d '{}' > /dev/null
+      - name: Stop services
+        if: always()
+        run: |
+          kill $(cat orch.pid) $(cat hooks.pid)

@@ -22,8 +22,13 @@ server.post("/plan", async (req) => {
     const prompt = req.body?.prompt ?? "";
     try {
         const batch = await planner.plan({ prompt });
-        server.log.info({ prompt, operationsCount: batch.ops.length }, "Plan created");
-        return batch;
+        const parsed = OperationBatchSchema.safeParse(batch);
+        if (!parsed.success) {
+            server.log.error({ prompt, issues: parsed.error.format() }, "Generated plan failed schema validation");
+            throw new Error("invalid_generated_operation_batch");
+        }
+        server.log.info({ prompt, operationsCount: parsed.data.ops.length }, "Plan created");
+        return parsed.data;
     }
     catch (error) {
         server.log.error({ error, prompt }, "Planning failed");

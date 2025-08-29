@@ -1,0 +1,14 @@
+{
+  "name": "@n8n-ai/examples",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "tsx test-golden-flows.ts"
+  },
+  "dependencies": {
+    "@n8n-ai/schemas": "workspace:*"
+  },
+  "devDependencies": {
+    "tsx": "^4.20.5"
+  }
+}
