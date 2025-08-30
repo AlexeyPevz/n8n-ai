@@ -112,6 +112,11 @@ server.post("/plan", async (req) => {
         throw error;
     }
 });
+// Тестовый endpoint: сбросить всё состояние
+server.post('/__test/reset', async () => {
+    graphManager.resetAll();
+    return { ok: true };
+});
 server.post("/graph/:id/batch", async (req) => {
     const { id: workflowId } = req.params;
     // Авто-создание воркфлоу, если он отсутствует

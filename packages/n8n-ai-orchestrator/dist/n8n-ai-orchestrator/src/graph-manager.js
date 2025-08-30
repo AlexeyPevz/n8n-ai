@@ -12,6 +12,15 @@ export class GraphManager {
         this.createWorkflow('demo', 'Demo Workflow');
     }
     /**
+     * Сбрасывает всё состояние (для тестов)
+     */
+    resetAll() {
+        this.workflows.clear();
+        this.undoStacks.clear();
+        this.redoStacks.clear();
+        this.createWorkflow('demo', 'Demo Workflow');
+    }
+    /**
      * Создает новый воркфлоу
      */
     createWorkflow(id, name) {

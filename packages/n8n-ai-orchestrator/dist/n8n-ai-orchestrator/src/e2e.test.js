@@ -23,6 +23,7 @@ describe('E2E: HTTP GET Workflow Creation', () => {
     beforeAll(async () => {
         // Проверяем, что сервер запущен
         try {
+            await apiRequest('/__test/reset', { method: 'POST' });
             await apiRequest('/patterns');
         }
         catch (error) {

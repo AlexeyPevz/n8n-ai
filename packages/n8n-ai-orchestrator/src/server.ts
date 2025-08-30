@@ -118,6 +118,12 @@ server.post<{ Body: { prompt?: string } }>("/plan", async (req) => {
   }
 });
 
+// Тестовый endpoint: сбросить всё состояние
+server.post('/__test/reset', async () => {
+  graphManager.resetAll();
+  return { ok: true };
+});
+
 server.post<{
   Params: { id: string };
   Body: unknown;
