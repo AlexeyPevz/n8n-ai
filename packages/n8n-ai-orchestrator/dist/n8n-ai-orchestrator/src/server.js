@@ -125,11 +125,23 @@ server.post("/graph/:id/batch", async (req) => {
     // Применяем операции через GraphManager
     const result = graphManager.applyBatch(workflowId, parsed.data);
     if (result.success) {
+        // После применения проверяем валидацию; при ошибках откатываем
+        const validation = graphManager.validate(workflowId);
+        const hasErrors = validation.lints.some(l => l.level === 'error');
+        if (hasErrors) {
+            const undone = graphManager.undo(workflowId, result.undoId);
+            server.log.warn({ workflowId, lints: validation.lints, undone }, 'Validation failed; operations rolled back');
+            return {
+                ok: false,
+                error: 'validation_failed',
+                lints: validation.lints
+            };
+        }
         server.log.info({
             workflowId,
             appliedOperations: result.appliedOperations,
             undoId: result.undoId
-        }, "Operations applied successfully");
+        }, 'Operations applied successfully');
         return {
             ok: true,
             undoId: result.undoId,
@@ -247,8 +259,11 @@ server.get("/events", async (req, reply) => {
         reply.raw.write(`data: ${JSON.stringify(data)}\n\n`);
     };
     send("hello", { sequenceId: 1, ts: Date.now() });
+    let progress = 0;
     const interval = setInterval(() => {
         send("heartbeat", { ts: Date.now() });
+        progress = (progress + 10) % 100;
+        send("build_progress", { ts: Date.now(), progress });
     }, 15000);
     req.raw.on("close", () => clearInterval(interval));
     return reply;
