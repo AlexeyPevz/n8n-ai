@@ -3,22 +3,75 @@ import cors from "@fastify/cors";
 import { OperationBatchSchema } from "@n8n-ai/schemas";
 import { SimplePlanner } from "./planner.js";
 import { patternMatcher } from "./pattern-matcher.js";
+import { graphManager } from "./graph-manager.js";
 
 const server = Fastify({ logger: true });
 
 await server.register(cors, { origin: true });
 
+// Простой прокси для n8n-ai-hooks Introspect API
 server.get("/introspect/nodes", async () => {
-  return [
-    {
-      name: "HTTP Request",
-      type: "n8n-nodes-base.httpRequest",
-      typeVersion: 4,
-      parameters: {
-        method: { enum: ["GET", "POST", "PUT", "DELETE"] }
+  try {
+    // В реальной интеграции это будет запрос к n8n-ai-hooks
+    // Пока возвращаем основные ноды для MVP
+    return [
+      {
+        name: "HTTP Request",
+        type: "n8n-nodes-base.httpRequest",
+        typeVersion: 4,
+        parameters: {
+          method: { enum: ["GET", "POST", "PUT", "DELETE"] },
+          url: { type: "string", required: true },
+          authentication: { enum: ["none", "basicAuth", "headerAuth", "oAuth2"] },
+          responseFormat: { enum: ["json", "text", "binary"] }
+        }
+      },
+      {
+        name: "Webhook",
+        type: "n8n-nodes-base.webhook",
+        typeVersion: 1,
+        parameters: {
+          httpMethod: { enum: ["GET", "POST", "PUT", "DELETE"] },
+          path: { type: "string", required: true }
+        }
+      },
+      {
+        name: "Schedule Trigger",
+        type: "n8n-nodes-base.scheduleTrigger",
+        typeVersion: 1,
+        parameters: {
+          rule: { type: "object" }
+        }
+      },
+      {
+        name: "Manual Trigger",
+        type: "n8n-nodes-base.manualTrigger",
+        typeVersion: 1,
+        parameters: {}
+      },
+      {
+        name: "Code",
+        type: "n8n-nodes-base.code",
+        typeVersion: 2,
+        parameters: {
+          language: { enum: ["javaScript", "python"] },
+          jsCode: { type: "string" }
+        }
+      },
+      {
+        name: "Set",
+        type: "n8n-nodes-base.set",
+        typeVersion: 1,
+        parameters: {
+          keepOnlySet: { type: "boolean" },
+          values: { type: "collection" }
+        }
       }
-    }
-  ];
+    ];
+  } catch (error) {
+    server.log.error({ error }, "Failed to fetch node types");
+    return [];
+  }
 });
 
 const planner = new SimplePlanner();
@@ -45,27 +98,104 @@ server.post<{
   Params: { id: string };
   Body: unknown;
 }>("/graph/:id/batch", async (req) => {
+  const { id: workflowId } = req.params;
+  
   const parsed = OperationBatchSchema.safeParse(req.body);
   if (!parsed.success) {
     return { ok: false, error: "invalid_operation_batch", issues: parsed.error.format() };
   }
-  return { ok: true, undoId: `undo_${Date.now()}` };
+  
+  // Применяем операции через GraphManager
+  const result = graphManager.applyBatch(workflowId, parsed.data);
+  
+  if (result.success) {
+    server.log.info({ 
+      workflowId, 
+      appliedOperations: result.appliedOperations,
+      undoId: result.undoId 
+    }, "Operations applied successfully");
+    
+    return { 
+      ok: true, 
+      undoId: result.undoId,
+      appliedOperations: result.appliedOperations
+    };
+  } else {
+    server.log.error({ workflowId, error: result.error }, "Failed to apply operations");
+    return { 
+      ok: false, 
+      error: result.error 
+    };
+  }
 });
 
-server.post<{ Params: { id: string } }>("/graph/:id/validate", async () => {
+server.post<{ Params: { id: string } }>("/graph/:id/validate", async (req) => {
+  const { id: workflowId } = req.params;
+  
+  const validationResult = graphManager.validate(workflowId);
+  
   return {
-    ok: true,
-    lints: [
-      { code: "missing_trigger", level: "warn", message: "No trigger node detected" }
-    ]
+    ok: validationResult.valid,
+    lints: validationResult.lints
   };
 });
 
-server.post<{ Params: { id: string } }>("/graph/:id/simulate", async () => {
-  return {
-    ok: true,
-    stats: { nodesVisited: 5, estimatedDurationMs: 1200 }
-  };
+server.post<{ Params: { id: string } }>("/graph/:id/simulate", async (req) => {
+  const { id: workflowId } = req.params;
+  
+  const simulationResult = graphManager.simulate(workflowId);
+  
+  return simulationResult;
+});
+
+server.post<{ 
+  Params: { id: string };
+  Body: { undoId?: string };
+}>("/graph/:id/undo", async (req) => {
+  const { id: workflowId } = req.params;
+  const { undoId } = req.body || {};
+  
+  const result = graphManager.undo(workflowId, undoId);
+  
+  if (result.success) {
+    server.log.info({ workflowId, undoId: result.undoId }, "Undo successful");
+    return { 
+      ok: true, 
+      undoId: result.undoId,
+      undoneOperations: result.appliedOperations
+    };
+  } else {
+    return { ok: false, error: result.error };
+  }
+});
+
+server.post<{ Params: { id: string } }>("/graph/:id/redo", async (req) => {
+  const { id: workflowId } = req.params;
+  
+  const result = graphManager.redo(workflowId);
+  
+  if (result.success) {
+    server.log.info({ workflowId }, "Redo successful");
+    return { 
+      ok: true,
+      redoneOperations: result.appliedOperations
+    };
+  } else {
+    return { ok: false, error: result.error };
+  }
+});
+
+// Endpoint для получения текущего состояния воркфлоу
+server.get<{ Params: { id: string } }>("/graph/:id", async (req) => {
+  const { id: workflowId } = req.params;
+  
+  const workflow = graphManager.getWorkflow(workflowId);
+  
+  if (workflow) {
+    return { ok: true, workflow };
+  } else {
+    return { ok: false, error: 'Workflow not found' };
+  }
 });
 
 server.get("/patterns", async () => {
