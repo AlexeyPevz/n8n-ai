@@ -10,6 +10,38 @@ import { randomUUID } from 'node:crypto';
 
 const server = Fastify({ logger: true });
 
+// Simple fetch with timeout and retries for proxying to n8n hooks
+async function fetchWithRetry(url: string, init: RequestInit & { timeoutMs?: number } = {}): Promise<Response> {
+  const retries = Math.max(0, Number(process.env.HOOKS_FETCH_RETRIES ?? 2));
+  const timeoutMs = Math.max(1, Number(init.timeoutMs ?? process.env.HOOKS_FETCH_TIMEOUT_MS ?? 3000));
+
+  const attempt = async (): Promise<Response> => {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      const resp = await fetch(url, { ...init, signal: controller.signal });
+      return resp;
+    } finally {
+      clearTimeout(timer);
+    }
+  };
+
+  let lastError: unknown;
+  for (let i = 0; i <= retries; i++) {
+    try {
+      const resp = await attempt();
+      if (resp.ok) return resp;
+      lastError = new Error(`HTTP ${resp.status}`);
+    } catch (e) {
+      lastError = e;
+    }
+    // exponential backoff: 200ms, 400ms, 800ms ...
+    const backoff = 200 * Math.pow(2, i);
+    await new Promise((r) => setTimeout(r, backoff));
+  }
+  throw lastError instanceof Error ? lastError : new Error('Unknown fetch error');
+}
+
 // Корреляция запросов: request-id
 server.addHook('onRequest', (req, reply, done) => {
   const headerId = req.headers['x-request-id'];
@@ -75,12 +107,10 @@ server.get('/introspect/nodes', async () => {
   // Пытаемся проксировать в n8n-ai-hooks, если доступен
   const hooksBase = process.env.N8N_URL ?? 'http://localhost:5678';
   try {
-    const resp = await fetch(`${hooksBase}/api/v1/ai/introspect/nodes`);
-    if (resp.ok) {
-      const data = (await resp.json()) as unknown;
-      const nodes = Array.isArray(data) ? data : ((data as { nodes?: unknown }).nodes ?? []);
-      if (Array.isArray(nodes) && nodes.length > 0) return nodes;
-    }
+    const resp = await fetchWithRetry(`${hooksBase}/api/v1/ai/introspect/nodes`, { timeoutMs: 2500 });
+    const data = (await resp.json()) as unknown;
+    const nodes = Array.isArray(data) ? data : ((data as { nodes?: unknown }).nodes ?? []);
+    if (Array.isArray(nodes) && nodes.length > 0) return nodes;
   } catch (e) {
     server.log.warn({ error: e }, 'Hooks introspect not available, falling back to static list');
   }

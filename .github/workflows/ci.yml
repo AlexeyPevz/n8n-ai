@@ -7,6 +7,25 @@ on:
     branches: [ main ]
 
 jobs:
+  commitlint:
+    name: Commitlint
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: pnpm/action-setup@v2
+        with:
+          version: 8.15.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Lint commits
+        run: npx commitlint --from=$(git merge-base origin/${{ github.base_ref }} HEAD) --to=HEAD
   lint:
     name: Lint
     runs-on: ubuntu-latest
