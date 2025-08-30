@@ -12,6 +12,50 @@ tags:
   - name: Events
 paths:
   /introspect/nodes:
+  /introspect/loadOptions:
+    post:
+      tags: [Introspect]
+      summary: Resolve dynamic load options with caching
+      parameters:
+        - in: header
+          name: If-None-Match
+          required: false
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                nodeType: { type: string }
+                propertyName: { type: string }
+                currentNodeParameters: { type: object, additionalProperties: true }
+              required: [nodeType, propertyName]
+      responses:
+        "200":
+          description: Options
+          headers:
+            ETag:
+              schema: { type: string }
+            Cache-Control:
+              schema: { type: string }
+            Expires:
+              schema: { type: string }
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  options:
+                    type: array
+                    items:
+                      type: object
+                      additionalProperties: true
+                  etag: { type: string }
+                  fromCache: { type: boolean }
+        "304":
+          description: Not Modified
     get:
       tags: [Introspect]
       summary: List node descriptions

@@ -64,14 +64,24 @@ export function createAIRoutes(): Router {
           required: ['nodeType', 'propertyName']
         });
       }
-      
-      const options = await introspectAPI.resolveLoadOptions(
+
+      const ifNoneMatch = req.headers['if-none-match'] as string | undefined;
+      const result = await introspectAPI.resolveLoadOptionsCached(
         nodeType,
         propertyName,
-        currentNodeParameters || {}
+        currentNodeParameters || {},
+        ifNoneMatch
       );
-      
-      res.json({ options });
+
+      res.setHeader('ETag', result.etag);
+      res.setHeader('Cache-Control', `public, max-age=${Math.floor(result.cacheTtlMs / 1000)}`);
+      res.setHeader('Expires', new Date(result.expiresAt).toUTCString());
+
+      if (result.notModified) {
+        return res.status(304).end();
+      }
+
+      res.json({ options: result.options, etag: result.etag, fromCache: result.fromCache });
     } catch (error) {
       res.status(500).json({ 
         error: 'Failed to resolve options',
