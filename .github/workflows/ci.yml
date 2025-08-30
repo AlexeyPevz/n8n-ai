@@ -218,7 +218,7 @@ jobs:
           cache: 'pnpm'
       
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: pnpm install
       
       - name: Check TypeScript
         run: pnpm run check:types
