@@ -137,18 +137,26 @@ export class IntrospectAPI {
     propertyName: string,
     currentNodeParameters: Record<string, any>
   ): Promise<INodePropertyOptions[]> {
-    // TODO: Интегрировать с n8n для реального резолва
-    // Пока возвращаем mock данные
-    
-    if (nodeType === 'n8n-nodes-base.httpRequest' && propertyName === 'authentication') {
-      return [
-        { name: 'None', value: 'none' },
-        { name: 'Basic Auth', value: 'basicAuth' },
-        { name: 'Header Auth', value: 'headerAuth' },
-        { name: 'OAuth2', value: 'oAuth2' },
-      ];
+    // Мини-реализация: несколько известных свойств
+    if (nodeType === 'n8n-nodes-base.httpRequest') {
+      if (propertyName === 'authentication') {
+        return [
+          { name: 'None', value: 'none' },
+          { name: 'Basic Auth', value: 'basicAuth' },
+          { name: 'Header Auth', value: 'headerAuth' },
+          { name: 'OAuth2', value: 'oAuth2' },
+        ];
+      }
+      if (propertyName === 'responseFormat') {
+        return [
+          { name: 'JSON', value: 'json' },
+          { name: 'Text', value: 'text' },
+          { name: 'Binary', value: 'binary' },
+        ];
+      }
     }
-    
+
+    // Заглушка по умолчанию
     return [];
   }
 }

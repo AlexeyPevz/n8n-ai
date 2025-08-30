@@ -5,7 +5,7 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { OperationBatch } from '@n8n-ai/schemas';
 
-const API_BASE = 'http://localhost:3000';
+const API_BASE = process.env.API_BASE || `http://localhost:${process.env.ORCH_PORT || '3000'}`;
 const WORKFLOW_ID = 'e2e-test';
 
 // Хелпер для API запросов

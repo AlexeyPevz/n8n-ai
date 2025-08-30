@@ -2,7 +2,7 @@
  * E2E тест для полного сценария создания HTTP GET воркфлоу
  */
 import { describe, it, expect, beforeAll } from 'vitest';
-const API_BASE = 'http://localhost:3000';
+const API_BASE = process.env.API_BASE || `http://localhost:${process.env.ORCH_PORT || '3000'}`;
 const WORKFLOW_ID = 'e2e-test';
 // Хелпер для API запросов
 async function apiRequest(path, options) {

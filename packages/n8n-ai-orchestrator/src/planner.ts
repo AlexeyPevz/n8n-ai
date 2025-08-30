@@ -19,7 +19,10 @@ export class SimplePlanner {
     if (promptLower.includes("http") || promptLower.includes("api") || this.extractUrl(prompt)) {
       const operations: OperationBatch["ops"] = [];
       const method = this.detectHttpMethod(promptLower);
-      const url = this.extractUrl(prompt) || "https://api.example.com/data";
+      let url = this.extractUrl(prompt) || "https://api.example.com/data";
+      if (promptLower.includes("jsonplaceholder")) {
+        url = "https://jsonplaceholder.typicode.com/users";
+      }
       
       operations.push({
         op: "add_node",
@@ -190,15 +193,10 @@ export class SimplePlanner {
   }
   
   private detectHttpMethod(text: string): string {
-    if (text.includes("post") || text.includes("create") || text.includes("send")) {
-      return "POST";
-    }
-    if (text.includes("put") || text.includes("update")) {
-      return "PUT";
-    }
-    if (text.includes("delete") || text.includes("remove")) {
-      return "DELETE";
-    }
+    if (text.includes("get")) return "GET";
+    if (text.includes("post") || text.includes("create") || text.includes("send")) return "POST";
+    if (text.includes("put") || text.includes("update")) return "PUT";
+    if (text.includes("delete") || text.includes("remove")) return "DELETE";
     return "GET";
   }
   

@@ -9,6 +9,9 @@ const server = Fastify({ logger: true });
 
 await server.register(cors, { origin: true });
 
+// Health endpoint
+server.get('/api/v1/ai/health', async () => ({ status: 'ok', ts: Date.now() }));
+
 // Простой прокси для n8n-ai-hooks Introspect API
 server.get("/introspect/nodes", async () => {
   // Пытаемся проксировать в n8n-ai-hooks, если доступен
@@ -270,9 +273,21 @@ server.get("/events", async (req, reply) => {
   return reply;
 });
 
-const port = Number(process.env.PORT ?? 3000);
-server.listen({ port, host: "0.0.0.0" }).catch((err) => {
-  server.log.error(err);
-  process.exit(1);
-});
+async function start() {
+  let port = Number(process.env.PORT ?? 3000);
+  try {
+    await server.listen({ port, host: '0.0.0.0' });
+  } catch (err: any) {
+    if (err?.code === 'EADDRINUSE') {
+      server.log.warn({ port }, 'Port in use, retrying on 0');
+      port = 0;
+      await server.listen({ port, host: '0.0.0.0' });
+    } else {
+      server.log.error(err);
+      process.exit(1);
+    }
+  }
+}
+
+start();
 
