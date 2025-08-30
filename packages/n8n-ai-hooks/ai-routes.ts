@@ -6,6 +6,7 @@ import { Router } from 'express';
 import { introspectAPI } from './introspect-api';
 import { OperationBatchSchema } from '@n8n-ai/schemas';
 import { loadBuiltinNodes } from './load-builtin-nodes';
+import type { Request, Response, NextFunction } from 'express';
 
 // Инициализируем introspect API с встроенными нодами
 const builtinNodes = loadBuiltinNodes();
@@ -16,6 +17,40 @@ const undoStacks: Map<string, Array<{ undoId: string; batch: unknown }>> = new M
 
 export function createAIRoutes(): Router {
   const router = Router();
+
+  // --- Security: simple token auth and basic rate limit ---
+  const API_TOKEN = process.env.N8N_AI_API_TOKEN;
+  const rateWindowMs = Number(process.env.N8N_AI_RATELIMIT_WINDOW_MS ?? 15000);
+  const rateMax = Number(process.env.N8N_AI_RATELIMIT_MAX ?? 60);
+  const rateBuckets = new Map<string, { count: number; resetAt: number }>();
+
+  const authMiddleware = (req: Request, res: Response, next: NextFunction) => {
+    if (!API_TOKEN) return next();
+    const header = req.header('authorization') || '';
+    const token = header.startsWith('Bearer ') ? header.slice(7) : undefined;
+    if (token === API_TOKEN) return next();
+    res.status(401).json({ error: 'unauthorized' });
+  };
+
+  const rateLimitMiddleware = (req: Request, res: Response, next: NextFunction) => {
+    const key = req.ip || 'unknown';
+    const now = Date.now();
+    const bucket = rateBuckets.get(key) ?? { count: 0, resetAt: now + rateWindowMs };
+    if (now > bucket.resetAt) {
+      bucket.count = 0;
+      bucket.resetAt = now + rateWindowMs;
+    }
+    bucket.count += 1;
+    rateBuckets.set(key, bucket);
+    res.setHeader('X-RateLimit-Limit', String(rateMax));
+    res.setHeader('X-RateLimit-Remaining', String(Math.max(0, rateMax - bucket.count)));
+    res.setHeader('X-RateLimit-Reset', String(Math.floor(bucket.resetAt / 1000)));
+    if (bucket.count > rateMax) return res.status(429).json({ error: 'rate_limited' });
+    next();
+  };
+
+  router.use(authMiddleware);
+  router.use(rateLimitMiddleware);
 
   // Introspect API endpoints
   router.get('/api/v1/ai/introspect/nodes', (req, res) => {
