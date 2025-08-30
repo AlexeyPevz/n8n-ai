@@ -25,11 +25,11 @@ function sendSse(event: string, data: unknown): void {
 }
 
 // Simple fetch with timeout and retries for proxying to n8n hooks
-async function fetchWithRetry(url: string, init: RequestInit & { timeoutMs?: number } = {}): Promise<Response> {
+async function fetchWithRetry(url: string, init: any = {}): Promise<any> {
   const retries = Math.max(0, Number(process.env.HOOKS_FETCH_RETRIES ?? 2));
   const timeoutMs = Math.max(1, Number(init.timeoutMs ?? process.env.HOOKS_FETCH_TIMEOUT_MS ?? 3000));
 
-  const attempt = async (): Promise<Response> => {
+  const attempt = async (): Promise<any> => {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeoutMs);
     try {
