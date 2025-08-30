@@ -107,5 +107,6 @@ _Last updated: 2025-08-30_
 6. Open a PR; get review; **`Completed`** status only after explicit 👍 from @product-owner.
 
 ## Changelog
+- **2025-10-05** – Sprint 2 marked Completed; ADR-002/003 accepted (AB).
 - **2025-08-30** – Sprint 1 marked Completed (AB).
 - **2025-08-29** – Initial draft created (AB).

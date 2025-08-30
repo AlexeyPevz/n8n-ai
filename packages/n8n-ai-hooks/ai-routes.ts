@@ -128,20 +128,14 @@ export function createAIRoutes(): Router {
   router.post('/api/v1/ai/graph/:id/validate', async (req, res) => {
     try {
       const { id } = req.params;
-      
-      // TODO: Реальная валидация воркфлоу
-      
-      return res.json({
-        ok: true,
-        lints: [
-          {
-            code: 'no_error_handling',
-            level: 'warn',
-            message: 'Consider adding error handling to HTTP Request node',
-            node: 'HTTP Request'
-          }
-        ]
+      const orchBase = process.env.N8N_AI_ORCHESTRATOR_URL || 'http://localhost:3000';
+      const r = await (globalThis as any).fetch(`${orchBase}/graph/${id}/validate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(req.body ?? {})
       });
+      const json = await r.json();
+      return res.status(r.status).json(json);
     } catch (error) {
       return res.status(500).json({ ok: false, error: 'failed_to_validate', message: error instanceof Error ? error.message : 'Unknown error' });
     }
@@ -150,22 +144,14 @@ export function createAIRoutes(): Router {
   router.post('/api/v1/ai/graph/:id/simulate', async (req, res) => {
     try {
       const { id } = req.params;
-      const { inputData } = req.body;
-      
-      // TODO: Реальная симуляция с mock данными
-      
-      return res.json({
-        ok: true,
-        stats: {
-          nodesVisited: 3,
-          estimatedDurationMs: 1500,
-          dataShapes: {
-            'HTTP Request': {
-              output: [{ id: 'number', name: 'string', email: 'string' }]
-            }
-          }
-        }
+      const orchBase = process.env.N8N_AI_ORCHESTRATOR_URL || 'http://localhost:3000';
+      const r = await (globalThis as any).fetch(`${orchBase}/graph/${id}/simulate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(req.body ?? {})
       });
+      const json = await r.json();
+      return res.status(r.status).json(json);
     } catch (error) {
       return res.status(500).json({ ok: false, error: 'failed_to_simulate', message: error instanceof Error ? error.message : 'Unknown error' });
     }

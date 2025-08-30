@@ -118,7 +118,7 @@ UI/services:
 ### 5.3 Running tests
 ```bash
 pnpm test        # unit + lints
-pnpm e2e         # golden flows regression (Playwright)
+pnpm e2e         # orchestrator e2e; golden flows: pnpm -C examples test
 ```
 
 ### 5.4 Quick smoke tests

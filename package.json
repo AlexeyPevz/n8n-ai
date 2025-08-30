@@ -12,7 +12,8 @@
     "build": "pnpm -r run build",
     "dev": "pnpm -r --stream --parallel run dev",
     "lint": "pnpm -r run lint",
-    "test": "pnpm -r run test"
+    "test": "pnpm -r run test",
+    "e2e": "pnpm -C packages/n8n-ai-orchestrator test:e2e"
   },
   "devDependencies": {
     "tsx": "^4.16.2",
