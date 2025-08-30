@@ -63,6 +63,16 @@
           <strong>[{{ l.level }}]</strong> {{ l.message }} <span v-if="l.node">({{ l.node }})</span>
         </div>
       </div>
+      <div v-if="simStats" class="sim">
+        <div class="sim-row">Nodes visited: <strong>{{ simStats.nodesVisited }}</strong></div>
+        <div class="sim-row">Estimated: <strong>{{ simStats.estimatedDurationMs }}ms</strong> (p95: {{ simStats.p95DurationMs }}ms)</div>
+        <div v-if="simStats.dataShapes" class="sim-shapes">
+          <div class="shape" v-for="(shape, node) in simStats.dataShapes" :key="node">
+            <div class="shape-title">{{ node }}</div>
+            <pre class="shape-pre">{{ shape }}</pre>
+          </div>
+        </div>
+      </div>
     </section>
   </main>
   </template>
@@ -101,6 +111,7 @@ const workflowId = "demo";
 const lints = ref<any[]>([]);
 const hasErrors = computed(() => lints.value.some(l => l.level === 'error'));
 const progress = ref<number>(-1);
+const simStats = ref<any|null>(null);
 
 // Expression autocomplete (stub)
 const exprOpen = ref(false);
@@ -245,6 +256,10 @@ async function test() {
     const json = await r.json();
     lints.value = json.lints || [];
     alert(json.ok ? `Lints: ${json.lints?.length || 0}` : `Error: ${json.error}`);
+    // simulate as part of test
+    const rs = await fetch(`${apiBase}/graph/${workflowId}/simulate`, { method: "POST" });
+    const js = await rs.json();
+    simStats.value = js?.stats || null;
   } catch (e) {
     alert(`Test error: ${String(e)}`);
   }
