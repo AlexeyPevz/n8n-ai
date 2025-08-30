@@ -168,6 +168,33 @@ jobs:
         env:
           REDIS_URL: redis://localhost:6379
 
+  workflow-map-check:
+    name: Workflow Map REST/SSE Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v2
+        with:
+          version: 8.15.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Build orchestrator
+        run: pnpm -C packages/n8n-ai-orchestrator build
+      - name: Start orchestrator
+        run: node packages/n8n-ai-orchestrator/dist/server.js & echo $! > server.pid && sleep 2
+      - name: Check /workflow-map
+        run: curl -f http://localhost:3000/workflow-map | jq .
+      - name: Check /workflow-map/live SSE (headers only)
+        run: |
+          curl -I http://localhost:3000/workflow-map/live | grep -i 'text/event-stream'
+      - name: Stop orchestrator
+        if: always()
+        run: kill $(cat server.pid) || true
+
   type-check:
     name: Type Check
     runs-on: ubuntu-latest
