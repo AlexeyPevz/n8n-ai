@@ -6,7 +6,34 @@ import { patternMatcher } from "./pattern-matcher.js";
 import { graphManager } from "./graph-manager.js";
 import { metrics, METRICS } from "./metrics.js";
 import { handleError, errorToResponse, ValidationError } from "./error-handler.js";
+import { randomUUID } from "node:crypto";
 const server = Fastify({ logger: true });
+// Корреляция запросов: request-id
+server.addHook('onRequest', (req, reply, done) => {
+    const headerId = req.headers['x-request-id'];
+    const reqId = (Array.isArray(headerId) ? headerId[0] : headerId) || randomUUID();
+    req.requestId = reqId;
+    reply.header('x-request-id', reqId);
+    done();
+});
+// Метрики по каждому запросу
+server.addHook('onResponse', (req, reply, done) => {
+    try {
+        metrics.increment(METRICS.API_REQUESTS, { endpoint: req.url, method: req.method, status: String(reply.statusCode) });
+        // измерение длительности на уровне сервера (Fastify имеет req.startTime, но безопасно возьмём diff по timings)
+        const start = req.startTime;
+        if (typeof start === 'number') {
+            metrics.recordDuration(METRICS.API_DURATION, Date.now() - start, { endpoint: req.url, method: req.method, status: String(reply.statusCode) });
+        }
+    }
+    finally {
+        done();
+    }
+});
+server.addHook('onRequest', (req, _reply, done) => {
+    req.startTime = Date.now();
+    done();
+});
 // Тolerant JSON parser: treat empty body as {}
 server.addContentTypeParser('application/json', { parseAs: 'string' }, (req, body, done) => {
     try {

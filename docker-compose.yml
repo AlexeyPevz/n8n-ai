@@ -25,8 +25,15 @@ services:
       # Mount our hooks for development
       - ./packages/n8n-ai-hooks:/opt/n8n-ai-hooks
     depends_on:
-      - redis
-      - qdrant
+      redis:
+        condition: service_healthy
+      qdrant:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:5678/api/v1/ai/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
 
   orchestrator:
     image: node:20
@@ -44,11 +51,24 @@ services:
     volumes:
       - ./:/workspace
     depends_on:
-      - redis
-      - qdrant
-      - n8n
+      redis:
+        condition: service_healthy
+      qdrant:
+        condition: service_healthy
+      n8n:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000/api/v1/ai/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
 
   redis:
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
     image: redis:7
     container_name: n8n-ai-redis
     ports:
@@ -61,6 +81,11 @@ services:
       - "${QDRANT_PORT:-6333}:6333"
     volumes:
       - qdrant_storage:/qdrant/storage
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:6333/readyz"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
 
 volumes:
   n8n_data:
