@@ -2,11 +2,11 @@ version: "3.9"
 
 services:
   n8n:
-    # TODO: Build custom image with our hooks
-    # build:
-    #   context: ./packages/n8n-ai-hooks
-    #   dockerfile: Dockerfile
-    image: n8nio/n8n:1.71.1
+    # Build custom image with AI hooks integrated
+    build:
+      context: ./packages/n8n-ai-hooks
+      dockerfile: Dockerfile
+    image: n8n-ai-hooks:latest
     container_name: n8n-ai-hooks
     ports:
       - "${N8N_PORT:-5678}:5678"
