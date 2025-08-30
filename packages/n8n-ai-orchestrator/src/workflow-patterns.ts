@@ -9,7 +9,7 @@ export interface WorkflowPattern {
     type: string;
     typeVersion: number;
     name: string;
-    parameters?: Record<string, any>;
+    parameters?: Record<string, unknown>;
   }>;
   connections: Array<{
     from: string;
@@ -281,8 +281,12 @@ export function findMatchingPattern(prompt: string): WorkflowPattern | null {
 /**
  * Генерирует операции на основе паттерна
  */
-export function generateOperationsFromPattern(pattern: WorkflowPattern): any[] {
-  const operations: any[] = [];
+export type GeneratedOperation =
+  | { op: 'add_node'; node: { id: string; name: string; type: string; typeVersion: number; position: [number, number]; parameters: Record<string, unknown> } }
+  | { op: 'connect'; from: string; to: string };
+
+export function generateOperationsFromPattern(pattern: WorkflowPattern): GeneratedOperation[] {
+  const operations: GeneratedOperation[] = [];
   
   // Добавляем ноды
   pattern.nodes.forEach((node, index) => {

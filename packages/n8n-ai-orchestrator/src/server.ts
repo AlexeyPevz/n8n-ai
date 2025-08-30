@@ -14,7 +14,7 @@ const server = Fastify({ logger: true });
 server.addHook('onRequest', (req, reply, done) => {
   const headerId = req.headers['x-request-id'];
   const reqId = (Array.isArray(headerId) ? headerId[0] : headerId) || randomUUID();
-  (req as any).requestId = reqId;
+  (req as unknown as { requestId?: string }).requestId = reqId;
   reply.header('x-request-id', reqId);
   done();
 });
@@ -24,7 +24,7 @@ server.addHook('onResponse', (req, reply, done) => {
   try {
     metrics.increment(METRICS.API_REQUESTS, { endpoint: req.url, method: req.method, status: String(reply.statusCode) });
     // измерение длительности на уровне сервера (Fastify имеет req.startTime, но безопасно возьмём diff по timings)
-    const start = (req as any).startTime as number | undefined;
+    const start = (req as unknown as { startTime?: number }).startTime;
     if (typeof start === 'number') {
       metrics.recordDuration(METRICS.API_DURATION, Date.now() - start, { endpoint: req.url, method: req.method, status: String(reply.statusCode) });
     }
@@ -34,7 +34,7 @@ server.addHook('onResponse', (req, reply, done) => {
 });
 
 server.addHook('onRequest', (req, _reply, done) => {
-  (req as any).startTime = Date.now();
+  (req as unknown as { startTime?: number }).startTime = Date.now();
   done();
 });
 
