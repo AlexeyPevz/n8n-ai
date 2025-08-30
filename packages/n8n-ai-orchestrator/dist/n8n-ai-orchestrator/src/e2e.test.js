@@ -119,6 +119,11 @@ describe('E2E: HTTP GET Workflow Creation', () => {
         expect(result.stats.estimatedDurationMs).toBeGreaterThan(0);
         expect(result.stats.dataFlow).toBeDefined();
         expect(Array.isArray(result.stats.dataFlow)).toBe(true);
+        // dataShapes should include HTTP Request node
+        expect(result.stats.dataShapes).toBeDefined();
+        const shapes = result.stats.dataShapes;
+        const httpShapeKey = Object.keys(shapes).find(k => k.toLowerCase().includes('http') || k.toLowerCase().includes('get users'));
+        expect(httpShapeKey).toBeTruthy();
     });
     it('should get the current workflow state', async () => {
         const result = await apiRequest(`/graph/${WORKFLOW_ID}`);
@@ -197,6 +202,13 @@ describe('E2E: HTTP GET Workflow Creation', () => {
             method: 'POST'
         });
         expect(simulateResult.ok).toBe(true);
+        // 5. Critic v1
+        const criticResult = await apiRequest('/graph/weather-workflow/critic', {
+            method: 'POST'
+        });
+        expect(criticResult).toBeDefined();
+        expect(criticResult.before).toBeDefined();
+        expect(criticResult.after).toBeDefined();
     });
 });
 // Запуск: pnpm -C packages/n8n-ai-orchestrator test:e2e

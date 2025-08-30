@@ -48,8 +48,8 @@ export function createNodeTypeDescription(name, displayName) {
         defaults: {
             name: displayName,
         },
-        inputs: ["main" /* NodeConnectionType.Main */],
-        outputs: ["main" /* NodeConnectionType.Main */],
+        inputs: ['main'],
+        outputs: ['main'],
         properties: [],
         credentials: []
     };
@@ -354,7 +354,7 @@ export function createNodeTypeDescription(name, displayName) {
                 ...baseDescription,
                 group: ['transform'],
                 description: 'Route items based on conditional logic',
-                outputs: ["main" /* NodeConnectionType.Main */, "main" /* NodeConnectionType.Main */],
+                outputs: ['main', 'main'],
                 outputNames: ['True', 'False'],
                 properties: [
                     {

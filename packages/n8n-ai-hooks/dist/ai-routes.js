@@ -55,8 +55,15 @@ export function createAIRoutes() {
                     required: ['nodeType', 'propertyName']
                 });
             }
-            const options = await introspectAPI.resolveLoadOptions(nodeType, propertyName, currentNodeParameters || {});
-            res.json({ options });
+            const ifNoneMatch = req.headers['if-none-match'];
+            const result = await introspectAPI.resolveLoadOptionsCached(nodeType, propertyName, currentNodeParameters || {}, ifNoneMatch);
+            res.setHeader('ETag', result.etag);
+            res.setHeader('Cache-Control', `public, max-age=${Math.floor(result.cacheTtlMs / 1000)}`);
+            res.setHeader('Expires', new Date(result.expiresAt).toUTCString());
+            if (result.notModified) {
+                return res.status(304).end();
+            }
+            res.json({ options: result.options, etag: result.etag, fromCache: result.fromCache });
         }
         catch (error) {
             res.status(500).json({
@@ -115,18 +122,14 @@ export function createAIRoutes() {
     router.post('/api/v1/ai/graph/:id/validate', async (req, res) => {
         try {
             const { id } = req.params;
-            // TODO: Реальная валидация воркфлоу
-            return res.json({
-                ok: true,
-                lints: [
-                    {
-                        code: 'no_error_handling',
-                        level: 'warn',
-                        message: 'Consider adding error handling to HTTP Request node',
-                        node: 'HTTP Request'
-                    }
-                ]
+            const orchBase = process.env.N8N_AI_ORCHESTRATOR_URL || 'http://localhost:3000';
+            const r = await globalThis.fetch(`${orchBase}/graph/${id}/validate`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(req.body ?? {})
             });
+            const json = await r.json();
+            return res.status(r.status).json(json);
         }
         catch (error) {
             return res.status(500).json({ ok: false, error: 'failed_to_validate', message: error instanceof Error ? error.message : 'Unknown error' });
@@ -135,20 +138,14 @@ export function createAIRoutes() {
     router.post('/api/v1/ai/graph/:id/simulate', async (req, res) => {
         try {
             const { id } = req.params;
-            const { inputData } = req.body;
-            // TODO: Реальная симуляция с mock данными
-            return res.json({
-                ok: true,
-                stats: {
-                    nodesVisited: 3,
-                    estimatedDurationMs: 1500,
-                    dataShapes: {
-                        'HTTP Request': {
-                            output: [{ id: 'number', name: 'string', email: 'string' }]
-                        }
-                    }
-                }
+            const orchBase = process.env.N8N_AI_ORCHESTRATOR_URL || 'http://localhost:3000';
+            const r = await globalThis.fetch(`${orchBase}/graph/${id}/simulate`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(req.body ?? {})
             });
+            const json = await r.json();
+            return res.status(r.status).json(json);
         }
         catch (error) {
             return res.status(500).json({ ok: false, error: 'failed_to_simulate', message: error instanceof Error ? error.message : 'Unknown error' });

@@ -29,6 +29,9 @@ interface NodeIntrospection {
 }
 export declare class IntrospectAPI {
     private nodeTypes;
+    private loadOptionsCache;
+    private readonly defaultTtlMs;
+    constructor();
     /**
      * Регистрирует типы нод для интроспекции
      */
@@ -50,7 +53,52 @@ export declare class IntrospectAPI {
      * (заглушка - требует интеграции с n8n core)
      */
     resolveLoadOptions(nodeType: string, propertyName: string, currentNodeParameters: Record<string, any>): Promise<INodePropertyOptions[]>;
+    /**
+     * Кэшируемый резолв loadOptions с TTL и поддержкой ETag/If-None-Match
+     */
+    resolveLoadOptionsCached(nodeType: string, propertyName: string, currentNodeParameters: Record<string, any>, ifNoneMatch?: string): Promise<{
+        options?: INodePropertyOptions[];
+        etag: string;
+        fromCache: boolean;
+        notModified: boolean;
+        cacheTtlMs: number;
+        expiresAt: number;
+    }>;
+    /**
+     * Инвалидация кэша для конкретного свойства ноды
+     */
+    invalidateLoadOptions(nodeType: string, propertyName: string, currentNodeParameters: Record<string, any>): void;
+    /**
+     * Полная очистка кэша loadOptions
+     */
+    clearLoadOptionsCache(): void;
+    private buildCacheKey;
+    private computeEtag;
+    private stableStringify;
 }
 export declare const introspectAPI: IntrospectAPI;
+export interface LegacyNodeType {
+    name: string;
+    type: string;
+    typeVersion: number;
+    description: string;
+    defaults: Record<string, any>;
+    inputs: string[];
+    outputs: string[];
+    properties: Array<{
+        name: string;
+        displayName: string;
+        type: string;
+        default?: any;
+        required?: boolean;
+        options?: INodePropertyOptions[];
+        typeOptions?: Record<string, any>;
+        displayOptions?: Record<string, any>;
+    }>;
+}
+export interface IntrospectAPIPublic extends IntrospectAPI {
+    getAllNodeTypes(): Promise<LegacyNodeType[]>;
+    getNodeType(type: string, version?: number): Promise<LegacyNodeType | null>;
+}
 export {};
 //# sourceMappingURL=introspect-api.d.ts.map

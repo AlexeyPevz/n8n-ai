@@ -4,6 +4,8 @@ import { OperationBatchSchema } from "@n8n-ai/schemas";
 import { SimplePlanner } from "./planner.js";
 import { patternMatcher } from "./pattern-matcher.js";
 import { graphManager } from "./graph-manager.js";
+import { metrics, METRICS } from "./metrics.js";
+import { handleError, errorToResponse, ValidationError } from "./error-handler.js";
 const server = Fastify({ logger: true });
 // Тolerant JSON parser: treat empty body as {}
 server.addContentTypeParser('application/json', { parseAs: 'string' }, (req, body, done) => {
@@ -20,8 +22,18 @@ server.addContentTypeParser('application/json', { parseAs: 'string' }, (req, bod
     }
 });
 await server.register(cors, { origin: true });
+// Global error handler
+server.setErrorHandler((error, request, reply) => {
+    const appError = handleError(error);
+    metrics.increment(METRICS.API_REQUESTS, { endpoint: request.url, status: 'error' });
+    reply.status(appError.statusCode).send(errorToResponse(appError));
+});
 // Health endpoint
 server.get('/api/v1/ai/health', async () => ({ status: 'ok', ts: Date.now() }));
+// Metrics endpoint
+server.get('/api/v1/ai/metrics', async () => {
+    return metrics.getMetrics();
+});
 // Простой прокси для n8n-ai-hooks Introspect API
 server.get("/introspect/nodes", async () => {
     // Пытаемся проксировать в n8n-ai-hooks, если доступен
@@ -96,21 +108,31 @@ server.get("/introspect/nodes", async () => {
 });
 const planner = new SimplePlanner();
 server.post("/plan", async (req) => {
-    const prompt = req.body?.prompt ?? "";
-    try {
-        const batch = await planner.plan({ prompt });
-        const parsed = OperationBatchSchema.safeParse(batch);
-        if (!parsed.success) {
-            server.log.error({ prompt, issues: parsed.error.format() }, "Generated plan failed schema validation");
-            throw new Error("invalid_generated_operation_batch");
+    return metrics.measureAsync(METRICS.API_DURATION, async () => {
+        metrics.increment(METRICS.API_REQUESTS, { endpoint: 'plan' });
+        const prompt = req.body?.prompt ?? "";
+        if (!prompt) {
+            throw new ValidationError("prompt is required");
         }
-        server.log.info({ prompt, operationsCount: parsed.data.ops.length }, "Plan created");
-        return parsed.data;
-    }
-    catch (error) {
-        server.log.error({ error, prompt }, "Planning failed");
-        throw error;
-    }
+        try {
+            const batch = await planner.plan({ prompt });
+            const parsed = OperationBatchSchema.safeParse(batch);
+            if (!parsed.success) {
+                server.log.error({ prompt, issues: parsed.error.format() }, "Generated plan failed schema validation");
+                metrics.increment(METRICS.VALIDATION_ERRORS, { type: 'plan' });
+                throw new ValidationError("invalid_generated_operation_batch", parsed.error.format());
+            }
+            metrics.increment(METRICS.PLAN_OPERATIONS, { count: String(parsed.data.ops.length) });
+            server.log.info({ prompt, operationsCount: parsed.data.ops.length }, "Plan created");
+            return parsed.data;
+        }
+        catch (error) {
+            if (error instanceof ValidationError)
+                throw error;
+            server.log.error({ error, prompt }, "Planning failed");
+            throw error;
+        }
+    }, { endpoint: 'plan' });
 });
 // Тестовый endpoint: сбросить всё состояние
 server.post('/__test/reset', async () => {
@@ -175,6 +197,17 @@ server.post("/graph/:id/simulate", async (req) => {
     const { id: workflowId } = req.params;
     const simulationResult = graphManager.simulate(workflowId);
     return simulationResult;
+});
+// Critic v1: запускает валидацию с автофиксами и возвращает отчёт
+server.post("/graph/:id/critic", async (req) => {
+    const { id: workflowId } = req.params;
+    const validationBefore = graphManager.validate(workflowId);
+    const autofixed = graphManager.validate(workflowId, { autofix: true });
+    return {
+        ok: autofixed.valid,
+        before: validationBefore,
+        after: autofixed
+    };
 });
 server.post("/graph/:id/undo", async (req) => {
     const { id: workflowId } = req.params;
@@ -292,4 +325,9 @@ async function start() {
         }
     }
 }
-start();
+// Export for testing
+export { server };
+// Start only if not imported
+if (import.meta.url === `file://${process.argv[1]}`) {
+    start();
+}

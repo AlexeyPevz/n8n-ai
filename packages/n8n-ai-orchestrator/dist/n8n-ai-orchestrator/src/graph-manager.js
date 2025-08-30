@@ -381,6 +381,25 @@ export class GraphManager {
             node: node.name,
             outputSize: Math.floor(Math.random() * 1000) + 100 // Mock размер данных
         }));
+        // Простейший синтез форм данных на основе типа ноды
+        const dataShapes = {};
+        for (const node of workflow.nodes) {
+            if (node.type === 'n8n-nodes-base.httpRequest') {
+                dataShapes[node.name] = {
+                    output: [{ id: 'number', name: 'string', email: 'string' }]
+                };
+            }
+            else if (node.type === 'n8n-nodes-base.webhook') {
+                dataShapes[node.name] = {
+                    output: [{ body: 'object', headers: 'object', query: 'object' }]
+                };
+            }
+            else if (node.type === 'n8n-nodes-base.code') {
+                dataShapes[node.name] = {
+                    output: [{ result: 'any' }]
+                };
+            }
+        }
         return {
             ok: true,
             stats: {
@@ -388,6 +407,7 @@ export class GraphManager {
                 estimatedDurationMs,
                 p95DurationMs,
                 dataFlow,
+                dataShapes,
                 warnings: validation.lints.filter((l) => l.level === 'warn').map((l) => ({ code: l.code, message: l.message, node: l.node }))
             }
         };

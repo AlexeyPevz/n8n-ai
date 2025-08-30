@@ -2,8 +2,22 @@
  * Introspect API для n8n-ai
  * Этот модуль предоставляет runtime информацию о нодах
  */
+import { createHash } from 'node:crypto';
+import { loadBuiltinNodes } from './load-builtin-nodes';
 export class IntrospectAPI {
     nodeTypes = new Map();
+    loadOptionsCache = new Map();
+    defaultTtlMs = Number(process.env.N8N_AI_LOADOPTIONS_TTL_MS ?? 60000);
+    constructor() {
+        // Предзагружаем встроенные ноды, чтобы экземпляр сразу был полезен в тестах/рантайме
+        try {
+            const builtin = loadBuiltinNodes();
+            this.registerNodeTypes(builtin);
+        }
+        catch {
+            // best-effort; в некоторых окружениях загрузка может быть недоступна
+        }
+    }
     /**
      * Регистрирует типы нод для интроспекции
      */
@@ -93,6 +107,17 @@ export class IntrospectAPI {
     async resolveLoadOptions(nodeType, propertyName, currentNodeParameters) {
         // Мини-реализация: несколько известных свойств
         if (nodeType === 'n8n-nodes-base.httpRequest') {
+            if (propertyName === 'method') {
+                return [
+                    { name: 'GET', value: 'GET' },
+                    { name: 'POST', value: 'POST' },
+                    { name: 'PUT', value: 'PUT' },
+                    { name: 'DELETE', value: 'DELETE' },
+                    { name: 'PATCH', value: 'PATCH' },
+                    { name: 'HEAD', value: 'HEAD' },
+                    { name: 'OPTIONS', value: 'OPTIONS' },
+                ];
+            }
             if (propertyName === 'authentication') {
                 return [
                     { name: 'None', value: 'none' },
@@ -112,6 +137,108 @@ export class IntrospectAPI {
         // Заглушка по умолчанию
         return [];
     }
+    /**
+     * Кэшируемый резолв loadOptions с TTL и поддержкой ETag/If-None-Match
+     */
+    async resolveLoadOptionsCached(nodeType, propertyName, currentNodeParameters, ifNoneMatch) {
+        const cacheKey = this.buildCacheKey(nodeType, propertyName, currentNodeParameters);
+        const now = Date.now();
+        const ttlMs = this.defaultTtlMs;
+        const cached = this.loadOptionsCache.get(cacheKey);
+        if (cached && cached.expiresAt > now) {
+            const notModified = ifNoneMatch && ifNoneMatch === cached.etag;
+            return {
+                options: notModified ? undefined : cached.options,
+                etag: cached.etag,
+                fromCache: true,
+                notModified: Boolean(notModified),
+                cacheTtlMs: ttlMs,
+                expiresAt: cached.expiresAt
+            };
+        }
+        // Получаем актуальные опции (с таймаутом при необходимости)
+        const options = await this.resolveLoadOptions(nodeType, propertyName, currentNodeParameters);
+        const etag = this.computeEtag(options);
+        const entry = { etag, options, expiresAt: now + ttlMs };
+        this.loadOptionsCache.set(cacheKey, entry);
+        const notModified = ifNoneMatch && ifNoneMatch === etag;
+        return {
+            options: notModified ? undefined : options,
+            etag,
+            fromCache: false,
+            notModified: Boolean(notModified),
+            cacheTtlMs: ttlMs,
+            expiresAt: entry.expiresAt
+        };
+    }
+    /**
+     * Инвалидация кэша для конкретного свойства ноды
+     */
+    invalidateLoadOptions(nodeType, propertyName, currentNodeParameters) {
+        const cacheKey = this.buildCacheKey(nodeType, propertyName, currentNodeParameters);
+        this.loadOptionsCache.delete(cacheKey);
+    }
+    /**
+     * Полная очистка кэша loadOptions
+     */
+    clearLoadOptionsCache() {
+        this.loadOptionsCache.clear();
+    }
+    buildCacheKey(nodeType, propertyName, currentNodeParameters) {
+        const base = `${nodeType}::${propertyName}::${this.stableStringify(currentNodeParameters)}`;
+        return createHash('sha1').update(base).digest('hex');
+    }
+    computeEtag(options) {
+        const payload = this.stableStringify(options);
+        return 'W/"' + createHash('sha1').update(payload).digest('hex') + '"';
+    }
+    stableStringify(value) {
+        const seen = new WeakSet();
+        const stringify = (v) => {
+            if (v === null || typeof v !== 'object')
+                return v;
+            if (seen.has(v))
+                return undefined;
+            seen.add(v);
+            if (Array.isArray(v))
+                return v.map((i) => stringify(i));
+            const keys = Object.keys(v).sort();
+            const out = {};
+            for (const k of keys)
+                out[k] = stringify(v[k]);
+            return out;
+        };
+        return JSON.stringify(stringify(value));
+    }
 }
 // Экспортируем singleton
 export const introspectAPI = new IntrospectAPI();
+// Расширяем прототип методами, не нарушая существующие названия внутренних методов
+IntrospectAPI.prototype.getAllNodeTypes = async function () {
+    const nodes = this.getAllNodes();
+    return nodes.map((n) => ({
+        name: n.displayName,
+        type: n.type,
+        typeVersion: n.version,
+        description: n.description,
+        defaults: n.defaults,
+        inputs: n.inputs,
+        outputs: n.outputs,
+        properties: n.properties,
+    }));
+};
+IntrospectAPI.prototype.getNodeType = async function (type, version) {
+    const node = this.getNode(type, version);
+    if (!node)
+        return null;
+    return {
+        name: node.displayName,
+        type: node.type,
+        typeVersion: node.version,
+        description: node.description,
+        defaults: node.defaults,
+        inputs: node.inputs,
+        outputs: node.outputs,
+        properties: node.properties,
+    };
+};

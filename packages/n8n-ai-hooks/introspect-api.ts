@@ -5,6 +5,7 @@
 
 import type { INodeTypeDescription, INodePropertyOptions } from 'n8n-workflow';
 import { createHash } from 'node:crypto';
+import { loadBuiltinNodes } from './load-builtin-nodes';
 
 interface NodeIntrospection {
   name: string;
@@ -35,6 +36,16 @@ export class IntrospectAPI {
   private nodeTypes: Map<string, INodeTypeDescription> = new Map();
   private loadOptionsCache: Map<string, { etag: string; options: INodePropertyOptions[]; expiresAt: number } > = new Map();
   private readonly defaultTtlMs: number = Number(process.env.N8N_AI_LOADOPTIONS_TTL_MS ?? 60000);
+
+  constructor() {
+    // Предзагружаем встроенные ноды, чтобы экземпляр сразу был полезен в тестах/рантайме
+    try {
+      const builtin = loadBuiltinNodes();
+      this.registerNodeTypes(builtin);
+    } catch {
+      // best-effort; в некоторых окружениях загрузка может быть недоступна
+    }
+  }
 
   /**
    * Регистрирует типы нод для интроспекции
@@ -142,6 +153,17 @@ export class IntrospectAPI {
   ): Promise<INodePropertyOptions[]> {
     // Мини-реализация: несколько известных свойств
     if (nodeType === 'n8n-nodes-base.httpRequest') {
+      if (propertyName === 'method') {
+        return [
+          { name: 'GET', value: 'GET' },
+          { name: 'POST', value: 'POST' },
+          { name: 'PUT', value: 'PUT' },
+          { name: 'DELETE', value: 'DELETE' },
+          { name: 'PATCH', value: 'PATCH' },
+          { name: 'HEAD', value: 'HEAD' },
+          { name: 'OPTIONS', value: 'OPTIONS' },
+        ];
+      }
       if (propertyName === 'authentication') {
         return [
           { name: 'None', value: 'none' },
@@ -255,3 +277,60 @@ export class IntrospectAPI {
 
 // Экспортируем singleton
 export const introspectAPI = new IntrospectAPI();
+
+// Совместимость с более ранним API, ожидаемым тестами
+// Возвращает список нод в формате { name, type, typeVersion, ... }
+export interface LegacyNodeType {
+  name: string;
+  type: string;
+  typeVersion: number;
+  description: string;
+  defaults: Record<string, any>;
+  inputs: string[];
+  outputs: string[];
+  properties: Array<{
+    name: string;
+    displayName: string;
+    type: string;
+    default?: any;
+    required?: boolean;
+    options?: INodePropertyOptions[];
+    typeOptions?: Record<string, any>;
+    displayOptions?: Record<string, any>;
+  }>;
+}
+
+export interface IntrospectAPIPublic extends IntrospectAPI {
+  getAllNodeTypes(): Promise<LegacyNodeType[]>;
+  getNodeType(type: string, version?: number): Promise<LegacyNodeType | null>;
+}
+
+// Расширяем прототип методами, не нарушая существующие названия внутренних методов
+(IntrospectAPI.prototype as any).getAllNodeTypes = async function(this: IntrospectAPI): Promise<LegacyNodeType[]> {
+  const nodes = (this as any).getAllNodes() as NodeIntrospection[];
+  return nodes.map((n) => ({
+    name: n.displayName,
+    type: n.type,
+    typeVersion: n.version,
+    description: n.description,
+    defaults: n.defaults,
+    inputs: n.inputs,
+    outputs: n.outputs,
+    properties: n.properties,
+  }));
+};
+
+(IntrospectAPI.prototype as any).getNodeType = async function(this: IntrospectAPI, type: string, version?: number): Promise<LegacyNodeType | null> {
+  const node = (this as any).getNode(type, version) as NodeIntrospection | null;
+  if (!node) return null;
+  return {
+    name: node.displayName,
+    type: node.type,
+    typeVersion: node.version,
+    description: node.description,
+    defaults: node.defaults,
+    inputs: node.inputs,
+    outputs: node.outputs,
+    properties: node.properties,
+  };
+};
