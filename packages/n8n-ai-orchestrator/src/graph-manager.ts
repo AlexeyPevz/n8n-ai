@@ -382,6 +382,30 @@ export class GraphManager {
             node: node.name
           });
         }
+
+        // enum: method
+        const allowedMethods = ['GET','POST','PUT','DELETE','PATCH','HEAD','OPTIONS'];
+        const method = (node.parameters as any)?.method;
+        if (method && !allowedMethods.includes(method)) {
+          lints.push({
+            code: 'invalid_enum',
+            level: 'error',
+            message: `Node "${node.name}" has invalid method "${method}"`,
+            node: node.name
+          });
+        }
+
+        // enum: responseFormat
+        const allowedFormats = ['json','text','binary'];
+        const responseFormat = (node.parameters as any)?.responseFormat;
+        if (responseFormat && !allowedFormats.includes(responseFormat)) {
+          lints.push({
+            code: 'invalid_enum',
+            level: 'error',
+            message: `Node "${node.name}" has invalid responseFormat "${responseFormat}"`,
+            node: node.name
+          });
+        }
       }
       
       // Проверяем Webhook ноды

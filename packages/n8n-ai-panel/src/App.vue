@@ -16,8 +16,18 @@
 
     <section v-if="diff">
       <h3>Diff Preview</h3>
-      <ul v-if="diffList.length">
-        <li v-for="(d, i) in diffList" :key="i">{{ d }}</li>
+      <div class="changes" v-if="summary.total">
+        <span class="chg add">+ {{ summary.add_node }}</span>
+        <span class="chg connect">→ {{ summary.connect }}</span>
+        <span class="chg set">⋯ {{ summary.set_params }}</span>
+        <span class="chg annotate">✎ {{ summary.annotate }}</span>
+        <span class="chg del">− {{ summary.delete }}</span>
+      </div>
+      <ul v-if="diffItems.length">
+        <li v-for="(item, i) in diffItems" :key="i" :class="['diff-item', item.kind]">
+          <span class="badge" :class="item.kind">{{ item.badge }}</span>
+          <span class="text">{{ item.text }}</span>
+        </li>
       </ul>
       <pre v-else>{{ diff }}</pre>
       <button @click="apply">Apply</button>
@@ -28,12 +38,32 @@
   </template>
 
 <script setup lang="ts">
-import { ref } from "vue";
+import { ref, computed } from "vue";
 
 const prompt = ref("");
 const planItems = ref<string[]>([]);
 const diff = ref<string>("");
 const diffList = ref<string[]>([]);
+const diffJson = computed<any>(() => {
+  try { return diff.value ? JSON.parse(diff.value) : null; } catch { return null; }
+});
+const summary = computed(() => {
+  const s: Record<string, number> = { add_node: 0, connect: 0, set_params: 0, delete: 0, annotate: 0, total: 0 };
+  const ops = diffJson.value?.ops || [];
+  for (const op of ops) { if (s[op.op] !== undefined) s[op.op]++; s.total++; }
+  return s as { add_node: number; connect: number; set_params: number; delete: number; annotate: number; total: number };
+});
+const diffItems = computed(() => {
+  const ops = diffJson.value?.ops || [];
+  return ops.map((op: any) => {
+    if (op.op === 'add_node') return { kind: 'add', badge: '+', text: `add_node: ${op.node?.name || op.node?.id || ''}` };
+    if (op.op === 'connect') return { kind: 'connect', badge: '→', text: `connect: ${op.from} -> ${op.to}` };
+    if (op.op === 'set_params') return { kind: 'set', badge: '⋯', text: `set_params: ${op.name}` };
+    if (op.op === 'delete') return { kind: 'del', badge: '−', text: `delete: ${op.name}` };
+    if (op.op === 'annotate') return { kind: 'annotate', badge: '✎', text: `annotate: ${op.name}` };
+    return { kind: 'other', badge: '•', text: op.op };
+  });
+});
 const lastUndoId = ref<string|undefined>();
 const apiBase = (import.meta as any).env?.VITE_API_BASE || window.location.origin.replace(/:\d+$/, ":3000");
 const workflowId = "demo";
@@ -50,16 +80,7 @@ async function preview() {
     });
     const json = await r.json();
     diff.value = JSON.stringify(json, null, 2);
-    diffList.value = Array.isArray(json?.ops)
-      ? json.ops.map((op: any) => {
-          if (op.op === 'add_node') return `+ add_node: ${op.node?.name}`;
-          if (op.op === 'connect') return `→ connect: ${op.from} -> ${op.to}`;
-          if (op.op === 'annotate') return `✎ annotate: ${op.name}`;
-          if (op.op === 'set_params') return `⋯ set_params: ${op.name}`;
-          if (op.op === 'delete') return `− delete: ${op.name}`;
-          return op.op;
-        })
-      : [];
+    diffList.value = Array.isArray(json?.ops) ? json.ops.map((op: any) => op.op) : [];
   } catch (e) {
     diff.value = `Error: ${String(e)}`;
   }
@@ -120,5 +141,19 @@ textarea {
   width: 100%;
   height: 96px;
 }
+.changes { display: flex; gap: 8px; margin: 8px 0 12px; }
+.changes .chg { font-size: 12px; padding: 2px 6px; border-radius: 4px; background: #f3f4f6; }
+.changes .add { background: #e6ffed; color: #027a48; }
+.changes .connect { background: #edf2ff; color: #4959d6; }
+.changes .set { background: #fff7ed; color: #9a3412; }
+.changes .annotate { background: #f5f3ff; color: #6d28d9; }
+.changes .del { background: #fee2e2; color: #b91c1c; }
+.diff-item { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 6px; margin: 4px 0; }
+.diff-item.add { background: #f0fdf4; }
+.diff-item.connect { background: #eef2ff; }
+.diff-item.set { background: #fffbeb; }
+.diff-item.annotate { background: #faf5ff; }
+.diff-item.del { background: #fef2f2; }
+.diff-item .badge { display: inline-flex; width: 20px; justify-content: center; font-weight: 600; }
 </style>
 
