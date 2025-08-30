@@ -1,0 +1,24 @@
+{
+  "name": "ForEach and Branching",
+  "description": "Для каждого элемента из API: обработай и при ошибке отправь в Telegram",
+  "prompt": "Сделай GET на https://jsonplaceholder.typicode.com/users. Для каждого пользователя проверь email: если домен неправильный, отправь уведомление в Telegram.",
+  "expectedOperations": {
+    "version": "v1",
+    "ops": [
+      { "op": "add_node", "node": { "id": "http-1", "name": "HTTP Request", "type": "n8n-nodes-base.httpRequest", "typeVersion": 4, "position": [600,300], "parameters": { "method": "GET", "url": "https://jsonplaceholder.typicode.com/users", "responseFormat": "json" } } },
+      { "op": "add_node", "node": { "id": "code-1", "name": "For Each", "type": "n8n-nodes-base.code", "typeVersion": 2, "position": [850,300], "parameters": { "jsCode": "return items.map(i=>({json:i.json}));" } } },
+      { "op": "add_node", "node": { "id": "if-1", "name": "IF Email Domain", "type": "n8n-nodes-base.if", "typeVersion": 1, "position": [1100,300], "parameters": { "conditions": { "string": [{ "value1": "={{ $json.email }}", "operation": "contains", "value2": "@" }] } } } },
+      { "op": "add_node", "node": { "id": "tg-1", "name": "Telegram Notify", "type": "n8n-nodes-base.telegram", "typeVersion": 1, "position": [1350,260], "parameters": { "operation": "sendMessage", "text": "Invalid email detected" } } },
+      { "op": "connect", "from": "Manual Trigger", "to": "HTTP Request" },
+      { "op": "connect", "from": "HTTP Request", "to": "For Each" },
+      { "op": "connect", "from": "For Each", "to": "IF Email Domain" },
+      { "op": "connect", "from": "IF Email Domain", "to": "Telegram Notify" }
+    ]
+  },
+  "validation": {
+    "expectedNodes": 4,
+    "expectedConnections": 4,
+    "mustHaveNodes": ["HTTP Request", "For Each", "IF Email Domain", "Telegram Notify"]
+  }
+}
+

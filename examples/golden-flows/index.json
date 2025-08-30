@@ -68,6 +68,18 @@
       "name": "AI Enhanced Workflow",
       "difficulty": "hard",
       "category": "ai"
+    },
+    {
+      "id": "12-foreach-and-branching",
+      "name": "ForEach and Branching",
+      "difficulty": "hard",
+      "category": "advanced"
+    },
+    {
+      "id": "13-insert-after-existing",
+      "name": "Insert After Existing Node",
+      "difficulty": "medium",
+      "category": "graph-edit"
     }
   ]
 }

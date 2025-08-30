@@ -67,12 +67,23 @@ paths:
   /graph/{id}/critic:
     post:
       tags: [Validation]
-      summary: Critic v1 - validate with autofix and return before/after report
+      summary: Critic - validate with autofix and return before/after report; optionally apply a batch
       parameters:
         - in: path
           name: id
           required: true
           schema: { type: string }
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                batch:
+                  $ref: '#/components/schemas/OperationBatch'
+                lints:
+                  type: object
       responses:
         "200":
           description: Critic report
@@ -82,8 +93,24 @@ paths:
                 type: object
                 properties:
                   ok: { type: boolean }
+                  tried: { type: integer }
                   before: { $ref: '#/components/schemas/ValidateResponse' }
                   after: { $ref: '#/components/schemas/ValidateResponse' }
+                  error: { type: string }
+  /workflow-map:
+    get:
+      tags: [Validation]
+      summary: Get workflow dependency map (edges)
+      responses:
+        "200":
+          description: Map edges
+  /workflow-map/live:
+    get:
+      tags: [Events]
+      summary: Workflow map live SSE
+      responses:
+        "200":
+          description: text/event-stream
   /events:
     get:
       tags: [Events]

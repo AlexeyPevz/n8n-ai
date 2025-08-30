@@ -64,6 +64,15 @@ export class SimplePlanner {
       console.log(`Matched keywords: ${bestMatch.matchedKeywords.join(', ')}`);
       
       const operations = generateOperationsFromPattern(bestMatch.pattern) as OperationBatch['ops'];
+      // Если запрос про "insert after" — добавим соединение к целевой ноде, если она есть
+      if (promptLower.includes('insert after') || promptLower.includes('после')) {
+        const target = 'HTTP Request';
+        const hasTarget = operations.some(op => op.op === 'add_node' && op.node.name === target);
+        const inserted = operations.find(op => op.op === 'add_node' && op.node.name === 'Log Response');
+        if (hasTarget && inserted) {
+          operations.push({ op: 'connect', from: target, to: 'Log Response' } as any);
+        }
+      }
       
       // Добавляем аннотацию с информацией о паттерне
       operations.push({

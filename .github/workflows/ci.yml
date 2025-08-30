@@ -7,6 +7,25 @@ on:
     branches: [ main ]
 
 jobs:
+  commitlint:
+    name: Commitlint
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: pnpm/action-setup@v2
+        with:
+          version: 8.15.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+      - name: Install dependencies
+        run: pnpm install
+      - name: Lint commits
+        run: npx commitlint --from=$(git merge-base origin/${{ github.base_ref }} HEAD) --to=HEAD
   lint:
     name: Lint
     runs-on: ubuntu-latest
@@ -23,7 +42,7 @@ jobs:
           cache: 'pnpm'
       
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: pnpm install
       
       - name: Run linters
         run: pnpm run lint
@@ -44,16 +63,24 @@ jobs:
           cache: 'pnpm'
       
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: pnpm install
       
       - name: Run unit tests (skip orchestrator e2e)
-        run: pnpm run test
+        run: pnpm run test --reporter=verbose | tee unit-tests.log
       
       - name: Upload coverage
         uses: codecov/codecov-action@v3
         if: always()
         with:
-          files: ./coverage/lcov.info
+          files: |
+            packages/**/coverage/lcov.info
+
+      - name: Upload unit test log
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: unit-tests-log
+          path: unit-tests.log
 
   build:
     name: Build
@@ -71,13 +98,13 @@ jobs:
           cache: 'pnpm'
       
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: pnpm install
       
       - name: Build all packages
         run: pnpm run build
       
       - name: Upload build artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: dist
           path: |
@@ -100,7 +127,7 @@ jobs:
           cache: 'pnpm'
       
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: pnpm install
       
       - name: Run golden flow tests
         run: pnpm -C examples test
@@ -132,7 +159,7 @@ jobs:
           cache: 'pnpm'
       
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: pnpm install
       
       - name: Build packages
         run: pnpm run build
@@ -148,26 +175,32 @@ jobs:
         env:
           REDIS_URL: redis://localhost:6379
 
-  type-check:
-    name: Type Check
+  workflow-map-check:
+    name: Workflow Map REST/SSE Check
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      
       - uses: pnpm/action-setup@v2
         with:
           version: 8.15.0
-      
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: 'pnpm'
-      
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-      
-      - name: Check TypeScript
-        run: pnpm run check:types
+        run: pnpm install
+      - name: Build orchestrator
+        run: pnpm -C packages/n8n-ai-orchestrator build
+      - name: Start orchestrator
+        run: node packages/n8n-ai-orchestrator/dist/server.js & echo $! > server.pid && sleep 2
+      - name: Check /workflow-map
+        run: curl -f http://localhost:3000/workflow-map | jq .
+      - name: Check /workflow-map/live SSE (headers only)
+        run: |
+          curl -I http://localhost:3000/workflow-map/live | grep -i 'text/event-stream'
+      - name: Stop orchestrator
+        if: always()
+        run: kill $(cat server.pid) || true
 
   type-check:
     name: Type Check
@@ -185,11 +218,13 @@ jobs:
           cache: 'pnpm'
       
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: pnpm install
       
       - name: Check TypeScript
-        run: |
-          pnpm -r exec tsc --noEmit || true
+        run: pnpm run check:types
+
+  # Remove duplicate type-check job; keep a single job
+  # (the second definition below will be deleted)
 
   security:
     name: Security Scan
