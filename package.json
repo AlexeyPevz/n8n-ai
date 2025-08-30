@@ -11,9 +11,17 @@
   "scripts": {
     "build": "pnpm -r run build",
     "dev": "pnpm -r --stream --parallel run dev",
+    "dev:full": "docker compose up -d && pnpm -r --stream --parallel run dev",
     "lint": "pnpm -r run lint",
+    "lint:fix": "pnpm -r run lint -- --fix",
     "test": "pnpm -r run test",
-    "e2e": "pnpm -C packages/n8n-ai-orchestrator test:e2e"
+    "test:ci": "pnpm run lint && pnpm run test && pnpm run test:golden",
+    "test:golden": "cd examples && pnpm test",
+    "e2e": "pnpm -C packages/n8n-ai-orchestrator test:e2e",
+    "docker:up": "docker compose up -d",
+    "docker:down": "docker compose down",
+    "docker:logs": "docker compose logs -f",
+    "check:types": "pnpm -r exec tsc --noEmit"
   },
   "devDependencies": {
     "tsx": "^4.16.2",

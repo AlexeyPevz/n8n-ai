@@ -15,7 +15,7 @@
   "scripts": {
     "build": "tsc",
     "dev": "tsc -w",
-    "test": "echo \"No tests yet\"",
+    "test": "vitest",
     "lint": "eslint --ext .ts ."
   },
   "dependencies": {
@@ -26,6 +26,7 @@
   "devDependencies": {
     "@types/express": "^4.17.21",
     "@types/node": "^20.0.0",
-    "typescript": "^5.5.4"
+    "typescript": "^5.5.4",
+    "vitest": "^3.2.4"
   }
 }
