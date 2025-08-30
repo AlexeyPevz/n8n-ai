@@ -23,6 +23,6 @@
     "@typescript-eslint/explicit-module-boundary-types": "off",
     "no-console": ["warn", { "allow": ["warn", "error", "info"] }],
     "semi": ["error", "always"],
-    "quotes": ["error", "single"]
+    "quotes": ["warn", "single", { "avoidEscape": true }]
   }
 }
