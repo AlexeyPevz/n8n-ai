@@ -53,7 +53,8 @@ jobs:
         uses: codecov/codecov-action@v3
         if: always()
         with:
-          files: ./coverage/lcov.info
+          files: |
+            packages/**/coverage/lcov.info
 
   build:
     name: Build
@@ -169,27 +170,8 @@ jobs:
       - name: Check TypeScript
         run: pnpm run check:types
 
-  type-check:
-    name: Type Check
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      
-      - uses: pnpm/action-setup@v2
-        with:
-          version: 8.15.0
-      
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'pnpm'
-      
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-      
-      - name: Check TypeScript
-        run: |
-          pnpm -r exec tsc --noEmit || true
+  # Remove duplicate type-check job; keep a single job
+  # (the second definition below will be deleted)
 
   security:
     name: Security Scan
