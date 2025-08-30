@@ -7,13 +7,17 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "lint": "echo 'panel lint todo'"
+    "lint": "eslint --ext .ts,.vue src"
   },
   "dependencies": {
     "vue": "^3.4.37"
   },
   "devDependencies": {
+    "@typescript-eslint/eslint-plugin": "^6.0.0",
+    "@typescript-eslint/parser": "^6.0.0",
     "@vitejs/plugin-vue": "^5.0.5",
+    "eslint": "^8.0.0",
+    "eslint-plugin-vue": "^9.25.0",
     "vite": "^5.4.8",
     "typescript": "^5.5.4"
   }

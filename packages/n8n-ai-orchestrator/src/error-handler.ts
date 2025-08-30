@@ -20,6 +20,12 @@ export class ValidationError extends AppError {
   }
 }
 
+export class ValidationFailedError extends AppError {
+  constructor(message: string, details?: unknown) {
+    super(message, 'VALIDATION_FAILED', 422, details);
+  }
+}
+
 export class NotFoundError extends AppError {
   constructor(resource: string, id: string) {
     super(`${resource} with id ${id} not found`, 'NOT_FOUND', 404);
@@ -38,6 +44,18 @@ export class RateLimitError extends AppError {
   }
 }
 
+export class AmbiguousPromptError extends AppError {
+  constructor(message = 'Prompt is empty or too vague', details?: unknown) {
+    super(message, 'AMBIGUOUS_PROMPT', 400, details);
+  }
+}
+
+export class InvalidLLMJsonError extends AppError {
+  constructor(message = 'LLM returned invalid JSON', details?: unknown) {
+    super(message, 'INVALID_LLM_JSON', 400, details);
+  }
+}
+
 export function handleError(error: unknown): AppError {
   if (error instanceof AppError) {
     return error;
@@ -50,13 +68,18 @@ export function handleError(error: unknown): AppError {
   return new AppError('An unknown error occurred', 'UNKNOWN_ERROR', 500);
 }
 
-export function errorToResponse(error: AppError): { error: { code: string; message: string; details: unknown; timestamp: string } } {
+export function errorToResponse(error: AppError): { error: { code: string; message: string; details: unknown; timestamp: string; suggestion?: string; nextActions?: string[] } } {
+  const details = (error.details ?? {}) as Record<string, unknown>;
+  const suggestion = (details.suggestion as string | undefined) ?? (error as unknown as { suggestion?: string }).suggestion;
+  const nextActions = (details.nextActions as string[] | undefined) ?? (error as unknown as { nextActions?: string[] }).nextActions;
   return {
     error: {
       code: error.code,
       message: error.message,
-      details: error.details,
-      timestamp: new Date().toISOString()
+      details,
+      timestamp: new Date().toISOString(),
+      ...(suggestion ? { suggestion } : {}),
+      ...(nextActions ? { nextActions } : {})
     }
   };
 }

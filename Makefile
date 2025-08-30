@@ -44,6 +44,14 @@ orchestrator-logs: ## Show orchestrator logs
 n8n-logs: ## Show n8n logs
 	docker compose logs -f n8n
 
+smoke: ## Run smoke checks (docker-compose up, health, introspect)
+	docker compose up -d
+	./scripts/wait-for-http.sh http://localhost:3000/api/v1/ai/health 60
+	curl -s http://localhost:3000/api/v1/ai/health | python3 -m json.tool
+	./scripts/wait-for-http.sh http://localhost:3000/introspect/nodes 60
+	curl -s http://localhost:3000/introspect/nodes | python3 -m json.tool
+	docker compose down
+
 # Development shortcuts
 dev-orchestrator: ## Start only orchestrator in dev mode
 	pnpm -C packages/n8n-ai-orchestrator dev
