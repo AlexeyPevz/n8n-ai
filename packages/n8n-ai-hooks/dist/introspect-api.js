@@ -8,6 +8,7 @@ export class IntrospectAPI {
     nodeTypes = new Map();
     loadOptionsCache = new Map();
     defaultTtlMs = Number(process.env.N8N_AI_LOADOPTIONS_TTL_MS ?? 60000);
+    externalLoadOptionsResolver;
     constructor() {
         // Предзагружаем встроенные ноды, чтобы экземпляр сразу был полезен в тестах/рантайме
         try {
@@ -105,6 +106,17 @@ export class IntrospectAPI {
      * (заглушка - требует интеграции с n8n core)
      */
     async resolveLoadOptions(nodeType, propertyName, currentNodeParameters) {
+        // Если настроен внешний резолвер (из ядра n8n) — используем его
+        if (this.externalLoadOptionsResolver) {
+            try {
+                const opts = await this.externalLoadOptionsResolver(nodeType, propertyName, currentNodeParameters);
+                if (Array.isArray(opts))
+                    return opts;
+            }
+            catch {
+                // fallback ниже
+            }
+        }
         // Мини-реализация: несколько известных свойств
         if (nodeType === 'n8n-nodes-base.httpRequest') {
             if (propertyName === 'method') {
@@ -209,6 +221,12 @@ export class IntrospectAPI {
             return out;
         };
         return JSON.stringify(stringify(value));
+    }
+    /**
+     * Интеграция с ядром n8n: установка внешнего резолвера loadOptions
+     */
+    setExternalLoadOptionsResolver(resolver) {
+        this.externalLoadOptionsResolver = resolver;
     }
 }
 // Экспортируем singleton

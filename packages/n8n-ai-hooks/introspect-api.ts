@@ -36,6 +36,11 @@ export class IntrospectAPI {
   private nodeTypes: Map<string, INodeTypeDescription> = new Map();
   private loadOptionsCache: Map<string, { etag: string; options: INodePropertyOptions[]; expiresAt: number } > = new Map();
   private readonly defaultTtlMs: number = Number(process.env.N8N_AI_LOADOPTIONS_TTL_MS ?? 60000);
+  private externalLoadOptionsResolver?: (
+    nodeType: string,
+    propertyName: string,
+    currentNodeParameters: Record<string, any>
+  ) => Promise<INodePropertyOptions[]>;
 
   constructor() {
     // Предзагружаем встроенные ноды, чтобы экземпляр сразу был полезен в тестах/рантайме
@@ -151,6 +156,15 @@ export class IntrospectAPI {
     propertyName: string,
     currentNodeParameters: Record<string, any>
   ): Promise<INodePropertyOptions[]> {
+    // Если настроен внешний резолвер (из ядра n8n) — используем его
+    if (this.externalLoadOptionsResolver) {
+      try {
+        const opts = await this.externalLoadOptionsResolver(nodeType, propertyName, currentNodeParameters);
+        if (Array.isArray(opts)) return opts;
+      } catch {
+        // fallback ниже
+      }
+    }
     // Мини-реализация: несколько известных свойств
     if (nodeType === 'n8n-nodes-base.httpRequest') {
       if (propertyName === 'method') {
@@ -272,6 +286,19 @@ export class IntrospectAPI {
       return out;
     };
     return JSON.stringify(stringify(value));
+  }
+
+  /**
+   * Интеграция с ядром n8n: установка внешнего резолвера loadOptions
+   */
+  setExternalLoadOptionsResolver(
+    resolver: (
+      nodeType: string,
+      propertyName: string,
+      currentNodeParameters: Record<string, any>
+    ) => Promise<INodePropertyOptions[]>
+  ): void {
+    this.externalLoadOptionsResolver = resolver;
   }
 }
 

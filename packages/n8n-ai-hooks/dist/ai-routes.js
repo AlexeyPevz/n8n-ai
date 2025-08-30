@@ -105,6 +105,15 @@ export function createAIRoutes() {
             });
         }
     });
+    // Внешняя интеграция: endpoint для установки внешнего резолвера (dev-only)
+    // Примечание: В реальном n8n это делается через прямой вызов API из Server.ts, а не HTTP.
+    if (process.env.NODE_ENV !== 'production') {
+        router.post('/api/v1/ai/__dev/setLoadOptionsResolver', async (req, res) => {
+            // Ожидаем, что в dev окружении сюда можно прокинуть функцию через require hook, но по HTTP
+            // Здесь заглушка: endpoint оставлен как напоминание, реально использовать прямой вызов setExternalLoadOptionsResolver.
+            res.json({ ok: true, note: 'Use introspectAPI.setExternalLoadOptionsResolver from n8n core' });
+        });
+    }
     // Graph Mutation API endpoints (заглушки)
     router.post('/api/v1/ai/graph/:id/batch', async (req, res) => {
         try {
@@ -114,12 +123,25 @@ export function createAIRoutes() {
                 return res.status(400).json({ ok: false, error: 'invalid_operation_batch', issues: parsed.error.format() });
             }
             const batch = parsed.data;
-            // TODO: Применение операций к воркфлоу
-            const undoId = `undo_${Date.now()}`;
-            const stack = undoStacks.get(id) ?? [];
-            stack.push({ undoId, batch });
-            undoStacks.set(id, stack);
-            return res.json({ ok: true, workflowId: id, appliedOperations: batch.ops.length, undoId });
+            // Попытка прокси в оркестратор, если он доступен (временная интеграция до нативной н8н)
+            try {
+                const orchBase = process.env.N8N_AI_ORCHESTRATOR_URL || 'http://localhost:3000';
+                const r = await globalThis.fetch(`${orchBase}/graph/${id}/batch`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(batch)
+                });
+                const json = await r.json();
+                return res.status(r.status).json(json);
+            }
+            catch (e) {
+                // fallback: in-memory undo стек как раньше
+                const undoId = `undo_${Date.now()}`;
+                const stack = undoStacks.get(id) ?? [];
+                stack.push({ undoId, batch });
+                undoStacks.set(id, stack);
+                return res.json({ ok: true, workflowId: id, appliedOperations: batch.ops.length, undoId, note: 'fallback_in_memory' });
+            }
         }
         catch (error) {
             return res.status(500).json({ ok: false, error: 'failed_to_apply_batch', message: error instanceof Error ? error.message : 'Unknown error' });

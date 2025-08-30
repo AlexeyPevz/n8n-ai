@@ -31,6 +31,7 @@ export declare class IntrospectAPI {
     private nodeTypes;
     private loadOptionsCache;
     private readonly defaultTtlMs;
+    private externalLoadOptionsResolver?;
     constructor();
     /**
      * Регистрирует типы нод для интроспекции
@@ -75,6 +76,10 @@ export declare class IntrospectAPI {
     private buildCacheKey;
     private computeEtag;
     private stableStringify;
+    /**
+     * Интеграция с ядром n8n: установка внешнего резолвера loadOptions
+     */
+    setExternalLoadOptionsResolver(resolver: (nodeType: string, propertyName: string, currentNodeParameters: Record<string, any>) => Promise<INodePropertyOptions[]>): void;
 }
 export declare const introspectAPI: IntrospectAPI;
 export interface LegacyNodeType {
