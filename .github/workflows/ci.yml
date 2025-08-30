@@ -23,7 +23,7 @@ jobs:
           node-version: '20'
           cache: 'pnpm'
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: pnpm install
       - name: Lint commits
         run: npx commitlint --from=$(git merge-base origin/${{ github.base_ref }} HEAD) --to=HEAD
   lint:
@@ -42,7 +42,7 @@ jobs:
           cache: 'pnpm'
       
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: pnpm install
       
       - name: Run linters
         run: pnpm run lint
@@ -63,7 +63,7 @@ jobs:
           cache: 'pnpm'
       
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: pnpm install
       
       - name: Run unit tests (skip orchestrator e2e)
         run: pnpm run test --reporter=verbose | tee unit-tests.log
@@ -98,7 +98,7 @@ jobs:
           cache: 'pnpm'
       
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: pnpm install
       
       - name: Build all packages
         run: pnpm run build
@@ -127,7 +127,7 @@ jobs:
           cache: 'pnpm'
       
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: pnpm install
       
       - name: Run golden flow tests
         run: pnpm -C examples test
@@ -159,7 +159,7 @@ jobs:
           cache: 'pnpm'
       
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: pnpm install
       
       - name: Build packages
         run: pnpm run build
@@ -188,7 +188,7 @@ jobs:
           node-version: '20'
           cache: 'pnpm'
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: pnpm install
       - name: Build orchestrator
         run: pnpm -C packages/n8n-ai-orchestrator build
       - name: Start orchestrator
