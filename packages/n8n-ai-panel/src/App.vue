@@ -25,6 +25,16 @@
         </div>
       </div>
       <button @click="plan">Plan</button>
+      <ErrorCard 
+        v-if="lastError"
+        :code="lastError.code"
+        :message="lastError.message"
+        :suggestion="lastError.suggestion"
+        :actions="lastError.nextActions"
+        :details="lastError.details"
+        @dismiss="lastError = null"
+        @action="onErrorAction"
+      />
       <div class="progress" v-if="progress >= 0">
         <div class="bar" :style="{ width: progress + '%' }"></div>
         <span class="pct">{{ progress }}%</span>
@@ -90,6 +100,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onBeforeUnmount } from "vue";
 import WorkflowCanvas from './components/WorkflowCanvas.vue';
+import ErrorCard from './components/ErrorCard.vue';
 
 const prompt = ref("");
 const promptEl = ref<HTMLTextAreaElement|null>(null);
@@ -124,6 +135,7 @@ const hasErrors = computed(() => lints.value.some(l => l.level === 'error'));
 const progress = ref<number>(-1);
 const simStats = ref<any|null>(null);
 const currentWorkflow = ref<any>(null);
+const lastError = ref<any|null>(null);
 
 // Canvas changes tracking
 const canvasChanges = computed(() => {
@@ -236,13 +248,19 @@ async function preview() {
       body: JSON.stringify({ prompt: prompt.value })
     });
     const json = await r.json();
+    if (!r.ok && json?.error) {
+      lastError.value = { ...json.error };
+      return;
+    } else {
+      lastError.value = null;
+    }
     diff.value = JSON.stringify(json, null, 2);
     diffList.value = Array.isArray(json?.ops) ? json.ops.map((op: any) => op.op) : [];
     
     // Fetch current workflow state for canvas
     await fetchWorkflowState();
   } catch (e) {
-    diff.value = `Error: ${String(e)}`;
+    lastError.value = { code: 'NETWORK', message: String(e) };
   }
 }
 async function fetchWorkflowState() {
@@ -277,12 +295,13 @@ async function apply() {
     if (json.ok) {
       lastUndoId.value = json.undoId;
       alert(`Applied: ${json.appliedOperations}`);
+      lastError.value = null;
     } else {
       lints.value = Array.isArray(json.lints) ? json.lints : [];
-      alert(`Error: ${json.error || 'apply_failed'}`);
+      lastError.value = { code: json.error || 'apply_failed', message: 'Дифф отклонён валидатором', details: { lints: json.lints }, suggestion: 'Попробую авто‑исправить через Critic', nextActions: ['critic_autofix'] };
     }
   } catch (e) {
-    alert(`Apply error: ${String(e)}`);
+    lastError.value = { code: 'NETWORK', message: String(e) };
   }
 }
 async function undo() {
@@ -308,8 +327,32 @@ async function test() {
     const rs = await fetch(`${apiBase}/graph/${workflowId}/simulate`, { method: "POST" });
     const js = await rs.json();
     simStats.value = js?.stats || null;
+    lastError.value = null;
   } catch (e) {
-    alert(`Test error: ${String(e)}`);
+    lastError.value = { code: 'NETWORK', message: String(e) };
+  }
+}
+
+function onErrorAction(action: string) {
+  if (action === 'critic_autofix') {
+    criticAutofix();
+  } else if (action === 'ask_clarifying_question') {
+    prompt.value = `${prompt.value.trim()} — укажи, пожалуйста, URL/метод/аутентификацию?`;
+  }
+}
+
+async function criticAutofix() {
+  try {
+    const r = await fetch(`${apiBase}/graph/${workflowId}/critic`, { method: 'POST' });
+    const json = await r.json();
+    if (json?.ok) {
+      lastError.value = null;
+      await test();
+    } else {
+      lastError.value = { code: 'CRITIC_FAILED', message: 'Авто‑исправление не помогло', details: json };
+    }
+  } catch (e) {
+    lastError.value = { code: 'NETWORK', message: String(e) };
   }
 }
 </script>
