@@ -7,6 +7,40 @@ export class SimplePlanner {
     async plan(context) {
         const { prompt } = context;
         const promptLower = prompt.toLowerCase();
+        // Приоритет: если пользователь явно просит HTTP/API — генерируем простой HTTP workflow
+        if (promptLower.includes("http") || promptLower.includes("api") || this.extractUrl(prompt)) {
+            const operations = [];
+            const method = this.detectHttpMethod(promptLower);
+            const url = this.extractUrl(prompt) || "https://api.example.com/data";
+            operations.push({
+                op: "add_node",
+                node: {
+                    id: "http-1",
+                    name: "HTTP Request",
+                    type: "n8n-nodes-base.httpRequest",
+                    typeVersion: 4,
+                    position: [600, 300],
+                    parameters: {
+                        method,
+                        url,
+                        responseFormat: "json",
+                        options: {}
+                    }
+                }
+            });
+            operations.push({
+                op: "connect",
+                from: "Manual Trigger",
+                to: "HTTP Request",
+                index: 0
+            });
+            operations.push({
+                op: "annotate",
+                name: "HTTP Request",
+                text: `${method} запрос для получения данных`
+            });
+            return { version: "v1", ops: operations };
+        }
         // Используем улучшенный матчер паттернов
         const matchResults = patternMatcher.findMatchingPatterns(prompt);
         if (matchResults.length > 0) {

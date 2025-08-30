@@ -3,16 +3,77 @@ import cors from "@fastify/cors";
 import { OperationBatchSchema } from "@n8n-ai/schemas";
 import { SimplePlanner } from "./planner.js";
 import { patternMatcher } from "./pattern-matcher.js";
+import { graphManager } from "./graph-manager.js";
 const server = Fastify({ logger: true });
 await server.register(cors, { origin: true });
+// Простой прокси для n8n-ai-hooks Introspect API
 server.get("/introspect/nodes", async () => {
+    // Пытаемся проксировать в n8n-ai-hooks, если доступен
+    const hooksBase = process.env.N8N_URL ?? "http://localhost:5678";
+    try {
+        const resp = await fetch(`${hooksBase}/api/v1/ai/introspect/nodes`);
+        if (resp.ok) {
+            const data = await resp.json();
+            const nodes = Array.isArray(data) ? data : (data.nodes ?? []);
+            if (Array.isArray(nodes) && nodes.length > 0)
+                return nodes;
+        }
+    }
+    catch (e) {
+        server.log.warn({ error: e }, "Hooks introspect not available, falling back to static list");
+    }
+    // Фолбэк: статический список основных нод для MVP
     return [
         {
             name: "HTTP Request",
             type: "n8n-nodes-base.httpRequest",
             typeVersion: 4,
             parameters: {
-                method: { enum: ["GET", "POST", "PUT", "DELETE"] }
+                method: { enum: ["GET", "POST", "PUT", "DELETE"] },
+                url: { type: "string", required: true },
+                authentication: { enum: ["none", "basicAuth", "headerAuth", "oAuth2"] },
+                responseFormat: { enum: ["json", "text", "binary"] }
+            }
+        },
+        {
+            name: "Webhook",
+            type: "n8n-nodes-base.webhook",
+            typeVersion: 1,
+            parameters: {
+                httpMethod: { enum: ["GET", "POST", "PUT", "DELETE"] },
+                path: { type: "string", required: true }
+            }
+        },
+        {
+            name: "Schedule Trigger",
+            type: "n8n-nodes-base.scheduleTrigger",
+            typeVersion: 1,
+            parameters: {
+                rule: { type: "object" }
+            }
+        },
+        {
+            name: "Manual Trigger",
+            type: "n8n-nodes-base.manualTrigger",
+            typeVersion: 1,
+            parameters: {}
+        },
+        {
+            name: "Code",
+            type: "n8n-nodes-base.code",
+            typeVersion: 2,
+            parameters: {
+                language: { enum: ["javaScript", "python"] },
+                jsCode: { type: "string" }
+            }
+        },
+        {
+            name: "Set",
+            type: "n8n-nodes-base.set",
+            typeVersion: 1,
+            parameters: {
+                keepOnlySet: { type: "boolean" },
+                values: { type: "collection" }
             }
         }
     ];
@@ -36,25 +97,90 @@ server.post("/plan", async (req) => {
     }
 });
 server.post("/graph/:id/batch", async (req) => {
+    const { id: workflowId } = req.params;
+    // Авто-создание воркфлоу, если он отсутствует
+    if (!graphManager.getWorkflow(workflowId)) {
+        graphManager.createWorkflow(workflowId, `Workflow ${workflowId}`);
+    }
     const parsed = OperationBatchSchema.safeParse(req.body);
     if (!parsed.success) {
         return { ok: false, error: "invalid_operation_batch", issues: parsed.error.format() };
     }
-    return { ok: true, undoId: `undo_${Date.now()}` };
+    // Применяем операции через GraphManager
+    const result = graphManager.applyBatch(workflowId, parsed.data);
+    if (result.success) {
+        server.log.info({
+            workflowId,
+            appliedOperations: result.appliedOperations,
+            undoId: result.undoId
+        }, "Operations applied successfully");
+        return {
+            ok: true,
+            undoId: result.undoId,
+            appliedOperations: result.appliedOperations
+        };
+    }
+    else {
+        server.log.error({ workflowId, error: result.error }, "Failed to apply operations");
+        return {
+            ok: false,
+            error: result.error
+        };
+    }
 });
-server.post("/graph/:id/validate", async () => {
+server.post("/graph/:id/validate", async (req) => {
+    const { id: workflowId } = req.params;
+    const validationResult = graphManager.validate(workflowId);
     return {
-        ok: true,
-        lints: [
-            { code: "missing_trigger", level: "warn", message: "No trigger node detected" }
-        ]
+        ok: validationResult.valid,
+        lints: validationResult.lints
     };
 });
-server.post("/graph/:id/simulate", async () => {
-    return {
-        ok: true,
-        stats: { nodesVisited: 5, estimatedDurationMs: 1200 }
-    };
+server.post("/graph/:id/simulate", async (req) => {
+    const { id: workflowId } = req.params;
+    const simulationResult = graphManager.simulate(workflowId);
+    return simulationResult;
+});
+server.post("/graph/:id/undo", async (req) => {
+    const { id: workflowId } = req.params;
+    const { undoId } = req.body || {};
+    const result = graphManager.undo(workflowId, undoId);
+    if (result.success) {
+        server.log.info({ workflowId, undoId: result.undoId }, "Undo successful");
+        return {
+            ok: true,
+            undoId: result.undoId,
+            undoneOperations: result.appliedOperations
+        };
+    }
+    else {
+        return { ok: false, error: result.error };
+    }
+});
+server.post("/graph/:id/redo", async (req) => {
+    const { id: workflowId } = req.params;
+    const result = graphManager.redo(workflowId);
+    if (result.success) {
+        server.log.info({ workflowId }, "Redo successful");
+        return {
+            ok: true,
+            redoneOperations: result.appliedOperations
+        };
+    }
+    else {
+        return { ok: false, error: result.error };
+    }
+});
+// Endpoint для получения текущего состояния воркфлоу
+server.get("/graph/:id", async (req) => {
+    const { id: workflowId } = req.params;
+    const workflow = graphManager.getWorkflow(workflowId);
+    if (workflow) {
+        return { ok: true, workflow };
+    }
+    else {
+        return { ok: false, error: 'Workflow not found' };
+    }
 });
 server.get("/patterns", async () => {
     const categories = patternMatcher.getCategories();

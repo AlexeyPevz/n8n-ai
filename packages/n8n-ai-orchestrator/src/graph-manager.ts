@@ -11,7 +11,6 @@ import {
   ConnectionSchema,
   OperationBatchSchema 
 } from '@n8n-ai/schemas';
-import { z } from 'zod';
 
 export interface WorkflowState {
   id: string;

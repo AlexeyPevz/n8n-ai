@@ -107,6 +107,11 @@ server.post<{
 }>("/graph/:id/batch", async (req) => {
   const { id: workflowId } = req.params;
   
+  // Авто-создание воркфлоу, если он отсутствует
+  if (!graphManager.getWorkflow(workflowId)) {
+    graphManager.createWorkflow(workflowId, `Workflow ${workflowId}`);
+  }
+
   const parsed = OperationBatchSchema.safeParse(req.body);
   if (!parsed.success) {
     return { ok: false, error: "invalid_operation_batch", issues: parsed.error.format() };
