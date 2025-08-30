@@ -5,7 +5,7 @@ import { SimplePlanner } from './planner.js';
 import { patternMatcher } from './pattern-matcher.js';
 import { graphManager } from './graph-manager.js';
 import { metrics, METRICS } from './metrics.js';
-import { handleError, errorToResponse, ValidationError, NotFoundError } from './error-handler.js';
+import { handleError, errorToResponse, ValidationError, ValidationFailedError, NotFoundError, AmbiguousPromptError } from './error-handler.js';
 import { randomUUID } from 'node:crypto';
 
 const server = Fastify({ logger: true });
@@ -90,7 +90,7 @@ await server.register(cors, { origin: true });
 server.setErrorHandler((error, request, reply) => {
   const appError = handleError(error);
   metrics.increment(METRICS.API_REQUESTS, { endpoint: request.url, status: 'error' });
-  
+  server.log.error({ code: appError.code, details: appError.details }, 'API error');
   reply.status(appError.statusCode).send(errorToResponse(appError));
 });
 
@@ -179,9 +179,11 @@ server.post<{ Body: { prompt?: string } }>('/plan', async (req) => {
     metrics.increment(METRICS.API_REQUESTS, { endpoint: 'plan' });
     
     const prompt = req.body?.prompt ?? '';
-    
-    if (!prompt) {
-      throw new ValidationError('prompt is required');
+    if (!prompt || prompt.trim().length < 3) {
+      throw new AmbiguousPromptError('Prompt is empty or too vague', {
+        suggestion: 'Уточните задачу: например, "Сделай HTTP GET на https://api.example.com и выведи JSON"',
+        nextActions: ['ask_clarifying_question']
+      });
     }
     
     try {
@@ -190,7 +192,11 @@ server.post<{ Body: { prompt?: string } }>('/plan', async (req) => {
       if (!parsed.success) {
         server.log.error({ prompt, issues: parsed.error.format() }, 'Generated plan failed schema validation');
         metrics.increment(METRICS.VALIDATION_ERRORS, { type: 'plan' });
-        throw new ValidationError('invalid_generated_operation_batch', parsed.error.format());
+        throw new ValidationFailedError('invalid_generated_operation_batch', {
+          lints: parsed.error.format(),
+          suggestion: 'Попробую авто‑исправить через Critic',
+          nextActions: ['critic_autofix']
+        });
       }
       
       metrics.increment(METRICS.PLAN_OPERATIONS, { count: String(parsed.data.ops.length) });
