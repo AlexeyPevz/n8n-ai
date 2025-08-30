@@ -48,7 +48,7 @@ server.addContentTypeParser('application/json', { parseAs: 'string' }, (req, bod
     const parsed = typeof body === 'string' ? JSON.parse(body) : body;
     done(null, parsed);
   } catch (err) {
-    done(err as any);
+    done(err as Error);
   }
 });
 
@@ -77,8 +77,8 @@ server.get('/introspect/nodes', async () => {
   try {
     const resp = await fetch(`${hooksBase}/api/v1/ai/introspect/nodes`);
     if (resp.ok) {
-      const data: any = await resp.json();
-      const nodes = Array.isArray(data) ? data : (data.nodes ?? []);
+      const data = (await resp.json()) as unknown;
+      const nodes = Array.isArray(data) ? data : ((data as { nodes?: unknown }).nodes ?? []);
       if (Array.isArray(nodes) && nodes.length > 0) return nodes;
     }
   } catch (e) {
@@ -383,13 +383,14 @@ async function start() {
   let port = Number(process.env.PORT ?? 3000);
   try {
     await server.listen({ port, host: '0.0.0.0' });
-  } catch (err: any) {
-    if (err?.code === 'EADDRINUSE') {
+  } catch (err: unknown) {
+    const e = err as { code?: string } | undefined;
+    if (e?.code === 'EADDRINUSE') {
       server.log.warn({ port }, 'Port in use, retrying on 0');
       port = 0;
       await server.listen({ port, host: '0.0.0.0' });
     } else {
-      server.log.error(err);
+      server.log.error(err as Error);
       process.exit(1);
     }
   }
