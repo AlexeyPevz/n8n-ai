@@ -298,10 +298,12 @@ export class GraphManager {
                 if (!params.url)
                     params.url = 'https://example.com';
                 const allowedMethods = ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'HEAD', 'OPTIONS'];
-                if (params.method && !allowedMethods.includes(params.method))
+                const method = params.method;
+                if (method && !allowedMethods.includes(method))
                     params.method = 'GET';
                 const allowedFormats = ['json', 'text', 'binary'];
-                if (params.responseFormat && !allowedFormats.includes(params.responseFormat))
+                const responseFormat = params.responseFormat;
+                if (responseFormat && !allowedFormats.includes(responseFormat))
                     params.responseFormat = 'json';
             }
             if (node.type === 'n8n-nodes-base.webhook') {
@@ -364,7 +366,7 @@ export class GraphManager {
     /**
      * Симулирует выполнение воркфлоу
      */
-    simulate(workflowId, mockData) {
+    simulate(workflowId, _mockData) {
         const workflow = this.workflows.get(workflowId);
         if (!workflow) {
             return { ok: false, error: 'Workflow not found' };
@@ -381,6 +383,25 @@ export class GraphManager {
             node: node.name,
             outputSize: Math.floor(Math.random() * 1000) + 100 // Mock размер данных
         }));
+        // Простейший синтез форм данных на основе типа ноды
+        const dataShapes = {};
+        for (const node of workflow.nodes) {
+            if (node.type === 'n8n-nodes-base.httpRequest') {
+                dataShapes[node.name] = {
+                    output: [{ id: 'number', name: 'string', email: 'string' }]
+                };
+            }
+            else if (node.type === 'n8n-nodes-base.webhook') {
+                dataShapes[node.name] = {
+                    output: [{ body: 'object', headers: 'object', query: 'object' }]
+                };
+            }
+            else if (node.type === 'n8n-nodes-base.code') {
+                dataShapes[node.name] = {
+                    output: [{ result: 'any' }]
+                };
+            }
+        }
         return {
             ok: true,
             stats: {
@@ -388,6 +409,7 @@ export class GraphManager {
                 estimatedDurationMs,
                 p95DurationMs,
                 dataFlow,
+                dataShapes,
                 warnings: validation.lints.filter((l) => l.level === 'warn').map((l) => ({ code: l.code, message: l.message, node: l.node }))
             }
         };

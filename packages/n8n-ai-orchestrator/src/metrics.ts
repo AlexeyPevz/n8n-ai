@@ -43,8 +43,8 @@ class MetricsCollector {
     }
   }
 
-  getMetrics(): Record<string, any> {
-    const metrics: Record<string, any> = {
+  getMetrics(): { counters: Record<string, number>; histograms: Record<string, { count: number; min: number; max: number; p50: number; p95: number; p99: number }> } {
+    const metrics: { counters: Record<string, number>; histograms: Record<string, { count: number; min: number; max: number; p50: number; p95: number; p99: number }> } = {
       counters: {},
       histograms: {}
     };

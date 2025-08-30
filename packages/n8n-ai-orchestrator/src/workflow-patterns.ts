@@ -9,7 +9,7 @@ export interface WorkflowPattern {
     type: string;
     typeVersion: number;
     name: string;
-    parameters?: Record<string, any>;
+    parameters?: Record<string, unknown>;
   }>;
   connections: Array<{
     from: string;
@@ -19,221 +19,221 @@ export interface WorkflowPattern {
 
 export const WORKFLOW_PATTERNS: WorkflowPattern[] = [
   {
-    name: "webhook-to-slack",
-    keywords: ["webhook", "slack", "notification", "alert"],
+    name: 'webhook-to-slack',
+    keywords: ['webhook', 'slack', 'notification', 'alert'],
     nodes: [
       {
-        type: "n8n-nodes-base.webhook",
+        type: 'n8n-nodes-base.webhook',
         typeVersion: 1,
-        name: "Webhook",
+        name: 'Webhook',
         parameters: {
-          httpMethod: "POST",
-          path: "webhook-endpoint"
+          httpMethod: 'POST',
+          path: 'webhook-endpoint'
         }
       },
       {
-        type: "n8n-nodes-base.slack",
+        type: 'n8n-nodes-base.slack',
         typeVersion: 2,
-        name: "Send to Slack",
+        name: 'Send to Slack',
         parameters: {
-          authentication: "oAuth2",
+          authentication: 'oAuth2',
           channel: "={{ $json.channel || '#general' }}",
-          text: "={{ $json.message }}"
+          text: '={{ $json.message }}'
         }
       }
     ],
     connections: [
-      { from: "Webhook", to: "Send to Slack" }
+      { from: 'Webhook', to: 'Send to Slack' }
     ]
   },
   
   {
-    name: "scheduled-report",
-    keywords: ["schedule", "report", "daily", "weekly", "cron"],
+    name: 'scheduled-report',
+    keywords: ['schedule', 'report', 'daily', 'weekly', 'cron'],
     nodes: [
       {
-        type: "n8n-nodes-base.scheduleTrigger",
+        type: 'n8n-nodes-base.scheduleTrigger',
         typeVersion: 1,
-        name: "Schedule",
+        name: 'Schedule',
         parameters: {
           rule: {
-            cronExpression: "0 9 * * *"
+            cronExpression: '0 9 * * *'
           }
         }
       },
       {
-        type: "n8n-nodes-base.httpRequest",
+        type: 'n8n-nodes-base.httpRequest',
         typeVersion: 4,
-        name: "Fetch Data",
+        name: 'Fetch Data',
         parameters: {
-          method: "GET",
-          url: "https://api.example.com/data"
+          method: 'GET',
+          url: 'https://api.example.com/data'
         }
       },
       {
-        type: "n8n-nodes-base.code",
+        type: 'n8n-nodes-base.code',
         typeVersion: 2,
-        name: "Transform Data",
+        name: 'Transform Data',
         parameters: {
-          jsCode: "return items.map(item => ({ json: item.json }));"
+          jsCode: 'return items.map(item => ({ json: item.json }));'
         }
       },
       {
-        type: "n8n-nodes-base.emailSend",
+        type: 'n8n-nodes-base.emailSend',
         typeVersion: 2,
-        name: "Send Report",
+        name: 'Send Report',
         parameters: {
-          sendTo: "team@example.com",
-          subject: "Daily Report",
-          emailType: "html"
+          sendTo: 'team@example.com',
+          subject: 'Daily Report',
+          emailType: 'html'
         }
       }
     ],
     connections: [
-      { from: "Schedule", to: "Fetch Data" },
-      { from: "Fetch Data", to: "Transform Data" },
-      { from: "Transform Data", to: "Send Report" }
+      { from: 'Schedule', to: 'Fetch Data' },
+      { from: 'Fetch Data', to: 'Transform Data' },
+      { from: 'Transform Data', to: 'Send Report' }
     ]
   },
   
   {
-    name: "ai-enhanced-workflow",
-    keywords: ["ai", "langchain", "openai", "chat", "vector", "embedding"],
+    name: 'ai-enhanced-workflow',
+    keywords: ['ai', 'langchain', 'openai', 'chat', 'vector', 'embedding'],
     nodes: [
       {
-        type: "n8n-nodes-base.webhook",
+        type: 'n8n-nodes-base.webhook',
         typeVersion: 1,
-        name: "Webhook",
+        name: 'Webhook',
         parameters: {
-          httpMethod: "POST",
-          path: "ai-endpoint"
+          httpMethod: 'POST',
+          path: 'ai-endpoint'
         }
       },
       {
-        type: "@n8n/n8n-nodes-langchain.textSplitterCharacterTextSplitter",
+        type: '@n8n/n8n-nodes-langchain.textSplitterCharacterTextSplitter',
         typeVersion: 1,
-        name: "Text Splitter",
+        name: 'Text Splitter',
         parameters: {
           chunkSize: 1000,
           chunkOverlap: 100
         }
       },
       {
-        type: "@n8n/n8n-nodes-langchain.embeddingsOpenAi",
+        type: '@n8n/n8n-nodes-langchain.embeddingsOpenAi',
         typeVersion: 1,
-        name: "Embeddings",
+        name: 'Embeddings',
         parameters: {
-          model: "text-embedding-ada-002"
+          model: 'text-embedding-ada-002'
         }
       },
       {
-        type: "@n8n/n8n-nodes-langchain.vectorStoreSupabase",
+        type: '@n8n/n8n-nodes-langchain.vectorStoreSupabase',
         typeVersion: 1,
-        name: "Vector Store",
+        name: 'Vector Store',
         parameters: {}
       },
       {
-        type: "@n8n/n8n-nodes-langchain.agent",
+        type: '@n8n/n8n-nodes-langchain.agent',
         typeVersion: 1,
-        name: "AI Agent",
+        name: 'AI Agent',
         parameters: {}
       }
     ],
     connections: [
-      { from: "Webhook", to: "Text Splitter" },
-      { from: "Text Splitter", to: "Embeddings" },
-      { from: "Embeddings", to: "Vector Store" },
-      { from: "Vector Store", to: "AI Agent" }
+      { from: 'Webhook', to: 'Text Splitter' },
+      { from: 'Text Splitter', to: 'Embeddings' },
+      { from: 'Embeddings', to: 'Vector Store' },
+      { from: 'Vector Store', to: 'AI Agent' }
     ]
   },
   
   {
-    name: "github-automation",
-    keywords: ["github", "git", "commit", "issue", "pr", "pull request"],
+    name: 'github-automation',
+    keywords: ['github', 'git', 'commit', 'issue', 'pr', 'pull request'],
     nodes: [
       {
-        type: "n8n-nodes-base.githubTrigger",
+        type: 'n8n-nodes-base.githubTrigger',
         typeVersion: 1,
-        name: "GitHub Trigger",
+        name: 'GitHub Trigger',
         parameters: {
-          events: ["push", "pull_request"]
+          events: ['push', 'pull_request']
         }
       },
       {
-        type: "n8n-nodes-base.github",
+        type: 'n8n-nodes-base.github',
         typeVersion: 1,
-        name: "GitHub Action",
+        name: 'GitHub Action',
         parameters: {
-          operation: "createIssue",
-          owner: "={{ $json.repository.owner.login }}",
-          repository: "={{ $json.repository.name }}"
+          operation: 'createIssue',
+          owner: '={{ $json.repository.owner.login }}',
+          repository: '={{ $json.repository.name }}'
         }
       }
     ],
     connections: [
-      { from: "GitHub Trigger", to: "GitHub Action" }
+      { from: 'GitHub Trigger', to: 'GitHub Action' }
     ]
   },
   
   {
-    name: "stripe-integration",
-    keywords: ["stripe", "payment", "invoice", "subscription", "billing"],
+    name: 'stripe-integration',
+    keywords: ['stripe', 'payment', 'invoice', 'subscription', 'billing'],
     nodes: [
       {
-        type: "n8n-nodes-base.stripeTrigger",
+        type: 'n8n-nodes-base.stripeTrigger',
         typeVersion: 1,
-        name: "Stripe Trigger",
+        name: 'Stripe Trigger',
         parameters: {
-          events: ["invoice.payment_succeeded"]
+          events: ['invoice.payment_succeeded']
         }
       },
       {
-        type: "n8n-nodes-base.quickbooks",
+        type: 'n8n-nodes-base.quickbooks',
         typeVersion: 1,
-        name: "QuickBooks",
+        name: 'QuickBooks',
         parameters: {
-          operation: "createInvoice"
+          operation: 'createInvoice'
         }
       }
     ],
     connections: [
-      { from: "Stripe Trigger", to: "QuickBooks" }
+      { from: 'Stripe Trigger', to: 'QuickBooks' }
     ]
   },
   
   {
-    name: "inventory-monitoring",
-    keywords: ["inventory", "stock", "alert", "monitoring", "warehouse"],
+    name: 'inventory-monitoring',
+    keywords: ['inventory', 'stock', 'alert', 'monitoring', 'warehouse'],
     nodes: [
       {
-        type: "n8n-nodes-base.scheduleTrigger",
+        type: 'n8n-nodes-base.scheduleTrigger',
         typeVersion: 1,
-        name: "Check Schedule",
+        name: 'Check Schedule',
         parameters: {
           rule: {
-            interval: [{ field: "hours", hoursInterval: 1 }]
+            interval: [{ field: 'hours', hoursInterval: 1 }]
           }
         }
       },
       {
-        type: "n8n-nodes-base.postgres",
+        type: 'n8n-nodes-base.postgres',
         typeVersion: 2,
-        name: "Check Inventory",
+        name: 'Check Inventory',
         parameters: {
-          operation: "executeQuery",
-          query: "SELECT * FROM inventory WHERE quantity < reorder_level"
+          operation: 'executeQuery',
+          query: 'SELECT * FROM inventory WHERE quantity < reorder_level'
         }
       },
       {
-        type: "n8n-nodes-base.if",
+        type: 'n8n-nodes-base.if',
         typeVersion: 1,
-        name: "Low Stock?",
+        name: 'Low Stock?',
         parameters: {
           conditions: {
             number: [
               {
-                value1: "={{ $json.length }}",
-                operation: "larger",
+                value1: '={{ $json.length }}',
+                operation: 'larger',
                 value2: 0
               }
             ]
@@ -241,19 +241,19 @@ export const WORKFLOW_PATTERNS: WorkflowPattern[] = [
         }
       },
       {
-        type: "n8n-nodes-base.slack",
+        type: 'n8n-nodes-base.slack',
         typeVersion: 2,
-        name: "Alert",
+        name: 'Alert',
         parameters: {
-          channel: "#inventory-alerts",
-          text: "⚠️ Low stock detected for {{ $json.length }} items"
+          channel: '#inventory-alerts',
+          text: '⚠️ Low stock detected for {{ $json.length }} items'
         }
       }
     ],
     connections: [
-      { from: "Check Schedule", to: "Check Inventory" },
-      { from: "Check Inventory", to: "Low Stock?" },
-      { from: "Low Stock?", to: "Alert" }
+      { from: 'Check Schedule', to: 'Check Inventory' },
+      { from: 'Check Inventory', to: 'Low Stock?' },
+      { from: 'Low Stock?', to: 'Alert' }
     ]
   }
 ];
@@ -281,13 +281,17 @@ export function findMatchingPattern(prompt: string): WorkflowPattern | null {
 /**
  * Генерирует операции на основе паттерна
  */
-export function generateOperationsFromPattern(pattern: WorkflowPattern): any[] {
-  const operations: any[] = [];
+export type GeneratedOperation =
+  | { op: 'add_node'; node: { id: string; name: string; type: string; typeVersion: number; position: [number, number]; parameters: Record<string, unknown> } }
+  | { op: 'connect'; from: string; to: string };
+
+export function generateOperationsFromPattern(pattern: WorkflowPattern): GeneratedOperation[] {
+  const operations: GeneratedOperation[] = [];
   
   // Добавляем ноды
   pattern.nodes.forEach((node, index) => {
     operations.push({
-      op: "add_node",
+      op: 'add_node',
       node: {
         id: `node-${index + 1}`,
         name: node.name,
@@ -302,7 +306,7 @@ export function generateOperationsFromPattern(pattern: WorkflowPattern): any[] {
   // Добавляем соединения
   pattern.connections.forEach(conn => {
     operations.push({
-      op: "connect",
+      op: 'connect',
       from: conn.from,
       to: conn.to
     });

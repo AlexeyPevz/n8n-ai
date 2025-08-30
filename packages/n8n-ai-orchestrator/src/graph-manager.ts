@@ -3,9 +3,10 @@
  * Управляет состоянием воркфлоу и применением операций
  */
 
-import { 
+import type { 
   OperationBatch, 
-  Node, 
+  Node} from '@n8n-ai/schemas';
+import { 
   Graph,
   NodeSchema,
   ConnectionSchema,
@@ -347,12 +348,12 @@ export class GraphManager {
           lints.push({ code: 'missing_required_param', level: 'error', message: `Node "${node.name}" is missing required parameter "url"`, node: node.name });
         }
         const allowedMethods = ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'HEAD', 'OPTIONS'];
-        const method = (node.parameters as any)?.method;
+        const method = (node.parameters as Record<string, unknown>)?.method as string | undefined;
         if (method && !allowedMethods.includes(method)) {
           lints.push({ code: 'invalid_enum', level: 'error', message: `Node "${node.name}" has invalid method "${method}"`, node: node.name });
         }
         const allowedFormats = ['json', 'text', 'binary'];
-        const responseFormat = (node.parameters as any)?.responseFormat;
+        const responseFormat = (node.parameters as Record<string, unknown>)?.responseFormat as string | undefined;
         if (responseFormat && !allowedFormats.includes(responseFormat)) {
           lints.push({ code: 'invalid_enum', level: 'error', message: `Node "${node.name}" has invalid responseFormat "${responseFormat}"`, node: node.name });
         }
@@ -378,15 +379,17 @@ export class GraphManager {
   private applyAutoFixes(workflow: WorkflowState): void {
     for (const node of workflow.nodes) {
       if (node.type === 'n8n-nodes-base.httpRequest') {
-        const params = node.parameters as any;
+        const params = node.parameters as Record<string, unknown>;
         if (!params.url) params.url = 'https://example.com';
         const allowedMethods = ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'HEAD', 'OPTIONS'];
-        if (params.method && !allowedMethods.includes(params.method)) params.method = 'GET';
+        const method = params.method as string | undefined;
+        if (method && !allowedMethods.includes(method)) params.method = 'GET';
         const allowedFormats = ['json', 'text', 'binary'];
-        if (params.responseFormat && !allowedFormats.includes(params.responseFormat)) params.responseFormat = 'json';
+        const responseFormat = params.responseFormat as string | undefined;
+        if (responseFormat && !allowedFormats.includes(responseFormat)) params.responseFormat = 'json';
       }
       if (node.type === 'n8n-nodes-base.webhook') {
-        const params = node.parameters as any;
+        const params = node.parameters as Record<string, unknown>;
         if (!params.path) params.path = 'webhook-endpoint';
       }
     }
@@ -458,7 +461,7 @@ export class GraphManager {
   /**
    * Симулирует выполнение воркфлоу
    */
-  simulate(workflowId: string, mockData?: any): {
+  simulate(workflowId: string, _mockData?: Record<string, unknown>): {
     ok: boolean;
     stats?: {
       nodesVisited: number;

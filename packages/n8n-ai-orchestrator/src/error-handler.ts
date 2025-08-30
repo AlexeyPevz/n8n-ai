@@ -7,7 +7,7 @@ export class AppError extends Error {
     public message: string,
     public code: string,
     public statusCode: number = 500,
-    public details?: any
+    public details?: unknown
   ) {
     super(message);
     this.name = 'AppError';
@@ -15,7 +15,7 @@ export class AppError extends Error {
 }
 
 export class ValidationError extends AppError {
-  constructor(message: string, details?: any) {
+  constructor(message: string, details?: unknown) {
     super(message, 'VALIDATION_ERROR', 400, details);
   }
 }
@@ -27,7 +27,7 @@ export class NotFoundError extends AppError {
 }
 
 export class IntegrationError extends AppError {
-  constructor(service: string, message: string, details?: any) {
+  constructor(service: string, message: string, details?: unknown) {
     super(`Integration error with ${service}: ${message}`, 'INTEGRATION_ERROR', 502, details);
   }
 }
@@ -50,7 +50,7 @@ export function handleError(error: unknown): AppError {
   return new AppError('An unknown error occurred', 'UNKNOWN_ERROR', 500);
 }
 
-export function errorToResponse(error: AppError) {
+export function errorToResponse(error: AppError): { error: { code: string; message: string; details: unknown; timestamp: string } } {
   return {
     error: {
       code: error.code,

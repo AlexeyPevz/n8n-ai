@@ -4,7 +4,6 @@
  */
 
 import type { INodeTypeDescription } from 'n8n-workflow';
-import { NodeConnectionType } from 'n8n-workflow';
 
 // Список основных нод n8n, которые мы хотим поддерживать в MVP
 const CORE_NODES = [
@@ -60,8 +59,8 @@ export function createNodeTypeDescription(
     defaults: {
       name: displayName,
     },
-    inputs: [NodeConnectionType.Main],
-    outputs: [NodeConnectionType.Main],
+    inputs: ['main'] as unknown as INodeTypeDescription['inputs'],
+    outputs: ['main'] as unknown as INodeTypeDescription['outputs'],
     properties: [],
     credentials: []
   };
@@ -174,7 +173,7 @@ export function createNodeTypeDescription(
         ...baseDescription,
         group: ['trigger'],
         description: 'Starts the workflow when a webhook is called',
-        inputs: [],
+        inputs: [] as unknown as INodeTypeDescription['inputs'],
         properties: [
           {
             displayName: 'HTTP Method',
@@ -215,7 +214,7 @@ export function createNodeTypeDescription(
         ...baseDescription,
         group: ['trigger'],
         description: 'Triggers the workflow on a schedule',
-        inputs: [],
+        inputs: [] as unknown as INodeTypeDescription['inputs'],
         properties: [
           {
             displayName: 'Rule',
@@ -247,7 +246,7 @@ export function createNodeTypeDescription(
         ...baseDescription,
         group: ['trigger'],
         description: 'Triggers the workflow manually',
-        inputs: [],
+        inputs: [] as unknown as INodeTypeDescription['inputs'],
         properties: [],
       };
 
@@ -373,7 +372,7 @@ export function createNodeTypeDescription(
         ...baseDescription,
         group: ['transform'],
         description: 'Route items based on conditional logic',
-        outputs: [NodeConnectionType.Main, NodeConnectionType.Main],
+        outputs: ['main', 'main'] as unknown as INodeTypeDescription['outputs'],
         outputNames: ['True', 'False'],
         properties: [
           {
