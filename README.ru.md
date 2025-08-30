@@ -119,7 +119,7 @@ pnpm -r run dev              # оркестратор и панель
 ### 5.3 Тесты
 ```bash
 pnpm test   # unit + lints
-pnpm e2e    # регрессия golden flows (Playwright)
+pnpm e2e    # e2e оркестратора; golden flows: pnpm -C examples test
 ```
 
 ### 5.4 Быстрые проверки (smoke)

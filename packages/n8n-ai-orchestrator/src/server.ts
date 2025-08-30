@@ -197,6 +197,18 @@ server.post<{ Params: { id: string } }>("/graph/:id/simulate", async (req) => {
   return simulationResult;
 });
 
+// Critic v1: запускает валидацию с автофиксами и возвращает отчёт
+server.post<{ Params: { id: string } }>("/graph/:id/critic", async (req) => {
+  const { id: workflowId } = req.params;
+  const validationBefore = graphManager.validate(workflowId);
+  const autofixed = graphManager.validate(workflowId, { autofix: true });
+  return {
+    ok: autofixed.valid,
+    before: validationBefore,
+    after: autofixed
+  };
+});
+
 server.post<{ 
   Params: { id: string };
   Body: { undoId?: string };

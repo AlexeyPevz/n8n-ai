@@ -2,7 +2,28 @@
   <main>
     <section>
       <h2>AI Panel</h2>
-      <textarea v-model="prompt" placeholder="Опишите задачу..." />
+      <div class="prompt-wrap">
+        <textarea
+          ref="promptEl"
+          v-model="prompt"
+          placeholder="Опишите задачу..."
+          @keydown="onPromptKeydown"
+          @input="maybeOpenExpr"
+          @blur="closeExprLater"
+        />
+        <div v-if="exprOpen && exprItems.length" class="expr-suggest">
+          <div class="hdr">Подсказки выражений</div>
+          <ul>
+            <li
+              v-for="(s, i) in exprItems"
+              :key="s"
+              :class="{ active: i === exprIndex }"
+              @mousedown.prevent="applyExpr(s)"
+            >{{ s }}</li>
+          </ul>
+          <div class="hint">Enter — вставить • ↑/↓ — навигация • Esc — закрыть</div>
+        </div>
+      </div>
       <button @click="plan">Plan</button>
       <div class="progress" v-if="progress >= 0">
         <div class="bar" :style="{ width: progress + '%' }"></div>
@@ -42,6 +63,16 @@
           <strong>[{{ l.level }}]</strong> {{ l.message }} <span v-if="l.node">({{ l.node }})</span>
         </div>
       </div>
+      <div v-if="simStats" class="sim">
+        <div class="sim-row">Nodes visited: <strong>{{ simStats.nodesVisited }}</strong></div>
+        <div class="sim-row">Estimated: <strong>{{ simStats.estimatedDurationMs }}ms</strong> (p95: {{ simStats.p95DurationMs }}ms)</div>
+        <div v-if="simStats.dataShapes" class="sim-shapes">
+          <div class="shape" v-for="(shape, node) in simStats.dataShapes" :key="node">
+            <div class="shape-title">{{ node }}</div>
+            <pre class="shape-pre">{{ shape }}</pre>
+          </div>
+        </div>
+      </div>
     </section>
   </main>
   </template>
@@ -50,6 +81,7 @@
 import { ref, computed, onMounted, onBeforeUnmount } from "vue";
 
 const prompt = ref("");
+const promptEl = ref<HTMLTextAreaElement|null>(null);
 const planItems = ref<string[]>([]);
 const diff = ref<string>("");
 const diffList = ref<string[]>([]);
@@ -79,6 +111,78 @@ const workflowId = "demo";
 const lints = ref<any[]>([]);
 const hasErrors = computed(() => lints.value.some(l => l.level === 'error'));
 const progress = ref<number>(-1);
+const simStats = ref<any|null>(null);
+
+// Expression autocomplete (stub)
+const exprOpen = ref(false);
+const exprIndex = ref(0);
+const exprAll = [
+  "={{ $json }}",
+  "={{ $json.field }}",
+  "={{ $now }}",
+  "={{ $env.VAR }}",
+  "={{ $binary.data }}"
+];
+const exprItems = ref<string[]>(exprAll);
+
+function maybeOpenExpr() {
+  const value = prompt.value;
+  if (value.includes("={{")) {
+    exprItems.value = exprAll;
+    exprIndex.value = 0;
+    exprOpen.value = true;
+  }
+}
+
+function closeExpr() {
+  exprOpen.value = false;
+}
+
+function closeExprLater() {
+  // Закрыть после клика по подсказке (mousedown)
+  setTimeout(() => { exprOpen.value = false; }, 100);
+}
+
+function onPromptKeydown(e: KeyboardEvent) {
+  if ((e.ctrlKey || e.metaKey) && e.code === "Space") {
+    exprItems.value = exprAll;
+    exprIndex.value = 0;
+    exprOpen.value = true;
+    e.preventDefault();
+    return;
+  }
+  if (!exprOpen.value) return;
+  if (e.key === "ArrowDown") {
+    exprIndex.value = (exprIndex.value + 1) % exprItems.value.length;
+    e.preventDefault();
+  } else if (e.key === "ArrowUp") {
+    exprIndex.value = (exprIndex.value - 1 + exprItems.value.length) % exprItems.value.length;
+    e.preventDefault();
+  } else if (e.key === "Enter") {
+    applyExpr(exprItems.value[exprIndex.value]);
+    e.preventDefault();
+  } else if (e.key === "Escape") {
+    closeExpr();
+    e.preventDefault();
+  }
+}
+
+function applyExpr(snippet: string) {
+  const el = promptEl.value;
+  if (!el) return;
+  const start = el.selectionStart ?? prompt.value.length;
+  const end = el.selectionEnd ?? start;
+  const before = prompt.value.slice(0, start);
+  const after = prompt.value.slice(end);
+  prompt.value = before + snippet + after;
+  // Установим курсор после вставки
+  requestAnimationFrame(() => {
+    const pos = (before + snippet).length;
+    el.focus();
+    el.setSelectionRange(pos, pos);
+  });
+  closeExpr();
+}
 
 let es: EventSource | null = null;
 onMounted(() => {
@@ -152,6 +256,10 @@ async function test() {
     const json = await r.json();
     lints.value = json.lints || [];
     alert(json.ok ? `Lints: ${json.lints?.length || 0}` : `Error: ${json.error}`);
+    // simulate as part of test
+    const rs = await fetch(`${apiBase}/graph/${workflowId}/simulate`, { method: "POST" });
+    const js = await rs.json();
+    simStats.value = js?.stats || null;
   } catch (e) {
     alert(`Test error: ${String(e)}`);
   }
@@ -163,10 +271,17 @@ main {
   padding: 16px;
   font-family: system-ui, sans-serif;
 }
+.prompt-wrap { position: relative; }
 textarea {
   width: 100%;
   height: 96px;
 }
+.expr-suggest { position: absolute; left: 0; right: 0; top: 104px; background: #fff; border: 1px solid #e5e7eb; border-radius: 8px; box-shadow: 0 8px 20px rgba(0,0,0,0.08); z-index: 10; }
+.expr-suggest .hdr { font-size: 12px; color: #64748b; padding: 6px 10px; border-bottom: 1px solid #f1f5f9; }
+.expr-suggest ul { list-style: none; margin: 0; padding: 6px 0; max-height: 180px; overflow: auto; }
+.expr-suggest li { padding: 6px 10px; cursor: pointer; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px; }
+.expr-suggest li.active, .expr-suggest li:hover { background: #eef2ff; color: #3730a3; }
+.expr-suggest .hint { font-size: 11px; color: #94a3b8; padding: 6px 10px; border-top: 1px solid #f1f5f9; }
 .progress { position: relative; height: 8px; background: #eef2ff; border-radius: 6px; margin: 8px 0 12px; }
 .progress .bar { height: 100%; background: #4f46e5; border-radius: 6px; transition: width .2s; }
 .progress .pct { position: absolute; top: -18px; right: 0; font-size: 12px; color: #475569; }

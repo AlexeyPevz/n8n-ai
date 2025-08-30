@@ -18,7 +18,7 @@ _Last updated: 2025-08-30_
 | 0 | Initialisation | **Aug 29** | Repos scaffold, dev-stack, baseline schemas | ✅ Completed |
 | 1 | Vertical Slice 0 | **Sep 8 – Sep 21** | Introspect v0, `add_node`, AI panel MVP, golden flows | ✅ Completed |
 | 2 | Connections & Validation | **Sep 22 – Oct 5** | Batch ops (`connect`, `set_params`, …), lints v0, canvas diff | ✅ Completed |
-| 3 | Dynamics & Simulation | **Oct 6 – Oct 26** | Sandbox `loadOptions`, Simulate API, Critic v1, expressions | 🗓 Planned |
+| 3 | Dynamics & Simulation | **Oct 6 – Oct 26** | Sandbox `loadOptions`, Simulate API, Critic v1, expressions | ✅ Completed |
 | 4 | Workflow Map | **Oct 27 – Nov 9** | Dependency index, `/workflow-map`, map tab (static + live) | 🗓 Planned |
 | 5 | Governance, Git & Refactors | **Nov 10 – Nov 23** | Diff policies, audit, Git PR, refactor ops | 🗓 Planned |
 | – | Polish & Release | **Nov 24 – Nov 30** | Perf, UX, Secrets Wizard v1, docs, demo | 🗓 Planned |
@@ -107,5 +107,7 @@ _Last updated: 2025-08-30_
 6. Open a PR; get review; **`Completed`** status only after explicit 👍 from @product-owner.
 
 ## Changelog
+- **2025-10-12** – Sprint 3 marked Completed (AB).
+- **2025-10-05** – Sprint 2 marked Completed; ADR-002/003 accepted (AB).
 - **2025-08-30** – Sprint 1 marked Completed (AB).
 - **2025-08-29** – Initial draft created (AB).

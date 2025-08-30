@@ -64,6 +64,26 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/SimulateResponse'
+  /graph/{id}/critic:
+    post:
+      tags: [Validation]
+      summary: Critic v1 - validate with autofix and return before/after report
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Critic report
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean }
+                  before: { $ref: '#/components/schemas/ValidateResponse' }
+                  after: { $ref: '#/components/schemas/ValidateResponse' }
   /events:
     get:
       tags: [Events]

@@ -4,6 +4,7 @@
  */
 
 import type { INodeTypeDescription, INodePropertyOptions } from 'n8n-workflow';
+import { createHash } from 'node:crypto';
 
 interface NodeIntrospection {
   name: string;
@@ -32,6 +33,8 @@ interface NodeIntrospection {
 
 export class IntrospectAPI {
   private nodeTypes: Map<string, INodeTypeDescription> = new Map();
+  private loadOptionsCache: Map<string, { etag: string; options: INodePropertyOptions[]; expiresAt: number } > = new Map();
+  private readonly defaultTtlMs: number = Number(process.env.N8N_AI_LOADOPTIONS_TTL_MS ?? 60000);
 
   /**
    * Регистрирует типы нод для интроспекции
@@ -158,6 +161,95 @@ export class IntrospectAPI {
 
     // Заглушка по умолчанию
     return [];
+  }
+
+  /**
+   * Кэшируемый резолв loadOptions с TTL и поддержкой ETag/If-None-Match
+   */
+  async resolveLoadOptionsCached(
+    nodeType: string,
+    propertyName: string,
+    currentNodeParameters: Record<string, any>,
+    ifNoneMatch?: string
+  ): Promise<{
+    options?: INodePropertyOptions[];
+    etag: string;
+    fromCache: boolean;
+    notModified: boolean;
+    cacheTtlMs: number;
+    expiresAt: number;
+  }> {
+    const cacheKey = this.buildCacheKey(nodeType, propertyName, currentNodeParameters);
+    const now = Date.now();
+    const ttlMs = this.defaultTtlMs;
+
+    const cached = this.loadOptionsCache.get(cacheKey);
+    if (cached && cached.expiresAt > now) {
+      const notModified = ifNoneMatch && ifNoneMatch === cached.etag;
+      return {
+        options: notModified ? undefined : cached.options,
+        etag: cached.etag,
+        fromCache: true,
+        notModified: Boolean(notModified),
+        cacheTtlMs: ttlMs,
+        expiresAt: cached.expiresAt
+      };
+    }
+
+    // Получаем актуальные опции (с таймаутом при необходимости)
+    const options = await this.resolveLoadOptions(nodeType, propertyName, currentNodeParameters);
+    const etag = this.computeEtag(options);
+    const entry = { etag, options, expiresAt: now + ttlMs };
+    this.loadOptionsCache.set(cacheKey, entry);
+    const notModified = ifNoneMatch && ifNoneMatch === etag;
+    return {
+      options: notModified ? undefined : options,
+      etag,
+      fromCache: false,
+      notModified: Boolean(notModified),
+      cacheTtlMs: ttlMs,
+      expiresAt: entry.expiresAt
+    };
+  }
+
+  /**
+   * Инвалидация кэша для конкретного свойства ноды
+   */
+  invalidateLoadOptions(nodeType: string, propertyName: string, currentNodeParameters: Record<string, any>): void {
+    const cacheKey = this.buildCacheKey(nodeType, propertyName, currentNodeParameters);
+    this.loadOptionsCache.delete(cacheKey);
+  }
+
+  /**
+   * Полная очистка кэша loadOptions
+   */
+  clearLoadOptionsCache(): void {
+    this.loadOptionsCache.clear();
+  }
+
+  private buildCacheKey(nodeType: string, propertyName: string, currentNodeParameters: Record<string, any>): string {
+    const base = `${nodeType}::${propertyName}::${this.stableStringify(currentNodeParameters)}`;
+    return createHash('sha1').update(base).digest('hex');
+  }
+
+  private computeEtag(options: INodePropertyOptions[]): string {
+    const payload = this.stableStringify(options);
+    return 'W/"' + createHash('sha1').update(payload).digest('hex') + '"';
+  }
+
+  private stableStringify(value: unknown): string {
+    const seen = new WeakSet<object>();
+    const stringify = (v: any): any => {
+      if (v === null || typeof v !== 'object') return v;
+      if (seen.has(v)) return undefined;
+      seen.add(v);
+      if (Array.isArray(v)) return v.map((i) => stringify(i));
+      const keys = Object.keys(v).sort();
+      const out: Record<string, any> = {};
+      for (const k of keys) out[k] = stringify(v[k]);
+      return out;
+    };
+    return JSON.stringify(stringify(value));
   }
 }
 
