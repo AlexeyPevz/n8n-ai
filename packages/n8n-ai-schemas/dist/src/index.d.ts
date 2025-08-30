@@ -1,4 +1,4 @@
-import { z } from "zod";
+import { z } from 'zod';
 export declare const NodeParameterSchema: z.ZodRecord<z.ZodString, z.ZodAny>;
 export declare const NodeSchema: z.ZodObject<{
     id: z.ZodString;

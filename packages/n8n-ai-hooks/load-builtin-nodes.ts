@@ -4,6 +4,7 @@
  */
 
 import type { INodeTypeDescription } from 'n8n-workflow';
+import { NodeConnectionType } from 'n8n-workflow';
 
 // Список основных нод n8n, которые мы хотим поддерживать в MVP
 const CORE_NODES = [
@@ -59,8 +60,8 @@ export function createNodeTypeDescription(
     defaults: {
       name: displayName,
     },
-    inputs: ['main'],
-    outputs: ['main'],
+    inputs: [NodeConnectionType.Main],
+    outputs: [NodeConnectionType.Main],
     properties: [],
     credentials: []
   };
@@ -372,7 +373,7 @@ export function createNodeTypeDescription(
         ...baseDescription,
         group: ['transform'],
         description: 'Route items based on conditional logic',
-        outputs: ['main', 'main'],
+        outputs: [NodeConnectionType.Main, NodeConnectionType.Main],
         outputNames: ['True', 'False'],
         properties: [
           {

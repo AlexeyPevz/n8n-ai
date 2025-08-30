@@ -7,7 +7,24 @@ import { graphManager } from "./graph-manager.js";
 
 const server = Fastify({ logger: true });
 
+// Тolerant JSON parser: treat empty body as {}
+server.addContentTypeParser('application/json', { parseAs: 'string' }, (req, body, done) => {
+  try {
+    if (!body || (typeof body === 'string' && body.trim() === '')) {
+      done(null, {});
+      return;
+    }
+    const parsed = typeof body === 'string' ? JSON.parse(body) : body;
+    done(null, parsed);
+  } catch (err) {
+    done(err as any);
+  }
+});
+
 await server.register(cors, { origin: true });
+
+// Health endpoint
+server.get('/api/v1/ai/health', async () => ({ status: 'ok', ts: Date.now() }));
 
 // Простой прокси для n8n-ai-hooks Introspect API
 server.get("/introspect/nodes", async () => {
@@ -101,12 +118,23 @@ server.post<{ Body: { prompt?: string } }>("/plan", async (req) => {
   }
 });
 
+// Тестовый endpoint: сбросить всё состояние
+server.post('/__test/reset', async () => {
+  graphManager.resetAll();
+  return { ok: true };
+});
+
 server.post<{
   Params: { id: string };
   Body: unknown;
 }>("/graph/:id/batch", async (req) => {
   const { id: workflowId } = req.params;
   
+  // Авто-создание воркфлоу, если он отсутствует
+  if (!graphManager.getWorkflow(workflowId)) {
+    graphManager.createWorkflow(workflowId, `Workflow ${workflowId}`);
+  }
+
   const parsed = OperationBatchSchema.safeParse(req.body);
   if (!parsed.success) {
     return { ok: false, error: "invalid_operation_batch", issues: parsed.error.format() };
@@ -116,11 +144,24 @@ server.post<{
   const result = graphManager.applyBatch(workflowId, parsed.data);
   
   if (result.success) {
+    // После применения проверяем валидацию; при ошибках откатываем
+    const validation = graphManager.validate(workflowId);
+    const hasErrors = validation.lints.some(l => l.level === 'error');
+    if (hasErrors) {
+      const undone = graphManager.undo(workflowId, result.undoId);
+      server.log.warn({ workflowId, lints: validation.lints, undone }, 'Validation failed; operations rolled back');
+      return {
+        ok: false,
+        error: 'validation_failed',
+        lints: validation.lints
+      };
+    }
+
     server.log.info({ 
       workflowId, 
       appliedOperations: result.appliedOperations,
       undoId: result.undoId 
-    }, "Operations applied successfully");
+    }, 'Operations applied successfully');
     
     return { 
       ok: true, 
@@ -138,8 +179,9 @@ server.post<{
 
 server.post<{ Params: { id: string } }>("/graph/:id/validate", async (req) => {
   const { id: workflowId } = req.params;
-  
-  const validationResult = graphManager.validate(workflowId);
+  const url = new URL(req.url, `http://${req.headers.host}`);
+  const autofix = url.searchParams.get('autofix') === '1';
+  const validationResult = graphManager.validate(workflowId, { autofix });
   
   return {
     ok: validationResult.valid,
@@ -258,16 +300,31 @@ server.get("/events", async (req, reply) => {
     reply.raw.write(`data: ${JSON.stringify(data)}\n\n`);
   };
   send("hello", { sequenceId: 1, ts: Date.now() });
+  let progress = 0;
   const interval = setInterval(() => {
     send("heartbeat", { ts: Date.now() });
+    progress = (progress + 10) % 100;
+    send("build_progress", { ts: Date.now(), progress });
   }, 15000);
   req.raw.on("close", () => clearInterval(interval));
   return reply;
 });
 
-const port = Number(process.env.PORT ?? 3000);
-server.listen({ port, host: "0.0.0.0" }).catch((err) => {
-  server.log.error(err);
-  process.exit(1);
-});
+async function start() {
+  let port = Number(process.env.PORT ?? 3000);
+  try {
+    await server.listen({ port, host: '0.0.0.0' });
+  } catch (err: any) {
+    if (err?.code === 'EADDRINUSE') {
+      server.log.warn({ port }, 'Port in use, retrying on 0');
+      port = 0;
+      await server.listen({ port, host: '0.0.0.0' });
+    } else {
+      server.log.error(err);
+      process.exit(1);
+    }
+  }
+}
+
+start();
 

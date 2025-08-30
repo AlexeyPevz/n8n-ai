@@ -1,4 +1,4 @@
-import { z } from "zod";
+import { z } from 'zod';
 export const NodeParameterSchema = z.record(z.any());
 export const NodeSchema = z.object({
     id: z.string().min(1),
@@ -18,42 +18,42 @@ export const GraphSchema = z.object({
     connections: z.array(ConnectionSchema)
 });
 export const OperationAddNode = z.object({
-    op: z.literal("add_node"),
+    op: z.literal('add_node'),
     node: NodeSchema
 });
 export const OperationSetParams = z.object({
-    op: z.literal("set_params"),
+    op: z.literal('set_params'),
     name: z.string().min(1),
     parameters: NodeParameterSchema
 });
 export const OperationConnect = z.object({
-    op: z.literal("connect"),
+    op: z.literal('connect'),
     from: z.string().min(1),
     to: z.string().min(1),
     index: z.number().int().min(0).optional()
 });
 export const OperationDelete = z.object({
-    op: z.literal("delete"),
+    op: z.literal('delete'),
     name: z.string().min(1)
 });
 export const OperationAnnotate = z.object({
-    op: z.literal("annotate"),
+    op: z.literal('annotate'),
     name: z.string().min(1),
     text: z.string().min(1)
 });
 export const OperationBatchSchema = z.object({
-    ops: z.array(z.discriminatedUnion("op", [
+    ops: z.array(z.discriminatedUnion('op', [
         OperationAddNode,
         OperationSetParams,
         OperationConnect,
         OperationDelete,
         OperationAnnotate
     ])),
-    version: z.string().default("v1")
+    version: z.string().default('v1')
 });
 export const LintSchema = z.object({
     code: z.string(),
-    level: z.enum(["info", "warn", "error"]),
+    level: z.enum(['info', 'warn', 'error']),
     message: z.string(),
     node: z.string().optional()
 });

@@ -138,24 +138,24 @@ describe('LintSchema', () => {
 describe('Real-world scenarios', () => {
     it('should validate operation batch from example file', () => {
         const exampleBatch = {
-            version: "v1",
+            version: 'v1',
             ops: [
                 {
-                    op: "add_node",
+                    op: 'add_node',
                     node: {
-                        id: "http-1",
-                        name: "Fetch",
-                        type: "n8n-nodes-base.httpRequest",
+                        id: 'http-1',
+                        name: 'Fetch',
+                        type: 'n8n-nodes-base.httpRequest',
                         typeVersion: 4,
                         position: [600, 300],
                         parameters: {
-                            method: "GET",
-                            url: "https://jsonplaceholder.typicode.com/todos/1"
+                            method: 'GET',
+                            url: 'https://jsonplaceholder.typicode.com/todos/1'
                         }
                     }
                 },
-                { op: "connect", from: "Manual Trigger", to: "Fetch", index: 0 },
-                { op: "annotate", name: "Fetch", text: "GET because endpoint is read-only" }
+                { op: 'connect', from: 'Manual Trigger', to: 'Fetch', index: 0 },
+                { op: 'annotate', name: 'Fetch', text: 'GET because endpoint is read-only' }
             ]
         };
         const parsed = OperationBatchSchema.parse(exampleBatch);

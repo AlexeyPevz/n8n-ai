@@ -17,7 +17,7 @@ _Last updated: 2025-08-30_
 |---|--------|--------------|---------------|--------|
 | 0 | Initialisation | **Aug 29** | Repos scaffold, dev-stack, baseline schemas | ✅ Completed |
 | 1 | Vertical Slice 0 | **Sep 8 – Sep 21** | Introspect v0, `add_node`, AI panel MVP, golden flows | ✅ Completed |
-| 2 | Connections & Validation | **Sep 22 – Oct 5** | Batch ops (`connect`, `set_params`, …), lints v0, canvas diff | 🗓 Planned |
+| 2 | Connections & Validation | **Sep 22 – Oct 5** | Batch ops (`connect`, `set_params`, …), lints v0, canvas diff | ✅ Completed |
 | 3 | Dynamics & Simulation | **Oct 6 – Oct 26** | Sandbox `loadOptions`, Simulate API, Critic v1, expressions | 🗓 Planned |
 | 4 | Workflow Map | **Oct 27 – Nov 9** | Dependency index, `/workflow-map`, map tab (static + live) | 🗓 Planned |
 | 5 | Governance, Git & Refactors | **Nov 10 – Nov 23** | Diff policies, audit, Git PR, refactor ops | 🗓 Planned |

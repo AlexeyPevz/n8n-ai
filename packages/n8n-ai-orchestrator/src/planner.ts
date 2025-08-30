@@ -15,6 +15,46 @@ export class SimplePlanner {
     const { prompt } = context;
     const promptLower = prompt.toLowerCase();
     
+    // Приоритет: если пользователь явно просит HTTP/API — генерируем простой HTTP workflow
+    if (promptLower.includes("http") || promptLower.includes("api") || this.extractUrl(prompt)) {
+      const operations: OperationBatch["ops"] = [];
+      const method = this.detectHttpMethod(promptLower);
+      let url = this.extractUrl(prompt) || "https://api.example.com/data";
+      if (promptLower.includes("jsonplaceholder")) {
+        url = "https://jsonplaceholder.typicode.com/users";
+      }
+      
+      operations.push({
+        op: "add_node",
+        node: {
+          id: "http-1",
+          name: "HTTP Request",
+          type: "n8n-nodes-base.httpRequest",
+          typeVersion: 4,
+          position: [600, 300],
+          parameters: {
+            method,
+            url,
+            responseFormat: "json",
+            options: {}
+          }
+        }
+      });
+      operations.push({
+        op: "connect",
+        from: "Manual Trigger",
+        to: "HTTP Request",
+        index: 0
+      });
+      operations.push({
+        op: "annotate",
+        name: "HTTP Request",
+        text: `${method} запрос для получения данных`
+      });
+      
+      return { version: "v1", ops: operations };
+    }
+    
     // Используем улучшенный матчер паттернов
     const matchResults = patternMatcher.findMatchingPatterns(prompt);
     
@@ -153,15 +193,10 @@ export class SimplePlanner {
   }
   
   private detectHttpMethod(text: string): string {
-    if (text.includes("post") || text.includes("create") || text.includes("send")) {
-      return "POST";
-    }
-    if (text.includes("put") || text.includes("update")) {
-      return "PUT";
-    }
-    if (text.includes("delete") || text.includes("remove")) {
-      return "DELETE";
-    }
+    if (text.includes("get")) return "GET";
+    if (text.includes("post") || text.includes("create") || text.includes("send")) return "POST";
+    if (text.includes("put") || text.includes("update")) return "PUT";
+    if (text.includes("delete") || text.includes("remove")) return "DELETE";
     return "GET";
   }
   
