@@ -8,15 +8,15 @@ describe('IntrospectAPI', () => {
     api = new IntrospectAPI();
   });
 
-  describe('getNodeTypes', () => {
-    it('should return array of node types', () => {
-      const nodes = api.getNodeTypes();
+  describe('getAllNodeTypes', () => {
+    it('should return array of node types', async () => {
+      const nodes = await api.getAllNodeTypes();
       expect(Array.isArray(nodes)).toBe(true);
       expect(nodes.length).toBeGreaterThan(0);
     });
 
-    it('should have required fields for each node', () => {
-      const nodes = api.getNodeTypes();
+    it('should have required fields for each node', async () => {
+      const nodes = await api.getAllNodeTypes();
       const firstNode = nodes[0];
       
       expect(firstNode).toHaveProperty('name');
@@ -31,26 +31,26 @@ describe('IntrospectAPI', () => {
   });
 
   describe('getNodeType', () => {
-    it('should return specific node type', () => {
-      const httpNode = api.getNodeType('n8n-nodes-base.httpRequest');
+    it('should return specific node type', async () => {
+      const httpNode = await api.getNodeType('n8n-nodes-base.httpRequest');
       expect(httpNode).toBeDefined();
       expect(httpNode?.name).toBe('HTTP Request');
     });
 
-    it('should return undefined for unknown node', () => {
-      const unknownNode = api.getNodeType('unknown.node');
-      expect(unknownNode).toBeUndefined();
+    it('should return null for unknown node', async () => {
+      const unknownNode = await api.getNodeType('unknown.node');
+      expect(unknownNode).toBeNull();
     });
   });
 
   describe('resolveLoadOptions', () => {
-    it('should return empty array for nodes without loadOptions', () => {
-      const result = api.resolveLoadOptions('n8n-nodes-base.set', 'someProperty');
+    it('should return empty array for nodes without loadOptions', async () => {
+      const result = await api.resolveLoadOptions('n8n-nodes-base.set', 'someProperty');
       expect(result).toEqual([]);
     });
 
-    it('should handle HTTP method options', () => {
-      const methods = api.resolveLoadOptions('n8n-nodes-base.httpRequest', 'method');
+    it('should handle HTTP method options', async () => {
+      const methods = await api.resolveLoadOptions('n8n-nodes-base.httpRequest', 'method');
       expect(methods).toContainEqual({ name: 'GET', value: 'GET' });
       expect(methods).toContainEqual({ name: 'POST', value: 'POST' });
     });
