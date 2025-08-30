@@ -39,7 +39,7 @@ export class IntrospectAPI {
   private externalLoadOptionsResolver?: (
     nodeType: string,
     propertyName: string,
-    currentNodeParameters: Record<string, any>
+    currentNodeParameters: Record<string, unknown>
   ) => Promise<INodePropertyOptions[]>;
 
   constructor() {
@@ -155,7 +155,7 @@ export class IntrospectAPI {
   async resolveLoadOptions(
     nodeType: string,
     propertyName: string,
-    currentNodeParameters: Record<string, any>
+    currentNodeParameters: Record<string, unknown>
   ): Promise<INodePropertyOptions[]> {
     // Если настроен внешний резолвер (из ядра n8n) — используем его
     if (this.externalLoadOptionsResolver) {
@@ -206,7 +206,7 @@ export class IntrospectAPI {
   async resolveLoadOptionsCached(
     nodeType: string,
     propertyName: string,
-    currentNodeParameters: Record<string, any>,
+    currentNodeParameters: Record<string, unknown>,
     ifNoneMatch?: string
   ): Promise<{
     options?: INodePropertyOptions[];
@@ -252,7 +252,7 @@ export class IntrospectAPI {
   /**
    * Инвалидация кэша для конкретного свойства ноды
    */
-  invalidateLoadOptions(nodeType: string, propertyName: string, currentNodeParameters: Record<string, any>): void {
+  invalidateLoadOptions(nodeType: string, propertyName: string, currentNodeParameters: Record<string, unknown>): void {
     const cacheKey = this.buildCacheKey(nodeType, propertyName, currentNodeParameters);
     this.loadOptionsCache.delete(cacheKey);
   }
@@ -264,7 +264,7 @@ export class IntrospectAPI {
     this.loadOptionsCache.clear();
   }
 
-  private buildCacheKey(nodeType: string, propertyName: string, currentNodeParameters: Record<string, any>): string {
+  private buildCacheKey(nodeType: string, propertyName: string, currentNodeParameters: Record<string, unknown>): string {
     const base = `${nodeType}::${propertyName}::${this.stableStringify(currentNodeParameters)}`;
     return createHash('sha1').update(base).digest('hex');
   }
@@ -296,7 +296,7 @@ export class IntrospectAPI {
     resolver: (
       nodeType: string,
       propertyName: string,
-      currentNodeParameters: Record<string, any>
+      currentNodeParameters: Record<string, unknown>
     ) => Promise<INodePropertyOptions[]>
   ): void {
     this.externalLoadOptionsResolver = resolver;
@@ -334,8 +334,8 @@ export interface IntrospectAPIPublic extends IntrospectAPI {
 }
 
 // Расширяем прототип методами, не нарушая существующие названия внутренних методов
-(IntrospectAPI.prototype as any).getAllNodeTypes = async function(this: IntrospectAPI): Promise<LegacyNodeType[]> {
-  const nodes = (this as any).getAllNodes() as NodeIntrospection[];
+(IntrospectAPI.prototype as unknown as { getAllNodeTypes: () => Promise<LegacyNodeType[]> }).getAllNodeTypes = async function(this: IntrospectAPI): Promise<LegacyNodeType[]> {
+  const nodes = (this as unknown as { getAllNodes: () => NodeIntrospection[] }).getAllNodes();
   return nodes.map((n) => ({
     name: n.displayName,
     type: n.type,
@@ -348,8 +348,8 @@ export interface IntrospectAPIPublic extends IntrospectAPI {
   }));
 };
 
-(IntrospectAPI.prototype as any).getNodeType = async function(this: IntrospectAPI, type: string, version?: number): Promise<LegacyNodeType | null> {
-  const node = (this as any).getNode(type, version) as NodeIntrospection | null;
+(IntrospectAPI.prototype as unknown as { getNodeType: (type: string, version?: number) => Promise<LegacyNodeType | null> }).getNodeType = async function(this: IntrospectAPI, type: string, version?: number): Promise<LegacyNodeType | null> {
+  const node = (this as unknown as { getNode: (t: string, v?: number) => NodeIntrospection | null }).getNode(type, version);
   if (!node) return null;
   return {
     name: node.displayName,

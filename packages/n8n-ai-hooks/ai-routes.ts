@@ -5,6 +5,7 @@
 import { Router } from 'express';
 import { introspectAPI } from './introspect-api';
 import { loadBuiltinNodes } from './load-builtin-nodes';
+import type { OperationBatch } from '@n8n-ai/schemas';
 import type { Request, Response, NextFunction } from 'express';
 
 // Инициализируем introspect API с встроенными нодами
@@ -152,7 +153,7 @@ export function createAIRoutes(): Router {
       if (!parsed.success) {
         return res.status(400).json({ ok: false, error: 'invalid_operation_batch', issues: parsed.error.format() });
       }
-      const batch = parsed.data;
+      const batch = parsed.data as OperationBatch;
 
       // Попытка прокси в оркестратор, если он доступен (временная интеграция до нативной н8н)
       try {
@@ -186,7 +187,7 @@ export function createAIRoutes(): Router {
       if (stack.length === 0) {
         return res.status(404).json({ ok: false, error: 'nothing_to_undo' });
       }
-      let entry: { undoId: string; batch: any } | undefined;
+      let entry: { undoId: string; batch: OperationBatch } | undefined;
       if (undoId) {
         const idx = stack.findIndex((e) => e.undoId === undoId);
         if (idx === -1) return res.status(404).json({ ok: false, error: 'undo_id_not_found' });
