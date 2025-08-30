@@ -1,6 +1,6 @@
 # Development Plan: n8n-ai
 
-_Last updated: 2025-08-29_
+_Last updated: 2025-08-30_
 
 ## Status Legend
 | Status | Meaning |
@@ -16,7 +16,7 @@ _Last updated: 2025-08-29_
 | № | Sprint | Dates (2025) | Scope (short) | Status |
 |---|--------|--------------|---------------|--------|
 | 0 | Initialisation | **Aug 29** | Repos scaffold, dev-stack, baseline schemas | ✅ Completed |
-| 1 | Vertical Slice 0 | **Sep 8 – Sep 21** | Introspect v0, `add_node`, AI panel MVP, golden flows | 🗓 Planned |
+| 1 | Vertical Slice 0 | **Sep 8 – Sep 21** | Introspect v0, `add_node`, AI panel MVP, golden flows | ✅ Completed |
 | 2 | Connections & Validation | **Sep 22 – Oct 5** | Batch ops (`connect`, `set_params`, …), lints v0, canvas diff | 🗓 Planned |
 | 3 | Dynamics & Simulation | **Oct 6 – Oct 26** | Sandbox `loadOptions`, Simulate API, Critic v1, expressions | 🗓 Planned |
 | 4 | Workflow Map | **Oct 27 – Nov 9** | Dependency index, `/workflow-map`, map tab (static + live) | 🗓 Planned |
@@ -107,4 +107,5 @@ _Last updated: 2025-08-29_
 6. Open a PR; get review; **`Completed`** status only after explicit 👍 from @product-owner.
 
 ## Changelog
+- **2025-08-30** – Sprint 1 marked Completed (AB).
 - **2025-08-29** – Initial draft created (AB).

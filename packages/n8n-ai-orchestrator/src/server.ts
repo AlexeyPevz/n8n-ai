@@ -11,67 +11,74 @@ await server.register(cors, { origin: true });
 
 // Простой прокси для n8n-ai-hooks Introspect API
 server.get("/introspect/nodes", async () => {
+  // Пытаемся проксировать в n8n-ai-hooks, если доступен
+  const hooksBase = process.env.N8N_URL ?? "http://localhost:5678";
   try {
-    // В реальной интеграции это будет запрос к n8n-ai-hooks
-    // Пока возвращаем основные ноды для MVP
-    return [
-      {
-        name: "HTTP Request",
-        type: "n8n-nodes-base.httpRequest",
-        typeVersion: 4,
-        parameters: {
-          method: { enum: ["GET", "POST", "PUT", "DELETE"] },
-          url: { type: "string", required: true },
-          authentication: { enum: ["none", "basicAuth", "headerAuth", "oAuth2"] },
-          responseFormat: { enum: ["json", "text", "binary"] }
-        }
-      },
-      {
-        name: "Webhook",
-        type: "n8n-nodes-base.webhook",
-        typeVersion: 1,
-        parameters: {
-          httpMethod: { enum: ["GET", "POST", "PUT", "DELETE"] },
-          path: { type: "string", required: true }
-        }
-      },
-      {
-        name: "Schedule Trigger",
-        type: "n8n-nodes-base.scheduleTrigger",
-        typeVersion: 1,
-        parameters: {
-          rule: { type: "object" }
-        }
-      },
-      {
-        name: "Manual Trigger",
-        type: "n8n-nodes-base.manualTrigger",
-        typeVersion: 1,
-        parameters: {}
-      },
-      {
-        name: "Code",
-        type: "n8n-nodes-base.code",
-        typeVersion: 2,
-        parameters: {
-          language: { enum: ["javaScript", "python"] },
-          jsCode: { type: "string" }
-        }
-      },
-      {
-        name: "Set",
-        type: "n8n-nodes-base.set",
-        typeVersion: 1,
-        parameters: {
-          keepOnlySet: { type: "boolean" },
-          values: { type: "collection" }
-        }
-      }
-    ];
-  } catch (error) {
-    server.log.error({ error }, "Failed to fetch node types");
-    return [];
+    const resp = await fetch(`${hooksBase}/api/v1/ai/introspect/nodes`);
+    if (resp.ok) {
+      const data: any = await resp.json();
+      const nodes = Array.isArray(data) ? data : (data.nodes ?? []);
+      if (Array.isArray(nodes) && nodes.length > 0) return nodes;
+    }
+  } catch (e) {
+    server.log.warn({ error: e }, "Hooks introspect not available, falling back to static list");
   }
+
+  // Фолбэк: статический список основных нод для MVP
+  return [
+    {
+      name: "HTTP Request",
+      type: "n8n-nodes-base.httpRequest",
+      typeVersion: 4,
+      parameters: {
+        method: { enum: ["GET", "POST", "PUT", "DELETE"] },
+        url: { type: "string", required: true },
+        authentication: { enum: ["none", "basicAuth", "headerAuth", "oAuth2"] },
+        responseFormat: { enum: ["json", "text", "binary"] }
+      }
+    },
+    {
+      name: "Webhook",
+      type: "n8n-nodes-base.webhook",
+      typeVersion: 1,
+      parameters: {
+        httpMethod: { enum: ["GET", "POST", "PUT", "DELETE"] },
+        path: { type: "string", required: true }
+      }
+    },
+    {
+      name: "Schedule Trigger",
+      type: "n8n-nodes-base.scheduleTrigger",
+      typeVersion: 1,
+      parameters: {
+        rule: { type: "object" }
+      }
+    },
+    {
+      name: "Manual Trigger",
+      type: "n8n-nodes-base.manualTrigger",
+      typeVersion: 1,
+      parameters: {}
+    },
+    {
+      name: "Code",
+      type: "n8n-nodes-base.code",
+      typeVersion: 2,
+      parameters: {
+        language: { enum: ["javaScript", "python"] },
+        jsCode: { type: "string" }
+      }
+    },
+    {
+      name: "Set",
+      type: "n8n-nodes-base.set",
+      typeVersion: 1,
+      parameters: {
+        keepOnlySet: { type: "boolean" },
+        values: { type: "collection" }
+      }
+    }
+  ];
 });
 
 const planner = new SimplePlanner();

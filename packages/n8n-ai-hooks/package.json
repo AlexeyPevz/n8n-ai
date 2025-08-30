@@ -15,7 +15,8 @@
   "scripts": {
     "build": "tsc",
     "dev": "tsc -w",
-    "test": "echo \"No tests yet\""
+    "test": "echo \"No tests yet\"",
+    "lint": "eslint --ext .ts ."
   },
   "dependencies": {
     "@n8n-ai/schemas": "workspace:*",

@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "lint": "echo 'panel lint todo'"
   },
   "dependencies": {
     "vue": "^3.4.37"
