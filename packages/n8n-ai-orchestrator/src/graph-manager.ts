@@ -336,7 +336,7 @@ export class GraphManager {
       });
     }
 
-    // Проверка 2: Все ли ноды подключены
+    // Проверка 2: Все ли ноды подключены и есть ли исходящие у нетерминальных
     for (const node of workflow.nodes) {
       // Пропускаем триггеры - они могут не иметь входящих соединений
       if (node.type.includes('Trigger') || node.type.includes('webhook')) {
@@ -352,6 +352,19 @@ export class GraphManager {
           code: 'unconnected_node',
           level: 'warn',
           message: `Node "${node.name}" has no incoming connections`,
+          node: node.name
+        });
+      }
+
+      const hasOutgoing = workflow.connections.some(c => 
+        c.from === node.name || c.from === node.id
+      );
+
+      if (!hasOutgoing) {
+        lints.push({
+          code: 'dangling_branch',
+          level: 'warn',
+          message: `Node "${node.name}" has no outgoing connections`,
           node: node.name
         });
       }

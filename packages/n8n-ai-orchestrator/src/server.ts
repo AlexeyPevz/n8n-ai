@@ -7,6 +7,20 @@ import { graphManager } from "./graph-manager.js";
 
 const server = Fastify({ logger: true });
 
+// Тolerant JSON parser: treat empty body as {}
+server.addContentTypeParser('application/json', { parseAs: 'string' }, (req, body, done) => {
+  try {
+    if (!body || (typeof body === 'string' && body.trim() === '')) {
+      done(null, {});
+      return;
+    }
+    const parsed = typeof body === 'string' ? JSON.parse(body) : body;
+    done(null, parsed);
+  } catch (err) {
+    done(err as any);
+  }
+});
+
 await server.register(cors, { origin: true });
 
 // Health endpoint
