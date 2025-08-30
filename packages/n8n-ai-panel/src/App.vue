@@ -48,6 +48,16 @@
         <span class="chg annotate">✎ {{ summary.annotate }}</span>
         <span class="chg del">− {{ summary.delete }}</span>
       </div>
+      
+      <!-- Canvas visualization -->
+      <div v-if="currentWorkflow" class="canvas-wrapper">
+        <WorkflowCanvas 
+          :nodes="currentWorkflow.nodes"
+          :connections="currentWorkflow.connections"
+          :changes="canvasChanges"
+          @node-click="handleNodeClick"
+        />
+      </div>
       <ul v-if="diffItems.length">
         <li v-for="(item, i) in diffItems" :key="i" :class="['diff-item', item.kind]">
           <span class="badge" :class="item.kind">{{ item.badge }}</span>
@@ -79,6 +89,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onBeforeUnmount } from "vue";
+import WorkflowCanvas from './components/WorkflowCanvas.vue';
 
 const prompt = ref("");
 const promptEl = ref<HTMLTextAreaElement|null>(null);
@@ -112,6 +123,24 @@ const lints = ref<any[]>([]);
 const hasErrors = computed(() => lints.value.some(l => l.level === 'error'));
 const progress = ref<number>(-1);
 const simStats = ref<any|null>(null);
+const currentWorkflow = ref<any>(null);
+
+// Canvas changes tracking
+const canvasChanges = computed(() => {
+  const added: string[] = [];
+  const modified: string[] = [];
+  const deleted: string[] = [];
+  
+  const ops = diffJson.value?.ops || [];
+  ops.forEach((op: any) => {
+    if (op.op === 'add_node' && op.node?.id) added.push(op.node.id);
+    if (op.op === 'set_params' && op.name) modified.push(op.name);
+    if (op.op === 'delete' && op.name) deleted.push(op.name);
+    if (op.op === 'connect') added.push(`${op.from}-${op.to}`);
+  });
+  
+  return { added, modified, deleted };
+});
 
 // Expression autocomplete (stub)
 const exprOpen = ref(false);
@@ -209,10 +238,29 @@ async function preview() {
     const json = await r.json();
     diff.value = JSON.stringify(json, null, 2);
     diffList.value = Array.isArray(json?.ops) ? json.ops.map((op: any) => op.op) : [];
+    
+    // Fetch current workflow state for canvas
+    await fetchWorkflowState();
   } catch (e) {
     diff.value = `Error: ${String(e)}`;
   }
 }
+async function fetchWorkflowState() {
+  try {
+    const response = await fetch(`${apiBase}/graph/${workflowId}`);
+    if (response.ok) {
+      currentWorkflow.value = await response.json();
+    }
+  } catch (error) {
+    console.error('Failed to fetch workflow state:', error);
+  }
+}
+
+function handleNodeClick(node: any) {
+  console.log('Node clicked:', node);
+  // Можно добавить логику для показа деталей ноды
+}
+
 async function apply() {
   try {
     const batch = diff.value ? JSON.parse(diff.value) : null;
@@ -304,5 +352,13 @@ textarea {
 .lint.info { border-color: #38bdf8; }
 .lint.warn { border-color: #f59e0b; }
 .lint.error { border-color: #ef4444; }
+
+.canvas-wrapper {
+  margin: 20px 0;
+  height: 400px;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  overflow: hidden;
+}
 </style>
 
