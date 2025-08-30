@@ -10,6 +10,20 @@ import { randomUUID } from 'node:crypto';
 
 const server = Fastify({ logger: true });
 
+// --- SSE clients registry ---
+const sseClients = new Set<import('node:http').ServerResponse>();
+function sendSse(event: string, data: unknown): void {
+  for (const res of sseClients) {
+    try {
+      res.write(`event: ${event}\n`);
+      res.write(`data: ${JSON.stringify(data)}\n\n`);
+    } catch {
+      // drop broken client
+      try { sseClients.delete(res); } catch {}
+    }
+  }
+}
+
 // Simple fetch with timeout and retries for proxying to n8n hooks
 async function fetchWithRetry(url: string, init: RequestInit & { timeoutMs?: number } = {}): Promise<Response> {
   const retries = Math.max(0, Number(process.env.HOOKS_FETCH_RETRIES ?? 2));
@@ -91,6 +105,7 @@ server.setErrorHandler((error, request, reply) => {
   const appError = handleError(error);
   metrics.increment(METRICS.API_REQUESTS, { endpoint: request.url, status: 'error' });
   server.log.error({ code: appError.code, details: appError.details }, 'API error');
+  try { sendSse('api_error', { code: appError.code, url: request.url, details: appError.details }); } catch {}
   reply.status(appError.statusCode).send(errorToResponse(appError));
 });
 
@@ -192,11 +207,13 @@ server.post<{ Body: { prompt?: string } }>('/plan', async (req) => {
       if (!parsed.success) {
         server.log.error({ prompt, issues: parsed.error.format() }, 'Generated plan failed schema validation');
         metrics.increment(METRICS.VALIDATION_ERRORS, { type: 'plan' });
-        throw new ValidationFailedError('invalid_generated_operation_batch', {
+        const payload = {
           lints: parsed.error.format(),
           suggestion: 'Попробую авто‑исправить через Critic',
           nextActions: ['critic_autofix']
-        });
+        } as const;
+        try { sendSse('plan_validation_failed', payload); } catch {}
+        throw new ValidationFailedError('invalid_generated_operation_batch', payload);
       }
       
       metrics.increment(METRICS.PLAN_OPERATIONS, { count: String(parsed.data.ops.length) });
@@ -400,6 +417,32 @@ server.get('/patterns', async () => {
   };
 });
 
+// --- Workflow Map (stub): static index and endpoints ---
+type WorkflowMapEdge = { fromWorkflowId: string; toWorkflowId: string; via: 'executeWorkflow' | 'webhook' | 'http' };
+const workflowMap: WorkflowMapEdge[] = [];
+
+server.get('/workflow-map', async () => {
+  return { ok: true, edges: workflowMap };
+});
+
+server.get('/workflow-map/live', async (_req, reply) => {
+  reply.raw.writeHead(200, {
+    'Content-Type': 'text/event-stream',
+    'Cache-Control': 'no-cache',
+    Connection: 'keep-alive'
+  });
+  const send = (event: string, data: unknown) => {
+    try {
+      reply.raw.write(`event: ${event}\n`);
+      reply.raw.write(`data: ${JSON.stringify(data)}\n\n`);
+    } catch {}
+  };
+  send('hello', { ts: Date.now(), kind: 'workflow-map' });
+  const interval = setInterval(() => send('live', { ts: Date.now(), edges: workflowMap.length }), 20000);
+  _req.raw.on('close', () => clearInterval(interval));
+  return reply;
+});
+
 server.post<{ Body: { prompt: string, category?: string } }>('/suggest', async (req) => {
   const { prompt, category } = req.body;
   
@@ -432,9 +475,12 @@ server.get('/events', async (req, reply) => {
     'Cache-Control': 'no-cache',
     Connection: 'keep-alive'
   });
+  sseClients.add(reply.raw);
   const send = (event: string, data: unknown) => {
-    reply.raw.write(`event: ${event}\n`);
-    reply.raw.write(`data: ${JSON.stringify(data)}\n\n`);
+    try {
+      reply.raw.write(`event: ${event}\n`);
+      reply.raw.write(`data: ${JSON.stringify(data)}\n\n`);
+    } catch {}
   };
   send('hello', { sequenceId: 1, ts: Date.now() });
   let progress = 0;
@@ -443,7 +489,7 @@ server.get('/events', async (req, reply) => {
     progress = (progress + 10) % 100;
     send('build_progress', { ts: Date.now(), progress });
   }, 15000);
-  req.raw.on('close', () => clearInterval(interval));
+  req.raw.on('close', () => { clearInterval(interval); try { sseClients.delete(reply.raw); } catch {} });
   return reply;
 });
 

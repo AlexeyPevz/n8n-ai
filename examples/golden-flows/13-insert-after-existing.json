@@ -1,0 +1,19 @@
+{
+  "name": "Insert After Existing Node",
+  "description": "В уже открытом воркфлоу добавь после HTTP-запроса логирование ответа",
+  "prompt": "Добавь после HTTP Request ноду Code, которая логирует ответ",
+  "expectedOperations": {
+    "version": "v1",
+    "ops": [
+      { "op": "add_node", "node": { "id": "code-log", "name": "Log Response", "type": "n8n-nodes-base.code", "typeVersion": 2, "position": [900, 300], "parameters": { "jsCode": "console.log($json); return items;" } } },
+      { "op": "connect", "from": "HTTP Request", "to": "Log Response" },
+      { "op": "annotate", "name": "Log Response", "text": "Вставлено после HTTP Request" }
+    ]
+  },
+  "validation": {
+    "expectedNodes": 1,
+    "expectedConnections": 1,
+    "mustHaveNodes": ["Log Response"]
+  }
+}
+
