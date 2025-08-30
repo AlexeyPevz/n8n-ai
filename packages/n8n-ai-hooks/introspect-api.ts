@@ -13,18 +13,18 @@ interface NodeIntrospection {
   type: string;
   version: number;
   description: string;
-  defaults: Record<string, any>;
+  defaults: Record<string, unknown>;
   inputs: string[];
   outputs: string[];
   properties: Array<{
     name: string;
     displayName: string;
     type: string;
-    default?: any;
+    default?: unknown;
     required?: boolean;
     options?: INodePropertyOptions[];
-    typeOptions?: Record<string, any>;
-    displayOptions?: Record<string, any>;
+    typeOptions?: Record<string, unknown>;
+    displayOptions?: Record<string, unknown>;
   }>;
   credentials?: Array<{
     name: string;
@@ -55,7 +55,7 @@ export class IntrospectAPI {
   /**
    * Регистрирует типы нод для интроспекции
    */
-  registerNodeTypes(nodeTypes: INodeTypeDescription[]) {
+  registerNodeTypes(nodeTypes: INodeTypeDescription[]): void {
     for (const nodeType of nodeTypes) {
       const key = `${nodeType.name}:${nodeType.version}`;
       this.nodeTypes.set(key, nodeType);
@@ -67,8 +67,8 @@ export class IntrospectAPI {
    */
   getAllNodes(): NodeIntrospection[] {
     const nodes: NodeIntrospection[] = [];
-    
-    for (const [key, nodeType] of this.nodeTypes) {
+    for (const _entry of this.nodeTypes) {
+      const nodeType = _entry[1];
       nodes.push(this.convertToIntrospection(nodeType));
     }
     
@@ -92,7 +92,8 @@ export class IntrospectAPI {
     let latestVersion = 0;
     let latestNode: INodeTypeDescription | null = null;
     
-    for (const [key, nodeType] of this.nodeTypes) {
+    for (const _entry of this.nodeTypes) {
+      const nodeType = _entry[1];
       const nodeVersion = Array.isArray(nodeType.version) 
         ? nodeType.version[nodeType.version.length - 1] 
         : nodeType.version;
@@ -130,18 +131,18 @@ export class IntrospectAPI {
       type: nodeType.name,
       version: version,
       description: nodeType.description,
-      defaults: nodeType.defaults,
+      defaults: nodeType.defaults as Record<string, unknown>,
       inputs: inputs,
       outputs: outputs,
       properties: nodeType.properties.map(prop => ({
         name: prop.name,
         displayName: prop.displayName,
         type: prop.type as string,
-        default: prop.default,
+        default: (prop as unknown as { default?: unknown }).default,
         required: prop.required,
         options: prop.options as INodePropertyOptions[] | undefined,
-        typeOptions: prop.typeOptions as Record<string, any> | undefined,
-        displayOptions: prop.displayOptions as Record<string, any> | undefined,
+        typeOptions: prop.typeOptions as Record<string, unknown> | undefined,
+        displayOptions: prop.displayOptions as Record<string, unknown> | undefined,
       })),
       credentials: nodeType.credentials,
     };
@@ -275,14 +276,14 @@ export class IntrospectAPI {
 
   private stableStringify(value: unknown): string {
     const seen = new WeakSet<object>();
-    const stringify = (v: any): any => {
+    const stringify = (v: unknown): unknown => {
       if (v === null || typeof v !== 'object') return v;
-      if (seen.has(v)) return undefined;
-      seen.add(v);
+      if (seen.has(v as object)) return undefined;
+      seen.add(v as object);
       if (Array.isArray(v)) return v.map((i) => stringify(i));
       const keys = Object.keys(v).sort();
-      const out: Record<string, any> = {};
-      for (const k of keys) out[k] = stringify(v[k]);
+      const out: Record<string, unknown> = {};
+      for (const k of keys) out[k] = stringify((v as Record<string, unknown>)[k]);
       return out;
     };
     return JSON.stringify(stringify(value));
@@ -312,18 +313,18 @@ export interface LegacyNodeType {
   type: string;
   typeVersion: number;
   description: string;
-  defaults: Record<string, any>;
+  defaults: Record<string, unknown>;
   inputs: string[];
   outputs: string[];
   properties: Array<{
     name: string;
     displayName: string;
     type: string;
-    default?: any;
+    default?: unknown;
     required?: boolean;
     options?: INodePropertyOptions[];
-    typeOptions?: Record<string, any>;
-    displayOptions?: Record<string, any>;
+    typeOptions?: Record<string, unknown>;
+    displayOptions?: Record<string, unknown>;
   }>;
 }
 

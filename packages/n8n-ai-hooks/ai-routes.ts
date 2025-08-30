@@ -23,7 +23,7 @@ export function createAIRoutes(): Router {
   const rateMax = Number(process.env.N8N_AI_RATELIMIT_MAX ?? 60);
   const rateBuckets = new Map<string, { count: number; resetAt: number }>();
 
-  const authMiddleware = (req: Request, res: Response, next: NextFunction) => {
+  const authMiddleware = (req: Request, res: Response, next: NextFunction): void => {
     if (!API_TOKEN) return next();
     const header = req.header('authorization') || '';
     const token = header.startsWith('Bearer ') ? header.slice(7) : undefined;
@@ -31,7 +31,7 @@ export function createAIRoutes(): Router {
     res.status(401).json({ error: 'unauthorized' });
   };
 
-  const rateLimitMiddleware = (req: Request, res: Response, next: NextFunction) => {
+  const rateLimitMiddleware = (req: Request, res: Response, next: NextFunction): void => {
     const key = req.ip || 'unknown';
     const now = Date.now();
     const bucket = rateBuckets.get(key) ?? { count: 0, resetAt: now + rateWindowMs };
@@ -44,7 +44,10 @@ export function createAIRoutes(): Router {
     res.setHeader('X-RateLimit-Limit', String(rateMax));
     res.setHeader('X-RateLimit-Remaining', String(Math.max(0, rateMax - bucket.count)));
     res.setHeader('X-RateLimit-Reset', String(Math.floor(bucket.resetAt / 1000)));
-    if (bucket.count > rateMax) return res.status(429).json({ error: 'rate_limited' });
+    if (bucket.count > rateMax) {
+      res.status(429).json({ error: 'rate_limited' });
+      return;
+    }
     next();
   };
 
@@ -139,11 +142,10 @@ export function createAIRoutes(): Router {
     try {
       const { id } = req.params;
       // Ленивая валидация через @n8n-ai/schemas, если пакет доступен
-      let parsed: any = { success: true, data: req.body };
+      let parsed: { success: boolean; data: unknown; error?: { format: () => unknown } } = { success: true, data: req.body };
       try {
         const mod = await import('@n8n-ai/schemas');
-        // @ts-ignore
-        parsed = (mod.OperationBatchSchema as any).safeParse(req.body);
+        parsed = (mod as unknown as { OperationBatchSchema: { safeParse: (v: unknown) => typeof parsed } }).OperationBatchSchema.safeParse(req.body);
       } catch {
         // fallback: пропускаем строгую валидацию в окружениях без пакета схем
       }
@@ -155,7 +157,7 @@ export function createAIRoutes(): Router {
       // Попытка прокси в оркестратор, если он доступен (временная интеграция до нативной н8н)
       try {
         const orchBase = process.env.N8N_AI_ORCHESTRATOR_URL || 'http://localhost:3000';
-        const r = await (globalThis as any).fetch(`${orchBase}/graph/${id}/batch`, {
+        const r = await fetch(`${orchBase}/graph/${id}/batch`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(batch)
@@ -204,7 +206,7 @@ export function createAIRoutes(): Router {
     try {
       const { id } = req.params;
       const orchBase = process.env.N8N_AI_ORCHESTRATOR_URL || 'http://localhost:3000';
-      const r = await (globalThis as any).fetch(`${orchBase}/graph/${id}/validate`, {
+      const r = await fetch(`${orchBase}/graph/${id}/validate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(req.body ?? {})
@@ -220,7 +222,7 @@ export function createAIRoutes(): Router {
     try {
       const { id } = req.params;
       const orchBase = process.env.N8N_AI_ORCHESTRATOR_URL || 'http://localhost:3000';
-      const r = await (globalThis as any).fetch(`${orchBase}/graph/${id}/simulate`, {
+      const r = await fetch(`${orchBase}/graph/${id}/simulate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(req.body ?? {})
