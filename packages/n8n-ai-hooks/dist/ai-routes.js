@@ -3,8 +3,8 @@
  */
 import { Router } from 'express';
 import { introspectAPI } from './introspect-api';
-import { OperationBatchSchema } from '@n8n-ai/schemas';
 import { loadBuiltinNodes } from './load-builtin-nodes';
+import { hooksMetrics, HOOKS_METRIC } from './metrics.js';
 // Инициализируем introspect API с встроенными нодами
 const builtinNodes = loadBuiltinNodes();
 introspectAPI.registerNodeTypes(builtinNodes);
@@ -39,10 +39,16 @@ export function createAIRoutes() {
         res.setHeader('X-RateLimit-Limit', String(rateMax));
         res.setHeader('X-RateLimit-Remaining', String(Math.max(0, rateMax - bucket.count)));
         res.setHeader('X-RateLimit-Reset', String(Math.floor(bucket.resetAt / 1000)));
-        if (bucket.count > rateMax)
-            return res.status(429).json({ error: 'rate_limited' });
+        if (bucket.count > rateMax) {
+            res.status(429).json({ error: 'rate_limited' });
+            return;
+        }
         next();
     };
+    router.use((req, _res, next) => {
+        req.startTime = Date.now();
+        next();
+    });
     router.use(authMiddleware);
     router.use(rateLimitMiddleware);
     // Introspect API endpoints
@@ -118,15 +124,24 @@ export function createAIRoutes() {
     router.post('/api/v1/ai/graph/:id/batch', async (req, res) => {
         try {
             const { id } = req.params;
-            const parsed = OperationBatchSchema.safeParse(req.body);
+            // Ленивая валидация через @n8n-ai/schemas, если пакет доступен
+            let parsed = { success: true, data: req.body };
+            try {
+                const mod = await import('@n8n-ai/schemas');
+                parsed = mod.OperationBatchSchema.safeParse(req.body);
+            }
+            catch {
+                // fallback: пропускаем строгую валидацию в окружениях без пакета схем
+            }
             if (!parsed.success) {
-                return res.status(400).json({ ok: false, error: 'invalid_operation_batch', issues: parsed.error.format() });
+                const issues = parsed.error ? parsed.error.format() : undefined;
+                return res.status(400).json({ ok: false, error: 'invalid_operation_batch', issues });
             }
             const batch = parsed.data;
             // Попытка прокси в оркестратор, если он доступен (временная интеграция до нативной н8н)
             try {
                 const orchBase = process.env.N8N_AI_ORCHESTRATOR_URL || 'http://localhost:3000';
-                const r = await globalThis.fetch(`${orchBase}/graph/${id}/batch`, {
+                const r = await fetch(`${orchBase}/graph/${id}/batch`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(batch)
@@ -138,7 +153,8 @@ export function createAIRoutes() {
                 // fallback: in-memory undo стек как раньше
                 const undoId = `undo_${Date.now()}`;
                 const stack = undoStacks.get(id) ?? [];
-                stack.push({ undoId, batch });
+                // batch уже типизирован как OperationBatch
+                stack.push({ undoId, batch: batch });
                 undoStacks.set(id, stack);
                 return res.json({ ok: true, workflowId: id, appliedOperations: batch.ops.length, undoId, note: 'fallback_in_memory' });
             }
@@ -178,7 +194,7 @@ export function createAIRoutes() {
         try {
             const { id } = req.params;
             const orchBase = process.env.N8N_AI_ORCHESTRATOR_URL || 'http://localhost:3000';
-            const r = await globalThis.fetch(`${orchBase}/graph/${id}/validate`, {
+            const r = await fetch(`${orchBase}/graph/${id}/validate`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(req.body ?? {})
@@ -194,7 +210,7 @@ export function createAIRoutes() {
         try {
             const { id } = req.params;
             const orchBase = process.env.N8N_AI_ORCHESTRATOR_URL || 'http://localhost:3000';
-            const r = await globalThis.fetch(`${orchBase}/graph/${id}/simulate`, {
+            const r = await fetch(`${orchBase}/graph/${id}/simulate`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(req.body ?? {})
@@ -213,6 +229,27 @@ export function createAIRoutes() {
             version: '0.1.0',
             apis: ['introspect', 'graph', 'validate', 'simulate']
         });
+    });
+    // Метрики (JSON и Prometheus)
+    router.get('/api/v1/ai/metrics', (_req, res) => {
+        res.json(hooksMetrics.getJSON());
+    });
+    router.get('/metrics', (_req, res) => {
+        res.type('text/plain').send(hooksMetrics.getPrometheus());
+    });
+    // Учёт метрик после ответа
+    router.use((req, res, next) => {
+        const originalEnd = res.end.bind(res);
+        res.end = ((chunk, encoding, cb) => {
+            try {
+                const duration = Date.now() - (req.startTime || Date.now());
+                hooksMetrics.increment(HOOKS_METRIC.API_REQUESTS, { path: req.path, method: req.method, status: String(res.statusCode) });
+                hooksMetrics.recordDuration(HOOKS_METRIC.API_DURATION, duration, { path: req.path, method: req.method, status: String(res.statusCode) });
+            }
+            catch { }
+            return originalEnd(chunk, encoding, cb);
+        });
+        next();
     });
     return router;
 }

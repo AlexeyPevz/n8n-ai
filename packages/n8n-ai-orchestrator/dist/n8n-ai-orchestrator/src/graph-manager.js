@@ -298,10 +298,12 @@ export class GraphManager {
                 if (!params.url)
                     params.url = 'https://example.com';
                 const allowedMethods = ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'HEAD', 'OPTIONS'];
-                if (params.method && !allowedMethods.includes(params.method))
+                const method = params.method;
+                if (method && !allowedMethods.includes(method))
                     params.method = 'GET';
                 const allowedFormats = ['json', 'text', 'binary'];
-                if (params.responseFormat && !allowedFormats.includes(params.responseFormat))
+                const responseFormat = params.responseFormat;
+                if (responseFormat && !allowedFormats.includes(responseFormat))
                     params.responseFormat = 'json';
             }
             if (node.type === 'n8n-nodes-base.webhook') {
@@ -364,7 +366,7 @@ export class GraphManager {
     /**
      * Симулирует выполнение воркфлоу
      */
-    simulate(workflowId, mockData) {
+    simulate(workflowId, _mockData) {
         const workflow = this.workflows.get(workflowId);
         if (!workflow) {
             return { ok: false, error: 'Workflow not found' };

@@ -9,18 +9,18 @@ interface NodeIntrospection {
     type: string;
     version: number;
     description: string;
-    defaults: Record<string, any>;
+    defaults: Record<string, unknown>;
     inputs: string[];
     outputs: string[];
     properties: Array<{
         name: string;
         displayName: string;
         type: string;
-        default?: any;
+        default?: unknown;
         required?: boolean;
         options?: INodePropertyOptions[];
-        typeOptions?: Record<string, any>;
-        displayOptions?: Record<string, any>;
+        typeOptions?: Record<string, unknown>;
+        displayOptions?: Record<string, unknown>;
     }>;
     credentials?: Array<{
         name: string;
@@ -53,11 +53,11 @@ export declare class IntrospectAPI {
      * Резолвит динамические опции для свойства ноды
      * (заглушка - требует интеграции с n8n core)
      */
-    resolveLoadOptions(nodeType: string, propertyName: string, currentNodeParameters: Record<string, any>): Promise<INodePropertyOptions[]>;
+    resolveLoadOptions(nodeType: string, propertyName: string, currentNodeParameters: Record<string, unknown>): Promise<INodePropertyOptions[]>;
     /**
      * Кэшируемый резолв loadOptions с TTL и поддержкой ETag/If-None-Match
      */
-    resolveLoadOptionsCached(nodeType: string, propertyName: string, currentNodeParameters: Record<string, any>, ifNoneMatch?: string): Promise<{
+    resolveLoadOptionsCached(nodeType: string, propertyName: string, currentNodeParameters: Record<string, unknown>, ifNoneMatch?: string): Promise<{
         options?: INodePropertyOptions[];
         etag: string;
         fromCache: boolean;
@@ -68,7 +68,7 @@ export declare class IntrospectAPI {
     /**
      * Инвалидация кэша для конкретного свойства ноды
      */
-    invalidateLoadOptions(nodeType: string, propertyName: string, currentNodeParameters: Record<string, any>): void;
+    invalidateLoadOptions(nodeType: string, propertyName: string, currentNodeParameters: Record<string, unknown>): void;
     /**
      * Полная очистка кэша loadOptions
      */
@@ -79,7 +79,7 @@ export declare class IntrospectAPI {
     /**
      * Интеграция с ядром n8n: установка внешнего резолвера loadOptions
      */
-    setExternalLoadOptionsResolver(resolver: (nodeType: string, propertyName: string, currentNodeParameters: Record<string, any>) => Promise<INodePropertyOptions[]>): void;
+    setExternalLoadOptionsResolver(resolver: (nodeType: string, propertyName: string, currentNodeParameters: Record<string, unknown>) => Promise<INodePropertyOptions[]>): void;
 }
 export declare const introspectAPI: IntrospectAPI;
 export interface LegacyNodeType {
@@ -87,18 +87,18 @@ export interface LegacyNodeType {
     type: string;
     typeVersion: number;
     description: string;
-    defaults: Record<string, any>;
+    defaults: Record<string, unknown>;
     inputs: string[];
     outputs: string[];
     properties: Array<{
         name: string;
         displayName: string;
         type: string;
-        default?: any;
+        default?: unknown;
         required?: boolean;
         options?: INodePropertyOptions[];
-        typeOptions?: Record<string, any>;
-        displayOptions?: Record<string, any>;
+        typeOptions?: Record<string, unknown>;
+        displayOptions?: Record<string, unknown>;
     }>;
 }
 export interface IntrospectAPIPublic extends IntrospectAPI {

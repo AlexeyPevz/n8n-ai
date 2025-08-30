@@ -382,9 +382,11 @@ export class GraphManager {
         const params = node.parameters as Record<string, unknown>;
         if (!params.url) params.url = 'https://example.com';
         const allowedMethods = ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'HEAD', 'OPTIONS'];
-        if (params.method && !allowedMethods.includes(params.method)) params.method = 'GET';
+        const method = params.method as string | undefined;
+        if (method && !allowedMethods.includes(method)) params.method = 'GET';
         const allowedFormats = ['json', 'text', 'binary'];
-        if (params.responseFormat && !allowedFormats.includes(params.responseFormat)) params.responseFormat = 'json';
+        const responseFormat = params.responseFormat as string | undefined;
+        if (responseFormat && !allowedFormats.includes(responseFormat)) params.responseFormat = 'json';
       }
       if (node.type === 'n8n-nodes-base.webhook') {
         const params = node.parameters as Record<string, unknown>;

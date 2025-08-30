@@ -6,6 +6,7 @@ import { Router } from 'express';
 import { introspectAPI } from './introspect-api';
 import { loadBuiltinNodes } from './load-builtin-nodes';
 import type { OperationBatch } from '@n8n-ai/schemas';
+import { hooksMetrics, HOOKS_METRIC } from './metrics.js';
 import type { Request, Response, NextFunction } from 'express';
 
 // Инициализируем introspect API с встроенными нодами
@@ -13,7 +14,7 @@ const builtinNodes = loadBuiltinNodes();
 introspectAPI.registerNodeTypes(builtinNodes);
 
 // Простейший in-memory стек для Undo по workflowId
-const undoStacks: Map<string, Array<{ undoId: string; batch: unknown }>> = new Map();
+const undoStacks: Map<string, Array<{ undoId: string; batch: OperationBatch }>> = new Map();
 
 export function createAIRoutes(): Router {
   const router = Router();
@@ -52,6 +53,10 @@ export function createAIRoutes(): Router {
     next();
   };
 
+  router.use((req, _res, next) => {
+    (req as unknown as { startTime?: number }).startTime = Date.now();
+    next();
+  });
   router.use(authMiddleware);
   router.use(rateLimitMiddleware);
 
@@ -151,7 +156,8 @@ export function createAIRoutes(): Router {
         // fallback: пропускаем строгую валидацию в окружениях без пакета схем
       }
       if (!parsed.success) {
-        return res.status(400).json({ ok: false, error: 'invalid_operation_batch', issues: parsed.error.format() });
+        const issues = parsed.error ? parsed.error.format() : undefined;
+        return res.status(400).json({ ok: false, error: 'invalid_operation_batch', issues });
       }
       const batch = parsed.data as OperationBatch;
 
@@ -169,7 +175,8 @@ export function createAIRoutes(): Router {
         // fallback: in-memory undo стек как раньше
         const undoId = `undo_${Date.now()}`;
         const stack = undoStacks.get(id) ?? [];
-        stack.push({ undoId, batch });
+        // batch уже типизирован как OperationBatch
+        stack.push({ undoId, batch: batch as OperationBatch });
         undoStacks.set(id, stack);
         return res.json({ ok: true, workflowId: id, appliedOperations: batch.ops.length, undoId, note: 'fallback_in_memory' });
       }
@@ -193,7 +200,7 @@ export function createAIRoutes(): Router {
         if (idx === -1) return res.status(404).json({ ok: false, error: 'undo_id_not_found' });
         entry = stack.splice(idx, 1)[0];
       } else {
-        entry = stack.pop();
+        entry = stack.pop() as { undoId: string; batch: OperationBatch } | undefined;
       }
       undoStacks.set(id, stack);
       const undoneOps = entry?.batch?.ops?.length ?? 0;
@@ -242,6 +249,30 @@ export function createAIRoutes(): Router {
       version: '0.1.0',
       apis: ['introspect', 'graph', 'validate', 'simulate']
     });
+  });
+
+  // Метрики (JSON и Prometheus)
+  router.get('/api/v1/ai/metrics', (_req, res) => {
+    res.json(hooksMetrics.getJSON());
+  });
+  router.get('/metrics', (_req, res) => {
+    res.type('text/plain').send(hooksMetrics.getPrometheus());
+  });
+
+  // Учёт метрик после ответа
+  router.use((req, res, next) => {
+    const originalEnd = res.end.bind(res);
+    res.end = ((chunk?: unknown, encoding?: BufferEncoding | undefined, cb?: (() => void) | undefined) => {
+      try {
+        const duration = Date.now() - ((req as unknown as { startTime?: number }).startTime || Date.now());
+        hooksMetrics.increment(HOOKS_METRIC.API_REQUESTS, { path: req.path, method: req.method, status: String(res.statusCode) });
+        hooksMetrics.recordDuration(HOOKS_METRIC.API_DURATION, duration, { path: req.path, method: req.method, status: String(res.statusCode) });
+      } catch {
+        // ignore metrics errors
+      }
+      return originalEnd(chunk as never, encoding as never, cb as never);
+    }) as unknown as typeof res.end;
+    next();
   });
 
   return router;

@@ -47,7 +47,7 @@ export class SimplePlanner {
         index: 0
       });
       operations.push({
-        op: 'annotate',
+        op: 'annotate' as const,
         name: 'HTTP Request',
         text: `${method} запрос для получения данных`
       });
@@ -63,11 +63,11 @@ export class SimplePlanner {
       console.log(`Found matching pattern: ${bestMatch.pattern.name} (score: ${bestMatch.score})`);
       console.log(`Matched keywords: ${bestMatch.matchedKeywords.join(', ')}`);
       
-      const operations = generateOperationsFromPattern(bestMatch.pattern);
+      const operations = generateOperationsFromPattern(bestMatch.pattern) as OperationBatch['ops'];
       
       // Добавляем аннотацию с информацией о паттерне
       operations.push({
-        op: 'annotate',
+        op: 'annotate' as const,
         name: bestMatch.pattern.nodes[0].name,
         text: `Generated from pattern: ${bestMatch.pattern.name} (confidence: ${Math.round(bestMatch.score * 10)}%)`
       });
@@ -114,7 +114,7 @@ export class SimplePlanner {
       
       // Добавляем аннотацию с объяснением
       operations.push({
-        op: 'annotate',
+        op: 'annotate' as const,
         name: 'HTTP Request',
         text: `${method} запрос для получения данных`
       });
@@ -180,7 +180,7 @@ export class SimplePlanner {
       });
       
       operations.push({
-        op: 'annotate',
+        op: 'annotate' as const,
         name: 'HTTP Request',
         text: `Создан по запросу: "${prompt.slice(0, 50)}..."`
       });

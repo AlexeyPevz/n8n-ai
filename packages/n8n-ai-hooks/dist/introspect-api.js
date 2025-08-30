@@ -33,7 +33,8 @@ export class IntrospectAPI {
      */
     getAllNodes() {
         const nodes = [];
-        for (const [key, nodeType] of this.nodeTypes) {
+        for (const _entry of this.nodeTypes) {
+            const nodeType = _entry[1];
             nodes.push(this.convertToIntrospection(nodeType));
         }
         return nodes;
@@ -53,7 +54,8 @@ export class IntrospectAPI {
         // Ищем последнюю версию
         let latestVersion = 0;
         let latestNode = null;
-        for (const [key, nodeType] of this.nodeTypes) {
+        for (const _entry of this.nodeTypes) {
+            const nodeType = _entry[1];
             const nodeVersion = Array.isArray(nodeType.version)
                 ? nodeType.version[nodeType.version.length - 1]
                 : nodeType.version;
