@@ -2,7 +2,7 @@
  * Улучшенный матчер паттернов с поддержкой fuzzy matching
  */
 
-import { WorkflowPattern } from './workflow-patterns';
+import type { WorkflowPattern } from './workflow-patterns';
 import { getAllPatterns } from './extended-patterns';
 
 interface MatchResult {

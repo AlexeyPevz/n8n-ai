@@ -3,9 +3,10 @@
  * Управляет состоянием воркфлоу и применением операций
  */
 
-import { 
+import type { 
   OperationBatch, 
-  Node, 
+  Node} from '@n8n-ai/schemas';
+import { 
   Graph,
   NodeSchema,
   ConnectionSchema,

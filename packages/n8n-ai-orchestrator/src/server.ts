@@ -1,12 +1,12 @@
-import Fastify from "fastify";
-import cors from "@fastify/cors";
-import { OperationBatchSchema } from "@n8n-ai/schemas";
-import { SimplePlanner } from "./planner.js";
-import { patternMatcher } from "./pattern-matcher.js";
-import { graphManager } from "./graph-manager.js";
-import { metrics, METRICS } from "./metrics.js";
-import { handleError, errorToResponse, ValidationError, NotFoundError } from "./error-handler.js";
-import { randomUUID } from "node:crypto";
+import Fastify from 'fastify';
+import cors from '@fastify/cors';
+import { OperationBatchSchema } from '@n8n-ai/schemas';
+import { SimplePlanner } from './planner.js';
+import { patternMatcher } from './pattern-matcher.js';
+import { graphManager } from './graph-manager.js';
+import { metrics, METRICS } from './metrics.js';
+import { handleError, errorToResponse, ValidationError, NotFoundError } from './error-handler.js';
+import { randomUUID } from 'node:crypto';
 
 const server = Fastify({ logger: true });
 
@@ -71,9 +71,9 @@ server.get('/api/v1/ai/metrics', async () => {
 });
 
 // Простой прокси для n8n-ai-hooks Introspect API
-server.get("/introspect/nodes", async () => {
+server.get('/introspect/nodes', async () => {
   // Пытаемся проксировать в n8n-ai-hooks, если доступен
-  const hooksBase = process.env.N8N_URL ?? "http://localhost:5678";
+  const hooksBase = process.env.N8N_URL ?? 'http://localhost:5678';
   try {
     const resp = await fetch(`${hooksBase}/api/v1/ai/introspect/nodes`);
     if (resp.ok) {
@@ -82,61 +82,61 @@ server.get("/introspect/nodes", async () => {
       if (Array.isArray(nodes) && nodes.length > 0) return nodes;
     }
   } catch (e) {
-    server.log.warn({ error: e }, "Hooks introspect not available, falling back to static list");
+    server.log.warn({ error: e }, 'Hooks introspect not available, falling back to static list');
   }
 
   // Фолбэк: статический список основных нод для MVP
   return [
     {
-      name: "HTTP Request",
-      type: "n8n-nodes-base.httpRequest",
+      name: 'HTTP Request',
+      type: 'n8n-nodes-base.httpRequest',
       typeVersion: 4,
       parameters: {
-        method: { enum: ["GET", "POST", "PUT", "DELETE"] },
-        url: { type: "string", required: true },
-        authentication: { enum: ["none", "basicAuth", "headerAuth", "oAuth2"] },
-        responseFormat: { enum: ["json", "text", "binary"] }
+        method: { enum: ['GET', 'POST', 'PUT', 'DELETE'] },
+        url: { type: 'string', required: true },
+        authentication: { enum: ['none', 'basicAuth', 'headerAuth', 'oAuth2'] },
+        responseFormat: { enum: ['json', 'text', 'binary'] }
       }
     },
     {
-      name: "Webhook",
-      type: "n8n-nodes-base.webhook",
+      name: 'Webhook',
+      type: 'n8n-nodes-base.webhook',
       typeVersion: 1,
       parameters: {
-        httpMethod: { enum: ["GET", "POST", "PUT", "DELETE"] },
-        path: { type: "string", required: true }
+        httpMethod: { enum: ['GET', 'POST', 'PUT', 'DELETE'] },
+        path: { type: 'string', required: true }
       }
     },
     {
-      name: "Schedule Trigger",
-      type: "n8n-nodes-base.scheduleTrigger",
+      name: 'Schedule Trigger',
+      type: 'n8n-nodes-base.scheduleTrigger',
       typeVersion: 1,
       parameters: {
-        rule: { type: "object" }
+        rule: { type: 'object' }
       }
     },
     {
-      name: "Manual Trigger",
-      type: "n8n-nodes-base.manualTrigger",
+      name: 'Manual Trigger',
+      type: 'n8n-nodes-base.manualTrigger',
       typeVersion: 1,
       parameters: {}
     },
     {
-      name: "Code",
-      type: "n8n-nodes-base.code",
+      name: 'Code',
+      type: 'n8n-nodes-base.code',
       typeVersion: 2,
       parameters: {
-        language: { enum: ["javaScript", "python"] },
-        jsCode: { type: "string" }
+        language: { enum: ['javaScript', 'python'] },
+        jsCode: { type: 'string' }
       }
     },
     {
-      name: "Set",
-      type: "n8n-nodes-base.set",
+      name: 'Set',
+      type: 'n8n-nodes-base.set',
       typeVersion: 1,
       parameters: {
-        keepOnlySet: { type: "boolean" },
-        values: { type: "collection" }
+        keepOnlySet: { type: 'boolean' },
+        values: { type: 'collection' }
       }
     }
   ];
@@ -144,32 +144,32 @@ server.get("/introspect/nodes", async () => {
 
 const planner = new SimplePlanner();
 
-server.post<{ Body: { prompt?: string } }>("/plan", async (req) => {
+server.post<{ Body: { prompt?: string } }>('/plan', async (req) => {
   return metrics.measureAsync(METRICS.API_DURATION, async () => {
     metrics.increment(METRICS.API_REQUESTS, { endpoint: 'plan' });
     
-    const prompt = req.body?.prompt ?? "";
+    const prompt = req.body?.prompt ?? '';
     
     if (!prompt) {
-      throw new ValidationError("prompt is required");
+      throw new ValidationError('prompt is required');
     }
     
     try {
       const batch = await planner.plan({ prompt });
       const parsed = OperationBatchSchema.safeParse(batch);
       if (!parsed.success) {
-        server.log.error({ prompt, issues: parsed.error.format() }, "Generated plan failed schema validation");
+        server.log.error({ prompt, issues: parsed.error.format() }, 'Generated plan failed schema validation');
         metrics.increment(METRICS.VALIDATION_ERRORS, { type: 'plan' });
-        throw new ValidationError("invalid_generated_operation_batch", parsed.error.format());
+        throw new ValidationError('invalid_generated_operation_batch', parsed.error.format());
       }
       
       metrics.increment(METRICS.PLAN_OPERATIONS, { count: String(parsed.data.ops.length) });
-      server.log.info({ prompt, operationsCount: parsed.data.ops.length }, "Plan created");
+      server.log.info({ prompt, operationsCount: parsed.data.ops.length }, 'Plan created');
       return parsed.data;
     } catch (error) {
       if (error instanceof ValidationError) throw error;
       
-      server.log.error({ error, prompt }, "Planning failed");
+      server.log.error({ error, prompt }, 'Planning failed');
       throw error;
     }
   }, { endpoint: 'plan' });
@@ -184,7 +184,7 @@ server.post('/__test/reset', async () => {
 server.post<{
   Params: { id: string };
   Body: unknown;
-}>("/graph/:id/batch", async (req) => {
+}>('/graph/:id/batch', async (req) => {
   const { id: workflowId } = req.params;
   
   // Авто-создание воркфлоу, если он отсутствует
@@ -194,7 +194,7 @@ server.post<{
 
   const parsed = OperationBatchSchema.safeParse(req.body);
   if (!parsed.success) {
-    return { ok: false, error: "invalid_operation_batch", issues: parsed.error.format() };
+    return { ok: false, error: 'invalid_operation_batch', issues: parsed.error.format() };
   }
   
   // Применяем операции через GraphManager
@@ -226,7 +226,7 @@ server.post<{
       appliedOperations: result.appliedOperations
     };
   } else {
-    server.log.error({ workflowId, error: result.error }, "Failed to apply operations");
+    server.log.error({ workflowId, error: result.error }, 'Failed to apply operations');
     return { 
       ok: false, 
       error: result.error 
@@ -234,7 +234,7 @@ server.post<{
   }
 });
 
-server.post<{ Params: { id: string } }>("/graph/:id/validate", async (req) => {
+server.post<{ Params: { id: string } }>('/graph/:id/validate', async (req) => {
   const { id: workflowId } = req.params;
   const url = new URL(req.url, `http://${req.headers.host}`);
   const autofix = url.searchParams.get('autofix') === '1';
@@ -246,7 +246,7 @@ server.post<{ Params: { id: string } }>("/graph/:id/validate", async (req) => {
   };
 });
 
-server.post<{ Params: { id: string } }>("/graph/:id/simulate", async (req) => {
+server.post<{ Params: { id: string } }>('/graph/:id/simulate', async (req) => {
   const { id: workflowId } = req.params;
   
   const simulationResult = graphManager.simulate(workflowId);
@@ -255,7 +255,7 @@ server.post<{ Params: { id: string } }>("/graph/:id/simulate", async (req) => {
 });
 
 // Critic v1: запускает валидацию с автофиксами и возвращает отчёт
-server.post<{ Params: { id: string } }>("/graph/:id/critic", async (req) => {
+server.post<{ Params: { id: string } }>('/graph/:id/critic', async (req) => {
   const { id: workflowId } = req.params;
   const validationBefore = graphManager.validate(workflowId);
   const autofixed = graphManager.validate(workflowId, { autofix: true });
@@ -269,14 +269,14 @@ server.post<{ Params: { id: string } }>("/graph/:id/critic", async (req) => {
 server.post<{ 
   Params: { id: string };
   Body: { undoId?: string };
-}>("/graph/:id/undo", async (req) => {
+}>('/graph/:id/undo', async (req) => {
   const { id: workflowId } = req.params;
   const { undoId } = req.body || {};
   
   const result = graphManager.undo(workflowId, undoId);
   
   if (result.success) {
-    server.log.info({ workflowId, undoId: result.undoId }, "Undo successful");
+    server.log.info({ workflowId, undoId: result.undoId }, 'Undo successful');
     return { 
       ok: true, 
       undoId: result.undoId,
@@ -287,13 +287,13 @@ server.post<{
   }
 });
 
-server.post<{ Params: { id: string } }>("/graph/:id/redo", async (req) => {
+server.post<{ Params: { id: string } }>('/graph/:id/redo', async (req) => {
   const { id: workflowId } = req.params;
   
   const result = graphManager.redo(workflowId);
   
   if (result.success) {
-    server.log.info({ workflowId }, "Redo successful");
+    server.log.info({ workflowId }, 'Redo successful');
     return { 
       ok: true,
       redoneOperations: result.appliedOperations
@@ -304,7 +304,7 @@ server.post<{ Params: { id: string } }>("/graph/:id/redo", async (req) => {
 });
 
 // Endpoint для получения текущего состояния воркфлоу
-server.get<{ Params: { id: string } }>("/graph/:id", async (req) => {
+server.get<{ Params: { id: string } }>('/graph/:id', async (req) => {
   const { id: workflowId } = req.params;
   
   const workflow = graphManager.getWorkflow(workflowId);
@@ -316,7 +316,7 @@ server.get<{ Params: { id: string } }>("/graph/:id", async (req) => {
   }
 });
 
-server.get("/patterns", async () => {
+server.get('/patterns', async () => {
   const categories = patternMatcher.getCategories();
   return {
     categories,
@@ -332,7 +332,7 @@ server.get("/patterns", async () => {
   };
 });
 
-server.post<{ Body: { prompt: string, category?: string } }>("/suggest", async (req) => {
+server.post<{ Body: { prompt: string, category?: string } }>('/suggest', async (req) => {
   const { prompt, category } = req.body;
   
   if (category) {
@@ -358,24 +358,24 @@ server.post<{ Body: { prompt: string, category?: string } }>("/suggest", async (
   };
 });
 
-server.get("/events", async (req, reply) => {
+server.get('/events', async (req, reply) => {
   reply.raw.writeHead(200, {
-    "Content-Type": "text/event-stream",
-    "Cache-Control": "no-cache",
-    Connection: "keep-alive"
+    'Content-Type': 'text/event-stream',
+    'Cache-Control': 'no-cache',
+    Connection: 'keep-alive'
   });
   const send = (event: string, data: unknown) => {
     reply.raw.write(`event: ${event}\n`);
     reply.raw.write(`data: ${JSON.stringify(data)}\n\n`);
   };
-  send("hello", { sequenceId: 1, ts: Date.now() });
+  send('hello', { sequenceId: 1, ts: Date.now() });
   let progress = 0;
   const interval = setInterval(() => {
-    send("heartbeat", { ts: Date.now() });
+    send('heartbeat', { ts: Date.now() });
     progress = (progress + 10) % 100;
-    send("build_progress", { ts: Date.now(), progress });
+    send('build_progress', { ts: Date.now(), progress });
   }, 15000);
-  req.raw.on("close", () => clearInterval(interval));
+  req.raw.on('close', () => clearInterval(interval));
   return reply;
 });
 
