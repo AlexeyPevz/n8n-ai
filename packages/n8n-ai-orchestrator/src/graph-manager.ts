@@ -306,134 +306,97 @@ export class GraphManager {
   }
 
   /**
-   * Валидирует воркфлоу
+   * Возвращает список замечаний по воркфлоу
    */
-  validate(workflowId: string): ValidationResult {
-    const workflow = this.workflows.get(workflowId);
-    if (!workflow) {
-      return {
-        valid: false,
-        lints: [{
-          code: 'workflow_not_found',
-          level: 'error',
-          message: 'Workflow not found'
-        }]
-      };
-    }
-
+  private computeLints(workflow: WorkflowState): ValidationResult['lints'] {
     const lints: ValidationResult['lints'] = [];
 
     // Проверка 1: Есть ли триггер
-    const hasTrigger = workflow.nodes.some(n => 
-      n.type.includes('Trigger') || n.type.includes('webhook')
-    );
-    
+    const hasTrigger = workflow.nodes.some((n) => n.type.includes('Trigger') || n.type.includes('webhook'));
     if (!hasTrigger) {
-      lints.push({
-        code: 'missing_trigger',
-        level: 'warn',
-        message: 'Workflow has no trigger node'
-      });
+      lints.push({ code: 'missing_trigger', level: 'warn', message: 'Workflow has no trigger node' });
     }
 
-    // Проверка 2: Все ли ноды подключены и есть ли исходящие у нетерминальных
+    // Проверка 2: Подключенность
     for (const node of workflow.nodes) {
-      // Пропускаем триггеры - они могут не иметь входящих соединений
-      if (node.type.includes('Trigger') || node.type.includes('webhook')) {
-        continue;
-      }
-
-      const hasIncoming = workflow.connections.some(c => 
-        c.to === node.name || c.to === node.id
-      );
-      
+      if (node.type.includes('Trigger') || node.type.includes('webhook')) continue;
+      const hasIncoming = workflow.connections.some((c) => c.to === node.name || c.to === node.id);
       if (!hasIncoming) {
-        lints.push({
-          code: 'unconnected_node',
-          level: 'warn',
-          message: `Node "${node.name}" has no incoming connections`,
-          node: node.name
-        });
+        lints.push({ code: 'unconnected_node', level: 'warn', message: `Node "${node.name}" has no incoming connections`, node: node.name });
       }
-
-      const hasOutgoing = workflow.connections.some(c => 
-        c.from === node.name || c.from === node.id
-      );
-
+      const hasOutgoing = workflow.connections.some((c) => c.from === node.name || c.from === node.id);
       if (!hasOutgoing) {
-        lints.push({
-          code: 'dangling_branch',
-          level: 'warn',
-          message: `Node "${node.name}" has no outgoing connections`,
-          node: node.name
-        });
+        lints.push({ code: 'dangling_branch', level: 'warn', message: `Node "${node.name}" has no outgoing connections`, node: node.name });
       }
     }
 
-    // Проверка 3: Обязательные параметры
+    // Проверка 3: Обязательные/enum
     for (const node of workflow.nodes) {
-      // Проверяем HTTP Request ноды
       if (node.type === 'n8n-nodes-base.httpRequest') {
         if (!node.parameters.url) {
-          lints.push({
-            code: 'missing_required_param',
-            level: 'error',
-            message: `Node "${node.name}" is missing required parameter "url"`,
-            node: node.name
-          });
+          lints.push({ code: 'missing_required_param', level: 'error', message: `Node "${node.name}" is missing required parameter "url"`, node: node.name });
         }
-
-        // enum: method
-        const allowedMethods = ['GET','POST','PUT','DELETE','PATCH','HEAD','OPTIONS'];
+        const allowedMethods = ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'HEAD', 'OPTIONS'];
         const method = (node.parameters as any)?.method;
         if (method && !allowedMethods.includes(method)) {
-          lints.push({
-            code: 'invalid_enum',
-            level: 'error',
-            message: `Node "${node.name}" has invalid method "${method}"`,
-            node: node.name
-          });
+          lints.push({ code: 'invalid_enum', level: 'error', message: `Node "${node.name}" has invalid method "${method}"`, node: node.name });
         }
-
-        // enum: responseFormat
-        const allowedFormats = ['json','text','binary'];
+        const allowedFormats = ['json', 'text', 'binary'];
         const responseFormat = (node.parameters as any)?.responseFormat;
         if (responseFormat && !allowedFormats.includes(responseFormat)) {
-          lints.push({
-            code: 'invalid_enum',
-            level: 'error',
-            message: `Node "${node.name}" has invalid responseFormat "${responseFormat}"`,
-            node: node.name
-          });
+          lints.push({ code: 'invalid_enum', level: 'error', message: `Node "${node.name}" has invalid responseFormat "${responseFormat}"`, node: node.name });
         }
       }
-      
-      // Проверяем Webhook ноды
       if (node.type === 'n8n-nodes-base.webhook') {
         if (!node.parameters.path) {
-          lints.push({
-            code: 'missing_required_param',
-            level: 'error',
-            message: `Node "${node.name}" is missing required parameter "path"`,
-            node: node.name
-          });
+          lints.push({ code: 'missing_required_param', level: 'error', message: `Node "${node.name}" is missing required parameter "path"`, node: node.name });
         }
       }
     }
 
-    // Проверка 4: Циклические зависимости
+    // Проверка 4: Циклы
     if (this.hasCycles(workflow)) {
-      lints.push({
-        code: 'circular_dependency',
-        level: 'error',
-        message: 'Workflow contains circular dependencies'
-      });
+      lints.push({ code: 'circular_dependency', level: 'error', message: 'Workflow contains circular dependencies' });
     }
 
-    return {
-      valid: lints.filter(l => l.level === 'error').length === 0,
-      lints
-    };
+    return lints;
+  }
+
+  /**
+   * Автофикс базовых ошибок (enum/required) для MVP
+   */
+  private applyAutoFixes(workflow: WorkflowState): void {
+    for (const node of workflow.nodes) {
+      if (node.type === 'n8n-nodes-base.httpRequest') {
+        const params = node.parameters as any;
+        if (!params.url) params.url = 'https://example.com';
+        const allowedMethods = ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'HEAD', 'OPTIONS'];
+        if (params.method && !allowedMethods.includes(params.method)) params.method = 'GET';
+        const allowedFormats = ['json', 'text', 'binary'];
+        if (params.responseFormat && !allowedFormats.includes(params.responseFormat)) params.responseFormat = 'json';
+      }
+      if (node.type === 'n8n-nodes-base.webhook') {
+        const params = node.parameters as any;
+        if (!params.path) params.path = 'webhook-endpoint';
+      }
+    }
+  }
+
+  /**
+   * Валидирует воркфлоу. При autofix=true пытается автоматически исправить базовые ошибки.
+   */
+  validate(workflowId: string, options?: { autofix?: boolean }): ValidationResult {
+    const workflow = this.workflows.get(workflowId);
+    if (!workflow) {
+      return { valid: false, lints: [{ code: 'workflow_not_found', level: 'error', message: 'Workflow not found' }] };
+    }
+
+    if (options?.autofix) {
+      this.applyAutoFixes(workflow);
+    }
+
+    const lints = this.computeLints(workflow);
+    return { valid: lints.filter((l) => l.level === 'error').length === 0, lints };
   }
 
   /**
@@ -490,7 +453,9 @@ export class GraphManager {
     stats?: {
       nodesVisited: number;
       estimatedDurationMs: number;
+      p95DurationMs: number;
       dataFlow: Array<{ node: string; outputSize: number }>;
+      warnings?: Array<{ code: string; message: string; node?: string }>;
     };
     error?: string;
   } {
@@ -507,6 +472,7 @@ export class GraphManager {
     // Простая симуляция - подсчитываем количество нод и оцениваем время
     const nodesVisited = workflow.nodes.length;
     const estimatedDurationMs = nodesVisited * 150; // 150ms на ноду в среднем
+    const p95DurationMs = Math.round(estimatedDurationMs * 1.5);
     
     const dataFlow = workflow.nodes.map(node => ({
       node: node.name,
@@ -518,7 +484,9 @@ export class GraphManager {
       stats: {
         nodesVisited,
         estimatedDurationMs,
-        dataFlow
+        p95DurationMs,
+        dataFlow,
+        warnings: validation.lints.filter((l) => l.level === 'warn').map((l) => ({ code: l.code, message: l.message, node: l.node }))
       }
     };
   }

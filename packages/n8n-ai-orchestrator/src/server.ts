@@ -173,8 +173,9 @@ server.post<{
 
 server.post<{ Params: { id: string } }>("/graph/:id/validate", async (req) => {
   const { id: workflowId } = req.params;
-  
-  const validationResult = graphManager.validate(workflowId);
+  const url = new URL(req.url, `http://${req.headers.host}`);
+  const autofix = url.searchParams.get('autofix') === '1';
+  const validationResult = graphManager.validate(workflowId, { autofix });
   
   return {
     ok: validationResult.valid,

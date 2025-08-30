@@ -158,7 +158,9 @@ server.post("/graph/:id/batch", async (req) => {
 });
 server.post("/graph/:id/validate", async (req) => {
     const { id: workflowId } = req.params;
-    const validationResult = graphManager.validate(workflowId);
+    const url = new URL(req.url, `http://${req.headers.host}`);
+    const autofix = url.searchParams.get('autofix') === '1';
+    const validationResult = graphManager.validate(workflowId, { autofix });
     return {
         ok: validationResult.valid,
         lints: validationResult.lints
