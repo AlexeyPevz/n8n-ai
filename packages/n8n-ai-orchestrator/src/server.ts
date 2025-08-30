@@ -290,16 +290,48 @@ server.post<{ Params: { id: string } }>('/graph/:id/simulate', async (req) => {
   return simulationResult;
 });
 
-// Critic v1: запускает валидацию с автофиксами и возвращает отчёт
-server.post<{ Params: { id: string } }>('/graph/:id/critic', async (req) => {
+// Critic: попытка авто‑исправления на основе текущего состояния (и опционально переданного батча)
+server.post<{
+  Params: { id: string };
+  Body: { batch?: unknown; lints?: unknown };
+}>('/graph/:id/critic', async (req) => {
   const { id: workflowId } = req.params;
-  const validationBefore = graphManager.validate(workflowId);
-  const autofixed = graphManager.validate(workflowId, { autofix: true });
-  return {
-    ok: autofixed.valid,
-    before: validationBefore,
-    after: autofixed
-  };
+  const { batch } = req.body || {};
+
+  // Опционально применяем переданный батч, если он есть
+  let appliedUndoId: string | undefined;
+  if (batch) {
+    const parsed = OperationBatchSchema.safeParse(batch);
+    if (!parsed.success) {
+      return { ok: false, error: 'invalid_operation_batch', issues: parsed.error.format() };
+    }
+    const applied = graphManager.applyBatch(workflowId, parsed.data);
+    if (!applied.success) {
+      return { ok: false, error: applied.error };
+    }
+    appliedUndoId = applied.undoId;
+  }
+
+  // Запускаем цикл авто‑исправления
+  const maxTries = Math.max(1, Number(process.env.CRITIC_MAX_TRIES ?? 2));
+  const before = graphManager.validate(workflowId);
+  let current = before;
+  let tries = 0;
+  while (!current.valid && tries < maxTries) {
+    tries++;
+    current = graphManager.validate(workflowId, { autofix: true });
+    if (current.valid) break;
+  }
+
+  if (current.valid) {
+    return { ok: true, tried: tries, before, after: current, undoIdApplied: appliedUndoId };
+  }
+
+  // Если не удалось исправить: при наличии применённого батча попробуем откатить
+  if (appliedUndoId) {
+    graphManager.undo(workflowId, appliedUndoId);
+  }
+  return { ok: false, tried: tries, before, after: current, error: 'critic_unable_to_fix' };
 });
 
 server.post<{ 
