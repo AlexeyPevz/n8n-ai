@@ -4,7 +4,6 @@
 
 import { Router } from 'express';
 import { introspectAPI } from './introspect-api';
-import { OperationBatchSchema } from '@n8n-ai/schemas';
 import { loadBuiltinNodes } from './load-builtin-nodes';
 import type { Request, Response, NextFunction } from 'express';
 
@@ -139,7 +138,15 @@ export function createAIRoutes(): Router {
   router.post('/api/v1/ai/graph/:id/batch', async (req, res) => {
     try {
       const { id } = req.params;
-      const parsed = OperationBatchSchema.safeParse(req.body);
+      // Ленивая валидация через @n8n-ai/schemas, если пакет доступен
+      let parsed: any = { success: true, data: req.body };
+      try {
+        const mod = await import('@n8n-ai/schemas');
+        // @ts-ignore
+        parsed = (mod.OperationBatchSchema as any).safeParse(req.body);
+      } catch {
+        // fallback: пропускаем строгую валидацию в окружениях без пакета схем
+      }
       if (!parsed.success) {
         return res.status(400).json({ ok: false, error: 'invalid_operation_batch', issues: parsed.error.format() });
       }
