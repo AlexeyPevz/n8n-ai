@@ -231,6 +231,15 @@ jobs:
           curl -fsS -X POST http://localhost:3000/plan \
             -H 'content-type: application/json' \
             -d '{"prompt":"HTTP GET JSONPlaceholder"}' | jq .
+      - name: Smoke Apply via REST alias
+        run: |
+          PLAN=$(curl -fsS -X POST http://localhost:3000/plan -H 'content-type: application/json' -d '{"prompt":"HTTP GET JSONPlaceholder"}')
+          echo "$PLAN" | jq .
+          curl -fsS -X POST http://localhost:3000/rest/ai/graph/demo/batch -H 'content-type: application/json' -d "$PLAN" | jq .
+      - name: Smoke Validate/Simulate via REST alias (hooks proxy)
+        run: |
+          curl -fsS -X POST 'http://localhost:3000/rest/ai/graph/demo/validate?autofix=1' -H 'content-type: application/json' -d '{}' | jq .
+          curl -fsS -X POST http://localhost:3000/rest/ai/graph/demo/simulate -H 'content-type: application/json' -d '{}' | jq .
       - name: Smoke Workflow Map
         run: curl -fsS http://localhost:3000/workflow-map | jq .
       - name: Docker logs (on failure)

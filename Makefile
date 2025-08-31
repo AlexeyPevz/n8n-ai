@@ -44,12 +44,26 @@ orchestrator-logs: ## Show orchestrator logs
 n8n-logs: ## Show n8n logs
 	docker compose logs -f n8n
 
-smoke: ## Run smoke checks (docker-compose up, health, introspect)
+smoke: ## Run smoke checks (compose up, health, plan/apply/validate/simulate, workflow-map)
 	docker compose up -d
 	./scripts/wait-for-http.sh http://localhost:3000/api/v1/ai/health 60
+	./scripts/wait-for-http.sh http://localhost:5678/api/v1/ai/health 60
+	# Health
 	curl -s http://localhost:3000/api/v1/ai/health | python3 -m json.tool
+	# Introspect
 	./scripts/wait-for-http.sh http://localhost:3000/introspect/nodes 60
 	curl -s http://localhost:3000/introspect/nodes | python3 -m json.tool
+	# Plan
+	PLAN_RES=$$(curl -s -X POST http://localhost:3000/plan -H 'content-type: application/json' -d '{"prompt":"HTTP GET JSONPlaceholder"}') && echo $$PLAN_RES | python3 -m json.tool
+	# Apply via REST alias
+	APPLY_RES=$$(echo $$PLAN_RES | jq -c .); \
+	curl -s -X POST http://localhost:3000/rest/ai/graph/demo/batch -H 'content-type: application/json' -d "$$APPLY_RES" | python3 -m json.tool
+	# Validate (hooks proxy enabled by compose)
+	curl -s -X POST 'http://localhost:3000/rest/ai/graph/demo/validate?autofix=1' -H 'content-type: application/json' -d '{}' | python3 -m json.tool
+	# Simulate
+	curl -s -X POST http://localhost:3000/rest/ai/graph/demo/simulate -H 'content-type: application/json' -d '{}' | python3 -m json.tool
+	# Workflow map
+	curl -s http://localhost:3000/workflow-map | python3 -m json.tool
 	docker compose down
 
 # Development shortcuts
