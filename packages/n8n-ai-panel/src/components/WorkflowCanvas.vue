@@ -3,13 +3,19 @@
     <div
       ref="canvasRef"
       class="canvas-container"
+      @wheel.prevent="onWheel"
+      @mousedown="onMouseDown"
+      @mousemove="onMouseMove"
+      @mouseup="onMouseUp"
+      @mouseleave="onMouseUp"
     >
-      <!-- Простая визуализация нод и связей -->
-      <svg
-        class="connections-layer"
-        :width="canvasSize.width"
-        :height="canvasSize.height"
-      >
+      <div class="scene" :style="sceneStyle">
+        <!-- Простая визуализация нод и связей -->
+        <svg
+          class="connections-layer"
+          :width="canvasSize.width"
+          :height="canvasSize.height"
+        >
         <g
           v-for="connection in connections"
           :key="`${connection.from}-${connection.to}`"
@@ -21,7 +27,7 @@
             stroke-width="2"
           />
         </g>
-      </svg>
+        </svg>
       
       <div
         v-for="node in nodes"
@@ -46,6 +52,7 @@
         >
           {{ node.annotation }}
         </div>
+      </div>
       </div>
     </div>
     
@@ -117,6 +124,43 @@ const statusById = computed<Record<string, { status: 'idle' | 'running' | 'error
   }
   return map;
 });
+
+// Zoom & pan state
+const scale = ref(1);
+const panX = ref(0);
+const panY = ref(0);
+const dragging = ref(false);
+let lastX = 0;
+let lastY = 0;
+
+const sceneStyle = computed(() => ({
+  transform: `translate(${panX.value}px, ${panY.value}px) scale(${scale.value})`,
+  transformOrigin: '0 0'
+}));
+
+function onWheel(e: WheelEvent) {
+  const delta = -e.deltaY * 0.001;
+  const next = Math.min(2, Math.max(0.5, scale.value + delta));
+  scale.value = next;
+}
+function onMouseDown(e: MouseEvent) {
+  if (e.button !== 0) return;
+  dragging.value = true;
+  lastX = e.clientX;
+  lastY = e.clientY;
+}
+function onMouseMove(e: MouseEvent) {
+  if (!dragging.value) return;
+  const dx = e.clientX - lastX;
+  const dy = e.clientY - lastY;
+  panX.value += dx;
+  panY.value += dy;
+  lastX = e.clientX;
+  lastY = e.clientY;
+}
+function onMouseUp() {
+  dragging.value = false;
+}
 
 function getNodeStyle(node: Node) {
   const pos = nodePositions.value[node.id] || { x: 0, y: 0 };
@@ -195,6 +239,13 @@ function getNodeIcon(type: string) {
   width: 100%;
   height: calc(100% - 40px);
   overflow: auto;
+}
+
+.scene {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  will-change: transform;
 }
 
 .connections-layer {
