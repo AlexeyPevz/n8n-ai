@@ -173,6 +173,20 @@
         </div>
       </div>
     </section>
+
+    <section>
+      <h3>Audit Logs</h3>
+      <button @click="refreshAudit">Refresh Audit</button>
+      <div v-if="auditError" class="lints">
+        <div class="lint error">{{ auditError }}</div>
+      </div>
+      <ul v-if="auditItems.length">
+        <li v-for="(a, i) in auditItems" :key="i">
+          <strong>{{ a.workflowId }}</strong>: {{ a.appliedOperations }} ops — {{ new Date(a.ts).toLocaleString() }}
+          <span v-if="a.userId"> ({{ a.userId }})</span>
+        </li>
+      </ul>
+    </section>
   </main>
 </template>
 
@@ -219,6 +233,8 @@ const lastError = ref<Record<string, unknown>|null>(null);
 // Live overlay from /workflow-map/live
 const liveOverlay = ref<Array<{ id: string; name: string; status: 'idle' | 'running' | 'error'; estimatedCostCents: number }>>([]);
 const gitMessage = ref<string>('');
+const auditItems = ref<Array<{ ts: number; userId?: string; workflowId: string; appliedOperations: number }>>([]);
+const auditError = ref<string>('');
 
 // Canvas changes tracking
 const canvasChanges = computed(() => {
@@ -439,6 +455,17 @@ async function gitExport() {
     gitMessage.value = json?.message || 'Export done';
   } catch (e) {
     gitMessage.value = `Git export error: ${String(e)}`;
+  }
+}
+
+async function refreshAudit() {
+  try {
+    const r = await fetch(`${apiBase}/rest/ai/audit/logs`);
+    const json = await r.json();
+    auditItems.value = Array.isArray(json?.items) ? json.items : [];
+    auditError.value = '';
+  } catch (e) {
+    auditError.value = `Audit error: ${String(e)}`;
   }
 }
 
