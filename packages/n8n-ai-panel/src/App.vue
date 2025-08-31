@@ -130,6 +130,10 @@
       <button @click="test">
         Test
       </button>
+      <button @click="gitExport">
+        Git Export
+      </button>
+      <div v-if="gitMessage" class="git-msg">{{ gitMessage }}</div>
       <div
         v-if="lints.length"
         class="lints"
@@ -214,6 +218,7 @@ const currentWorkflow = ref<Record<string, unknown>|null>(null);
 const lastError = ref<Record<string, unknown>|null>(null);
 // Live overlay from /workflow-map/live
 const liveOverlay = ref<Array<{ id: string; name: string; status: 'idle' | 'running' | 'error'; estimatedCostCents: number }>>([]);
+const gitMessage = ref<string>('');
 
 // Canvas changes tracking
 const canvasChanges = computed(() => {
@@ -424,6 +429,16 @@ async function test() {
     lastError.value = null;
   } catch (e) {
     lastError.value = { code: 'NETWORK', message: String(e) };
+  }
+}
+
+async function gitExport() {
+  try {
+    const r = await fetch(`${apiBase}/rest/ai/git/export`, { method: 'POST' });
+    const json = await r.json();
+    gitMessage.value = json?.message || 'Export done';
+  } catch (e) {
+    gitMessage.value = `Git export error: ${String(e)}`;
   }
 }
 
