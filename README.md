@@ -51,6 +51,14 @@ See diagram at `docs/diagrams/architecture.mmd` (Mermaid).
 ---
 
 ## 3. Core Concepts
+
+### 3.0 AI-Powered Workflow Generation
+The system uses Large Language Models (LLMs) to understand natural language requests and generate n8n workflows:
+* **Multi-provider support** – OpenAI, Anthropic (coming soon), Ollama (coming soon)
+* **Context-aware** – Uses current workflow state and available nodes
+* **Schema validation** – All AI outputs are validated against strict schemas
+* **Fallback mechanisms** – Pattern matching when AI is unavailable
+
 ### 3.1 Schema-Guided Reasoning (SGR)
 * **NodeSchema** – types, required/enums/dependencies, resolved `loadOptions`.
 * **GraphSchema** – allowed connections & operations.
@@ -107,6 +115,7 @@ cd n8n-ai
 corepack enable
 pnpm install
 cp .env.example .env
+# Edit .env to add your AI provider API key (e.g., OpenAI)
 docker compose up -d        # start n8n, redis, qdrant
 pnpm -r run dev             # start orchestrator and panel in parallel
 ```

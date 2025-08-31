@@ -1,17 +1,40 @@
 import type { OperationBatch } from '@n8n-ai/schemas';
 import { generateOperationsFromPattern } from './workflow-patterns.js';
 import { patternMatcher } from './pattern-matcher.js';
+import { AIPlanner } from './ai/ai-planner.js';
+import { getAIConfig } from './ai/config.js';
 
 interface PlannerContext {
   prompt: string;
   availableNodes?: string[];
+  currentWorkflow?: any;
+  introspectAPI?: any;
 }
 
 export class SimplePlanner {
+  private aiPlanner?: AIPlanner;
+
+  constructor() {
+    // Initialize AI planner if configured
+    const config = getAIConfig();
+    if (config.providers.primary.apiKey) {
+      this.aiPlanner = new AIPlanner(config);
+    }
+  }
   /**
    * Анализирует промпт и создает план операций
    */
   async plan(context: PlannerContext): Promise<OperationBatch> {
+    // Try AI planner first if available
+    if (this.aiPlanner) {
+      try {
+        return await this.aiPlanner.plan(context);
+      } catch (error) {
+        console.warn('AI planner failed, falling back to pattern matching:', error);
+      }
+    }
+
+    // Fallback to pattern-based planning
     const { prompt } = context;
     const promptLower = prompt.toLowerCase();
     
