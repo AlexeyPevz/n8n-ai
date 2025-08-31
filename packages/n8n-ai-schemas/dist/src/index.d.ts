@@ -8,16 +8,16 @@ export declare const NodeSchema: z.ZodObject<{
     position: z.ZodTuple<[z.ZodNumber, z.ZodNumber], null>;
     parameters: z.ZodRecord<z.ZodString, z.ZodAny>;
 }, "strip", z.ZodTypeAny, {
-    type: string;
     id: string;
     name: string;
+    type: string;
     typeVersion: number;
     position: [number, number];
     parameters: Record<string, any>;
 }, {
-    type: string;
     id: string;
     name: string;
+    type: string;
     typeVersion: number;
     position: [number, number];
     parameters: Record<string, any>;
@@ -27,12 +27,12 @@ export declare const ConnectionSchema: z.ZodObject<{
     to: z.ZodString;
     index: z.ZodOptional<z.ZodNumber>;
 }, "strip", z.ZodTypeAny, {
-    from: string;
     to: string;
+    from: string;
     index?: number | undefined;
 }, {
-    from: string;
     to: string;
+    from: string;
     index?: number | undefined;
 }>;
 export declare const GraphSchema: z.ZodObject<{
@@ -44,16 +44,16 @@ export declare const GraphSchema: z.ZodObject<{
         position: z.ZodTuple<[z.ZodNumber, z.ZodNumber], null>;
         parameters: z.ZodRecord<z.ZodString, z.ZodAny>;
     }, "strip", z.ZodTypeAny, {
-        type: string;
         id: string;
         name: string;
+        type: string;
         typeVersion: number;
         position: [number, number];
         parameters: Record<string, any>;
     }, {
-        type: string;
         id: string;
         name: string;
+        type: string;
         typeVersion: number;
         position: [number, number];
         parameters: Record<string, any>;
@@ -63,40 +63,40 @@ export declare const GraphSchema: z.ZodObject<{
         to: z.ZodString;
         index: z.ZodOptional<z.ZodNumber>;
     }, "strip", z.ZodTypeAny, {
-        from: string;
         to: string;
+        from: string;
         index?: number | undefined;
     }, {
-        from: string;
         to: string;
+        from: string;
         index?: number | undefined;
     }>, "many">;
 }, "strip", z.ZodTypeAny, {
     nodes: {
-        type: string;
         id: string;
         name: string;
+        type: string;
         typeVersion: number;
         position: [number, number];
         parameters: Record<string, any>;
     }[];
     connections: {
-        from: string;
         to: string;
+        from: string;
         index?: number | undefined;
     }[];
 }, {
     nodes: {
-        type: string;
         id: string;
         name: string;
+        type: string;
         typeVersion: number;
         position: [number, number];
         parameters: Record<string, any>;
     }[];
     connections: {
-        from: string;
         to: string;
+        from: string;
         index?: number | undefined;
     }[];
 }>;
@@ -110,40 +110,40 @@ export declare const OperationAddNode: z.ZodObject<{
         position: z.ZodTuple<[z.ZodNumber, z.ZodNumber], null>;
         parameters: z.ZodRecord<z.ZodString, z.ZodAny>;
     }, "strip", z.ZodTypeAny, {
-        type: string;
         id: string;
         name: string;
+        type: string;
         typeVersion: number;
         position: [number, number];
         parameters: Record<string, any>;
     }, {
-        type: string;
         id: string;
         name: string;
+        type: string;
         typeVersion: number;
         position: [number, number];
         parameters: Record<string, any>;
     }>;
 }, "strip", z.ZodTypeAny, {
-    op: "add_node";
     node: {
-        type: string;
         id: string;
         name: string;
+        type: string;
         typeVersion: number;
         position: [number, number];
         parameters: Record<string, any>;
     };
+    op: "add_node";
 }, {
-    op: "add_node";
     node: {
-        type: string;
         id: string;
         name: string;
+        type: string;
         typeVersion: number;
         position: [number, number];
         parameters: Record<string, any>;
     };
+    op: "add_node";
 }>;
 export declare const OperationSetParams: z.ZodObject<{
     op: z.ZodLiteral<"set_params">;
@@ -164,13 +164,13 @@ export declare const OperationConnect: z.ZodObject<{
     to: z.ZodString;
     index: z.ZodOptional<z.ZodNumber>;
 }, "strip", z.ZodTypeAny, {
-    from: string;
     to: string;
+    from: string;
     op: "connect";
     index?: number | undefined;
 }, {
-    from: string;
     to: string;
+    from: string;
     op: "connect";
     index?: number | undefined;
 }>;
@@ -208,40 +208,40 @@ export declare const OperationBatchSchema: z.ZodObject<{
             position: z.ZodTuple<[z.ZodNumber, z.ZodNumber], null>;
             parameters: z.ZodRecord<z.ZodString, z.ZodAny>;
         }, "strip", z.ZodTypeAny, {
-            type: string;
             id: string;
             name: string;
+            type: string;
             typeVersion: number;
             position: [number, number];
             parameters: Record<string, any>;
         }, {
-            type: string;
             id: string;
             name: string;
+            type: string;
             typeVersion: number;
             position: [number, number];
             parameters: Record<string, any>;
         }>;
     }, "strip", z.ZodTypeAny, {
-        op: "add_node";
         node: {
-            type: string;
             id: string;
             name: string;
+            type: string;
             typeVersion: number;
             position: [number, number];
             parameters: Record<string, any>;
         };
+        op: "add_node";
     }, {
-        op: "add_node";
         node: {
-            type: string;
             id: string;
             name: string;
+            type: string;
             typeVersion: number;
             position: [number, number];
             parameters: Record<string, any>;
         };
+        op: "add_node";
     }>, z.ZodObject<{
         op: z.ZodLiteral<"set_params">;
         name: z.ZodString;
@@ -260,13 +260,13 @@ export declare const OperationBatchSchema: z.ZodObject<{
         to: z.ZodString;
         index: z.ZodOptional<z.ZodNumber>;
     }, "strip", z.ZodTypeAny, {
-        from: string;
         to: string;
+        from: string;
         op: "connect";
         index?: number | undefined;
     }, {
-        from: string;
         to: string;
+        from: string;
         op: "connect";
         index?: number | undefined;
     }>, z.ZodObject<{
@@ -294,22 +294,22 @@ export declare const OperationBatchSchema: z.ZodObject<{
     version: z.ZodDefault<z.ZodString>;
 }, "strip", z.ZodTypeAny, {
     ops: ({
-        op: "add_node";
         node: {
-            type: string;
             id: string;
             name: string;
+            type: string;
             typeVersion: number;
             position: [number, number];
             parameters: Record<string, any>;
         };
+        op: "add_node";
     } | {
         name: string;
         parameters: Record<string, any>;
         op: "set_params";
     } | {
-        from: string;
         to: string;
+        from: string;
         op: "connect";
         index?: number | undefined;
     } | {
@@ -323,22 +323,22 @@ export declare const OperationBatchSchema: z.ZodObject<{
     version: string;
 }, {
     ops: ({
-        op: "add_node";
         node: {
-            type: string;
             id: string;
             name: string;
+            type: string;
             typeVersion: number;
             position: [number, number];
             parameters: Record<string, any>;
         };
+        op: "add_node";
     } | {
         name: string;
         parameters: Record<string, any>;
         op: "set_params";
     } | {
-        from: string;
         to: string;
+        from: string;
         op: "connect";
         index?: number | undefined;
     } | {

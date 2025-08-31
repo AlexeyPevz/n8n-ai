@@ -242,6 +242,11 @@ jobs:
           curl -fsS -X POST http://localhost:3000/rest/ai/graph/demo/simulate -H 'content-type: application/json' -d '{}' | jq .
       - name: Smoke Workflow Map
         run: curl -fsS http://localhost:3000/workflow-map | jq .
+      - name: UI Smoke (vite preview)
+        run: |
+          pnpm -C packages/n8n-ai-panel build
+          (pnpm -C packages/n8n-ai-panel preview --port 3001 &) && sleep 2
+          curl -fsS http://localhost:3001 | head -n 1
       - name: Docker logs (on failure)
         if: failure()
         run: docker compose logs --no-color | tail -n 500
