@@ -36,6 +36,10 @@
         <div class="node-name">
           {{ node.name }}
         </div>
+        <div v-if="statusById[node.id]" class="node-overlay">
+          <span class="st">{{ statusById[node.id].status }}</span>
+          <span class="cost">$ {{ (statusById[node.id].estimatedCostCents/100).toFixed(2) }}</span>
+        </div>
         <div
           v-if="node.annotation"
           class="node-annotation"
@@ -100,6 +104,18 @@ const nodePositions = computed(() => {
   });
   
   return positions;
+});
+
+const statusById = computed<Record<string, { status: 'idle' | 'running' | 'error'; estimatedCostCents: number }>>(() => {
+  const map: Record<string, { status: 'idle' | 'running' | 'error'; estimatedCostCents: number }> = {};
+  if (props.liveOverlay && Array.isArray(props.liveOverlay)) {
+    for (const w of props.liveOverlay) {
+      // отображаем лишь если id воркфлоу совпадает с id ноды (упрощение для демо)
+      // в реальности нужно маппить воркфлоу→ноды и выводить агрегат
+      map[w.id] = { status: w.status, estimatedCostCents: w.estimatedCostCents };
+    }
+  }
+  return map;
 });
 
 function getNodeStyle(node: Node) {
@@ -213,6 +229,17 @@ function getNodeIcon(type: string) {
   cursor: pointer;
   transition: all 0.3s;
 }
+
+.node .node-overlay {
+  margin-top: 6px;
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  color: #334155;
+}
+
+.node .node-overlay .st { text-transform: uppercase; }
+.node .node-overlay .cost { font-weight: 600; }
 
 .node:hover {
   transform: translateY(-2px);
