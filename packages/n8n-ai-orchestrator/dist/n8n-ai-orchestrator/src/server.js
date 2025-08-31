@@ -286,6 +286,8 @@ server.post('/graph/:id/batch', async (req) => {
             appliedOperations: result.appliedOperations,
             undoId: result.undoId
         }, 'Operations applied successfully');
+        // Audit success
+        auditLogs.push({ ts: Date.now(), userId: req.headers['x-user-id'], workflowId, appliedOperations: result.appliedOperations ?? 0 });
         try {
             // rebuild workflow map on changes
             workflowMapIndex = buildWorkflowMap(graphManager.listWorkflows(), process.env.N8N_WEBHOOK_BASE);
@@ -482,6 +484,7 @@ server.get('/patterns', async () => {
 });
 // --- Workflow Map: in-memory index, refreshed on changes ---
 let workflowMapIndex = { edges: [], updatedAt: Date.now() };
+const auditLogs = [];
 server.get('/workflow-map', async () => {
     return { ok: true, edges: workflowMapIndex.edges, updatedAt: workflowMapIndex.updatedAt };
 });
@@ -669,3 +672,6 @@ server.get('/rest/ai/events', async (_req, reply) => reply.redirect(307, '/event
 // Git integration stub
 server.post('/git/export', async () => ({ ok: true, message: 'Git export stub: create PR with diff and simulation report (todo)' }));
 server.post('/rest/ai/git/export', async (req, reply) => proxyTo('/git/export', 'POST', req, reply));
+// Audit logs endpoints
+server.get('/audit/logs', async () => ({ ok: true, items: auditLogs.slice(-100) }));
+server.get('/rest/ai/audit/logs', async (req, reply) => proxyTo('/audit/logs', 'GET', req, reply));
