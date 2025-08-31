@@ -219,10 +219,15 @@ curl -N http://localhost:3000/events | sed -n '1,10p'
 `POST /graph/:id/validate` → lint report
 `POST /graph/:id/simulate` → dry-run stats
 
+### 8.3.1 Audit & Metrics
+`GET /audit/logs` → latest audit entries
+`GET /metrics` → Prometheus metrics
+
 Hooks API OpenAPI: `docs/OPENAPI.yaml`. Orchestrator (Planner) OpenAPI: `docs/OPENAPI.orchestrator.yaml`.
 
-### 8.4 Events
+### 8.4 Events & Live Map
 `/events` (SSE) → `workflow_start|finish|error`, `node_start|finish` …
+`/workflow-map` → edges; `/workflow-map/live` (SSE) → live statuses/cost (basic)
 
 ---
 

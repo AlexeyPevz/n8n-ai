@@ -1,9 +1,25 @@
 <template>
   <div class="workflow-canvas">
-    <div class="canvas-container" ref="canvasRef">
-      <!-- Простая визуализация нод и связей -->
-      <svg class="connections-layer" :width="canvasSize.width" :height="canvasSize.height">
-        <g v-for="connection in connections" :key="`${connection.from}-${connection.to}`">
+    <div
+      ref="canvasRef"
+      class="canvas-container"
+      @wheel.prevent="onWheel"
+      @mousedown="onMouseDown"
+      @mousemove="onMouseMove"
+      @mouseup="onMouseUp"
+      @mouseleave="onMouseUp"
+    >
+      <div class="scene" :style="sceneStyle">
+        <!-- Простая визуализация нод и связей -->
+        <svg
+          class="connections-layer"
+          :width="canvasSize.width"
+          :height="canvasSize.height"
+        >
+        <g
+          v-for="connection in connections"
+          :key="`${connection.from}-${connection.to}`"
+        >
           <path
             :d="getConnectionPath(connection)"
             :class="['connection', getConnectionClass(connection)]"
@@ -11,7 +27,7 @@
             stroke-width="2"
           />
         </g>
-      </svg>
+        </svg>
       
       <div
         v-for="node in nodes"
@@ -20,23 +36,37 @@
         :style="getNodeStyle(node)"
         @click="$emit('node-click', node)"
       >
-        <div class="node-icon">{{ getNodeIcon(node.type) }}</div>
-        <div class="node-name">{{ node.name }}</div>
-        <div v-if="node.annotation" class="node-annotation">{{ node.annotation }}</div>
+        <div class="node-icon">
+          {{ getNodeIcon(node.type) }}
+        </div>
+        <div class="node-name">
+          {{ node.name }}
+        </div>
+        <div v-if="statusById[node.id]" class="node-overlay">
+          <span class="st">{{ statusById[node.id].status }}</span>
+          <span class="cost">$ {{ (statusById[node.id].estimatedCostCents/100).toFixed(2) }}</span>
+        </div>
+        <div
+          v-if="node.annotation"
+          class="node-annotation"
+        >
+          {{ node.annotation }}
+        </div>
+      </div>
       </div>
     </div>
     
     <div class="canvas-legend">
       <div class="legend-item">
-        <span class="legend-color added"></span>
+        <span class="legend-color added" />
         <span>Добавлено</span>
       </div>
       <div class="legend-item">
-        <span class="legend-color modified"></span>
+        <span class="legend-color modified" />
         <span>Изменено</span>
       </div>
       <div class="legend-item">
-        <span class="legend-color deleted"></span>
+        <span class="legend-color deleted" />
         <span>Удалено</span>
       </div>
     </div>
@@ -55,9 +85,11 @@ interface Props {
     modified: string[];
     deleted: string[];
   };
+  liveOverlay?: Array<{ id: string; name: string; status: 'idle' | 'running' | 'error'; estimatedCostCents: number }>
 }
 
 const props = defineProps<Props>();
+defineEmits<{ (e: 'node-click', node: Node): void }>();
 const canvasRef = ref<HTMLElement>();
 
 const canvasSize = computed(() => ({
@@ -68,8 +100,8 @@ const canvasSize = computed(() => ({
 const nodePositions = computed(() => {
   // Простой layout алгоритм
   const positions: Record<string, { x: number; y: number }> = {};
-  let x = 100;
-  let y = 100;
+  const x = 100;
+  const y = 100;
   
   props.nodes.forEach((node, index) => {
     positions[node.id] = {
@@ -80,6 +112,55 @@ const nodePositions = computed(() => {
   
   return positions;
 });
+
+const statusById = computed<Record<string, { status: 'idle' | 'running' | 'error'; estimatedCostCents: number }>>(() => {
+  const map: Record<string, { status: 'idle' | 'running' | 'error'; estimatedCostCents: number }> = {};
+  if (props.liveOverlay && Array.isArray(props.liveOverlay)) {
+    for (const w of props.liveOverlay) {
+      // отображаем лишь если id воркфлоу совпадает с id ноды (упрощение для демо)
+      // в реальности нужно маппить воркфлоу→ноды и выводить агрегат
+      map[w.id] = { status: w.status, estimatedCostCents: w.estimatedCostCents };
+    }
+  }
+  return map;
+});
+
+// Zoom & pan state
+const scale = ref(1);
+const panX = ref(0);
+const panY = ref(0);
+const dragging = ref(false);
+let lastX = 0;
+let lastY = 0;
+
+const sceneStyle = computed(() => ({
+  transform: `translate(${panX.value}px, ${panY.value}px) scale(${scale.value})`,
+  transformOrigin: '0 0'
+}));
+
+function onWheel(e: WheelEvent) {
+  const delta = -e.deltaY * 0.001;
+  const next = Math.min(2, Math.max(0.5, scale.value + delta));
+  scale.value = next;
+}
+function onMouseDown(e: MouseEvent) {
+  if (e.button !== 0) return;
+  dragging.value = true;
+  lastX = e.clientX;
+  lastY = e.clientY;
+}
+function onMouseMove(e: MouseEvent) {
+  if (!dragging.value) return;
+  const dx = e.clientX - lastX;
+  const dy = e.clientY - lastY;
+  panX.value += dx;
+  panY.value += dy;
+  lastX = e.clientX;
+  lastY = e.clientY;
+}
+function onMouseUp() {
+  dragging.value = false;
+}
 
 function getNodeStyle(node: Node) {
   const pos = nodePositions.value[node.id] || { x: 0, y: 0 };
@@ -160,6 +241,13 @@ function getNodeIcon(type: string) {
   overflow: auto;
 }
 
+.scene {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  will-change: transform;
+}
+
 .connections-layer {
   position: absolute;
   top: 0;
@@ -192,6 +280,17 @@ function getNodeIcon(type: string) {
   cursor: pointer;
   transition: all 0.3s;
 }
+
+.node .node-overlay {
+  margin-top: 6px;
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  color: #334155;
+}
+
+.node .node-overlay .st { text-transform: uppercase; }
+.node .node-overlay .cost { font-weight: 600; }
 
 .node:hover {
   transform: translateY(-2px);

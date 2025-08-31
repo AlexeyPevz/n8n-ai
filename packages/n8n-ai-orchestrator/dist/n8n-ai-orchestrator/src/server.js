@@ -5,6 +5,7 @@ import { SimplePlanner } from './planner.js';
 import { patternMatcher } from './pattern-matcher.js';
 import { graphManager } from './graph-manager.js';
 import { metrics, METRICS } from './metrics.js';
+import { buildWorkflowMap } from './workflow-map.js';
 import { handleError, errorToResponse, ValidationError, ValidationFailedError, AmbiguousPromptError } from './error-handler.js';
 import { randomUUID } from 'node:crypto';
 const server = Fastify({ logger: true });
@@ -97,7 +98,7 @@ server.addContentTypeParser('application/json', { parseAs: 'string' }, (req, bod
         done(err);
     }
 });
-await server.register(cors, { origin: true });
+await server.register(cors, { origin: true, credentials: true });
 // Global error handler
 server.setErrorHandler((error, request, reply) => {
     const appError = handleError(error);
@@ -115,12 +116,24 @@ server.get('/api/v1/ai/health', async () => ({ status: 'ok', ts: Date.now() }));
 server.get('/api/v1/ai/metrics', async () => {
     return metrics.getMetrics();
 });
-// Простой прокси для n8n-ai-hooks Introspect API
-server.get('/introspect/nodes', async () => {
+// Простой прокси для n8n-ai-hooks Introspect API (с пробросом auth заголовков)
+function pickForwardHeaders(h) {
+    const out = { Accept: 'application/json' };
+    const allow = ['authorization', 'cookie', 'x-session-token', 'x-xsrf-token'];
+    for (const key of allow) {
+        const val = h[key];
+        if (!val)
+            continue;
+        out[key] = Array.isArray(val) ? val.join('; ') : String(val);
+    }
+    return out;
+}
+server.get('/introspect/nodes', async (req) => {
     // Пытаемся проксировать в n8n-ai-hooks, если доступен
     const hooksBase = process.env.N8N_URL ?? 'http://localhost:5678';
     try {
-        const resp = await fetchWithRetry(`${hooksBase}/api/v1/ai/introspect/nodes`, { timeoutMs: 2500 });
+        const headers = pickForwardHeaders(req.headers);
+        const resp = await fetchWithRetry(`${hooksBase}/api/v1/ai/introspect/nodes`, { timeoutMs: 2500, headers });
         const data = (await resp.json());
         const nodes = Array.isArray(data) ? data : (data.nodes ?? []);
         if (Array.isArray(nodes) && nodes.length > 0)
@@ -240,6 +253,19 @@ server.post('/graph/:id/batch', async (req) => {
     if (!parsed.success) {
         return { ok: false, error: 'invalid_operation_batch', issues: parsed.error.format() };
     }
+    // Diff policies (basic)
+    const policyMaxAdd = Number(process.env.DIFF_POLICY_MAX_ADD_NODES ?? 10);
+    const blacklist = (process.env.DIFF_POLICY_DOMAIN_BLACKLIST ?? '').split(',').map(s => s.trim()).filter(Boolean);
+    const addCount = parsed.data.ops.filter((op) => op.op === 'add_node').length;
+    if (addCount > policyMaxAdd) {
+        return { ok: false, error: 'policy_violation', details: { rule: 'max_add_nodes', limit: policyMaxAdd, actual: addCount } };
+    }
+    if (blacklist.length > 0) {
+        const hasBlocked = parsed.data.ops.some((op) => op.op === 'add_node' && typeof op.node?.parameters?.url === 'string' && blacklist.some(d => op.node.parameters.url.includes(d)));
+        if (hasBlocked) {
+            return { ok: false, error: 'policy_violation', details: { rule: 'domain_blacklist' } };
+        }
+    }
     // Применяем операции через GraphManager
     const result = graphManager.applyBatch(workflowId, parsed.data);
     if (result.success) {
@@ -260,6 +286,14 @@ server.post('/graph/:id/batch', async (req) => {
             appliedOperations: result.appliedOperations,
             undoId: result.undoId
         }, 'Operations applied successfully');
+        // Audit success
+        auditLogs.push({ ts: Date.now(), userId: req.headers['x-user-id'], workflowId, appliedOperations: result.appliedOperations ?? 0 });
+        try {
+            // rebuild workflow map on changes
+            workflowMapIndex = buildWorkflowMap(graphManager.listWorkflows(), process.env.N8N_WEBHOOK_BASE);
+            sendSse('workflow_map_updated', { updatedAt: workflowMapIndex.updatedAt, edges: workflowMapIndex.edges.length });
+        }
+        catch { }
         return {
             ok: true,
             undoId: result.undoId,
@@ -278,6 +312,28 @@ server.post('/graph/:id/validate', async (req) => {
     const { id: workflowId } = req.params;
     const url = new URL(req.url, `http://${req.headers.host}`);
     const autofix = url.searchParams.get('autofix') === '1';
+    // Optional proxy to hooks if enabled
+    const useHooks = (process.env.USE_HOOKS_VALIDATE === '1' || process.env.USE_HOOKS === '1');
+    const incomingOrigin = req.headers['x-ai-origin'];
+    if (useHooks && incomingOrigin !== 'hooks') {
+        try {
+            const hooksBase = process.env.N8N_URL ?? 'http://localhost:5678';
+            const headers = { ...pickForwardHeaders(req.headers), 'x-ai-origin': 'orchestrator' };
+            const resp = await fetchWithRetry(`${hooksBase}/api/v1/ai/graph/${encodeURIComponent(workflowId)}/validate${autofix ? '?autofix=1' : ''}`, {
+                method: 'POST',
+                headers,
+                timeoutMs: 3000,
+                body: JSON.stringify(req.body ?? {})
+            });
+            const json = await resp.json();
+            if (resp.ok)
+                return json;
+            server.log.warn({ status: resp.status, body: json }, 'Hooks validate returned non-200, falling back to local');
+        }
+        catch (e) {
+            server.log.warn({ error: e }, 'Hooks validate failed, falling back to local');
+        }
+    }
     const validationResult = graphManager.validate(workflowId, { autofix });
     return {
         ok: validationResult.valid,
@@ -286,6 +342,28 @@ server.post('/graph/:id/validate', async (req) => {
 });
 server.post('/graph/:id/simulate', async (req) => {
     const { id: workflowId } = req.params;
+    // Optional proxy to hooks if enabled
+    const useHooks = (process.env.USE_HOOKS_SIMULATE === '1' || process.env.USE_HOOKS === '1');
+    const incomingOrigin = req.headers['x-ai-origin'];
+    if (useHooks && incomingOrigin !== 'hooks') {
+        try {
+            const hooksBase = process.env.N8N_URL ?? 'http://localhost:5678';
+            const headers = { ...pickForwardHeaders(req.headers), 'x-ai-origin': 'orchestrator' };
+            const resp = await fetchWithRetry(`${hooksBase}/api/v1/ai/graph/${encodeURIComponent(workflowId)}/simulate`, {
+                method: 'POST',
+                headers,
+                timeoutMs: 3000,
+                body: JSON.stringify(req.body ?? {})
+            });
+            const json = await resp.json();
+            if (resp.ok)
+                return json;
+            server.log.warn({ status: resp.status, body: json }, 'Hooks simulate returned non-200, falling back to local');
+        }
+        catch (e) {
+            server.log.warn({ error: e }, 'Hooks simulate failed, falling back to local');
+        }
+    }
     const simulationResult = graphManager.simulate(workflowId);
     return simulationResult;
 });
@@ -332,6 +410,11 @@ server.post('/graph/:id/undo', async (req) => {
     const result = graphManager.undo(workflowId, undoId);
     if (result.success) {
         server.log.info({ workflowId, undoId: result.undoId }, 'Undo successful');
+        try {
+            workflowMapIndex = buildWorkflowMap(graphManager.listWorkflows(), process.env.N8N_WEBHOOK_BASE);
+            sendSse('workflow_map_updated', { updatedAt: workflowMapIndex.updatedAt, edges: workflowMapIndex.edges.length });
+        }
+        catch { }
         return {
             ok: true,
             undoId: result.undoId,
@@ -347,6 +430,11 @@ server.post('/graph/:id/redo', async (req) => {
     const result = graphManager.redo(workflowId);
     if (result.success) {
         server.log.info({ workflowId }, 'Redo successful');
+        try {
+            workflowMapIndex = buildWorkflowMap(graphManager.listWorkflows(), process.env.N8N_WEBHOOK_BASE);
+            sendSse('workflow_map_updated', { updatedAt: workflowMapIndex.updatedAt, edges: workflowMapIndex.edges.length });
+        }
+        catch { }
         return {
             ok: true,
             redoneOperations: result.appliedOperations
@@ -367,6 +455,18 @@ server.get('/graph/:id', async (req) => {
         return { ok: false, error: 'Workflow not found' };
     }
 });
+// List workflows overview
+server.get('/workflows', async () => {
+    const list = graphManager.listWorkflows().map(w => ({
+        id: w.id,
+        name: w.name,
+        nodes: w.nodes.length,
+        connections: w.connections.length,
+        version: w.version,
+        lastModified: w.lastModified
+    }));
+    return { ok: true, total: list.length, items: list };
+});
 server.get('/patterns', async () => {
     const categories = patternMatcher.getCategories();
     return {
@@ -382,9 +482,11 @@ server.get('/patterns', async () => {
         }))
     };
 });
-const workflowMap = [];
+// --- Workflow Map: in-memory index, refreshed on changes ---
+let workflowMapIndex = { edges: [], updatedAt: Date.now() };
+const auditLogs = [];
 server.get('/workflow-map', async () => {
-    return { ok: true, edges: workflowMap };
+    return { ok: true, edges: workflowMapIndex.edges, updatedAt: workflowMapIndex.updatedAt };
 });
 server.get('/workflow-map/live', async (_req, reply) => {
     reply.raw.writeHead(200, {
@@ -399,8 +501,18 @@ server.get('/workflow-map/live', async (_req, reply) => {
         }
         catch { }
     };
+    const summarize = () => {
+        // простая синтетика статусов и стоимости
+        const items = graphManager.listWorkflows().map(w => ({
+            id: w.id,
+            name: w.name,
+            status: 'idle',
+            estimatedCostCents: Math.max(1, Math.min(50, w.nodes.length * 5))
+        }));
+        return { ts: Date.now(), edges: workflowMapIndex.edges.length, workflows: items };
+    };
     send('hello', { ts: Date.now(), kind: 'workflow-map' });
-    const interval = setInterval(() => send('live', { ts: Date.now(), edges: workflowMap.length }), 20000);
+    const interval = setInterval(() => send('live', summarize()), 20000);
     _req.raw.on('close', () => clearInterval(interval));
     return reply;
 });
@@ -454,6 +566,27 @@ server.get('/events', async (req, reply) => {
     catch { } });
     return reply;
 });
+// Prometheus metrics endpoint
+server.get('/metrics', async () => {
+    const snapshot = metrics.getMetrics();
+    const lines = [];
+    for (const [k, v] of Object.entries(snapshot.counters)) {
+        lines.push(`# TYPE ${k.replace(/\{.*\}$/, '')} counter`);
+        lines.push(`${k} ${v}`);
+    }
+    for (const [k, h] of Object.entries(snapshot.histograms)) {
+        const base = k.replace(/\{.*\}$/, '');
+        lines.push(`# TYPE ${base}_count gauge`);
+        lines.push(`${k}_count ${h.count}`);
+        lines.push(`# TYPE ${base}_p50 gauge`);
+        lines.push(`${k}_p50 ${h.p50}`);
+        lines.push(`# TYPE ${base}_p95 gauge`);
+        lines.push(`${k}_p95 ${h.p95}`);
+        lines.push(`# TYPE ${base}_p99 gauge`);
+        lines.push(`${k}_p99 ${h.p99}`);
+    }
+    return lines.join('\n') + '\n';
+});
 async function start() {
     let port = Number(process.env.PORT ?? 3000);
     try {
@@ -478,3 +611,67 @@ export { server };
 if (import.meta.url === `file://${process.argv[1]}`) {
     start();
 }
+// --- n8n-style REST aliases for upstream compatibility ---
+// Helper to alias non-streaming endpoints via internal inject
+async function proxyTo(targetUrl, method, req, reply) {
+    const params = (req.params || {});
+    let url = targetUrl;
+    // replace :id and other simple params
+    for (const [k, v] of Object.entries(params)) {
+        url = url.replace(`:${k}`, encodeURIComponent(String(v)));
+    }
+    const injected = await server.inject({
+        method,
+        url,
+        payload: method === 'POST' ? (req.body ?? undefined) : undefined,
+        headers: req.headers
+    });
+    reply.code(injected.statusCode);
+    // Copy minimal headers
+    for (const [h, v] of Object.entries(injected.headers)) {
+        if (typeof v === 'string')
+            reply.header(h, v);
+    }
+    try {
+        return reply.send(injected.body);
+    }
+    catch {
+        return reply.send(injected.payload);
+    }
+}
+// Health / Metrics
+server.get('/rest/ai/health', async (req, reply) => proxyTo('/api/v1/ai/health', 'GET', req, reply));
+server.get('/rest/ai/metrics', async (req, reply) => proxyTo('/api/v1/ai/metrics', 'GET', req, reply));
+// Introspect
+server.get('/rest/ai/introspect/nodes', async (req, reply) => proxyTo('/introspect/nodes', 'GET', req, reply));
+// Planner
+server.post('/rest/ai/plan', async (req, reply) => proxyTo('/plan', 'POST', req, reply));
+// Graph operations
+server.post('/rest/ai/graph/:id/batch', async (req, reply) => {
+    // Pre-validate OperationBatch and enforce 400
+    const parsed = OperationBatchSchema.safeParse(req.body);
+    if (!parsed.success) {
+        reply.code(400);
+        return reply.send({ ok: false, error: 'invalid_operation_batch', issues: parsed.error.format() });
+    }
+    return proxyTo('/graph/:id/batch', 'POST', req, reply);
+});
+server.post('/rest/ai/graph/:id/validate', async (req, reply) => proxyTo('/graph/:id/validate', 'POST', req, reply));
+server.post('/rest/ai/graph/:id/simulate', async (req, reply) => proxyTo('/graph/:id/simulate', 'POST', req, reply));
+server.post('/rest/ai/graph/:id/critic', async (req, reply) => proxyTo('/graph/:id/critic', 'POST', req, reply));
+server.post('/rest/ai/graph/:id/undo', async (req, reply) => proxyTo('/graph/:id/undo', 'POST', req, reply));
+server.post('/rest/ai/graph/:id/redo', async (req, reply) => proxyTo('/graph/:id/redo', 'POST', req, reply));
+server.get('/rest/ai/graph/:id', async (req, reply) => proxyTo('/graph/:id', 'GET', req, reply));
+// Workflows overview
+server.get('/rest/ai/workflows', async (req, reply) => proxyTo('/workflows', 'GET', req, reply));
+// Workflow Map (REST)
+server.get('/rest/ai/workflow-map', async (req, reply) => proxyTo('/workflow-map', 'GET', req, reply));
+// Streaming endpoints: use redirect to original SSE routes
+server.get('/rest/ai/workflow-map/live', async (_req, reply) => reply.redirect(307, '/workflow-map/live'));
+server.get('/rest/ai/events', async (_req, reply) => reply.redirect(307, '/events'));
+// Git integration stub
+server.post('/git/export', async () => ({ ok: true, message: 'Git export stub: create PR with diff and simulation report (todo)' }));
+server.post('/rest/ai/git/export', async (req, reply) => proxyTo('/git/export', 'POST', req, reply));
+// Audit logs endpoints
+server.get('/audit/logs', async () => ({ ok: true, items: auditLogs.slice(-100) }));
+server.get('/rest/ai/audit/logs', async (req, reply) => proxyTo('/audit/logs', 'GET', req, reply));

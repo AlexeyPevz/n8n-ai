@@ -18,12 +18,13 @@
    - Создан `error-handler.ts` с типизированными ошибками
    - Создан `metrics.ts` для сбора метрик
    - Интегрированы в server.ts
-   - Добавлен endpoint `/api/v1/ai/metrics`
+   - Добавлен endpoint `/api/v1/ai/metrics` и Prometheus `/metrics`
 
 4. **Canvas визуализация**
    - Создан компонент `WorkflowCanvas.vue`
    - Интегрирован в AI панель
-   - Добавлена визуализация diff с цветовой индикацией
+   - Добавлена визуализация diff с цветовой индикацией, drag/zoom
+   - Live overlay статусов/стоимости из `/workflow-map/live`
 
 5. **Документация и конфигурация**
    - Создан `INTEGRATION_CHECKLIST.md`
@@ -72,6 +73,12 @@ pnpm test:golden
 2. **REST/WebSocket API** для Map
 3. **Map Tab** в UI
 4. **Live статусы** выполнения
+
+### Дополнительно реализовано в рамках Sprint 4
+- REST алиасы `/rest/ai/*` (plan, graph, validate, simulate, critic, workflows, workflow-map, audit)
+- Политики диффов (лимит добавления нод, доменный blacklist) — настраиваются через env
+- Аудит‑лог `/audit/logs` (+ `/rest/ai/audit/logs`); UI раздел Audit в панели
+- Git Export stub (`/git/export` + `/rest/ai/git/export`) и кнопка в панели
 
 ### Дополнительные улучшения:
 1. Интеграция с реальным n8n (сейчас моки)

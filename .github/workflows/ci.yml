@@ -195,12 +195,125 @@ jobs:
         run: node packages/n8n-ai-orchestrator/dist/server.js & echo $! > server.pid && sleep 2
       - name: Check /workflow-map
         run: curl -f http://localhost:3000/workflow-map | jq .
+      - name: Check /metrics
+        run: curl -f http://localhost:3000/metrics | head -n 20
       - name: Check /workflow-map/live SSE (headers only)
         run: |
           curl -I http://localhost:3000/workflow-map/live | grep -i 'text/event-stream'
       - name: Stop orchestrator
         if: always()
         run: kill $(cat server.pid) || true
+
+  integration-smoke:
+    name: Integration Smoke (docker-compose)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v2
+        with:
+          version: 8.15.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+      - name: Install dependencies
+        run: pnpm install
+      - name: Build packages
+        run: pnpm run build
+      - name: Start docker services
+        run: docker compose up -d
+      - name: Wait for orchestrator health
+        run: bash ./scripts/wait-for-http.sh http://localhost:3000/api/v1/ai/health 60
+      - name: Wait for n8n AI hooks health
+        run: bash ./scripts/wait-for-http.sh http://localhost:5678/api/v1/ai/health 60
+      - name: Smoke Introspect
+        run: curl -fsS http://localhost:3000/introspect/nodes | jq '. | length' || true
+      - name: Smoke Plan
+        run: |
+          curl -fsS -X POST http://localhost:3000/plan \
+            -H 'content-type: application/json' \
+            -d '{"prompt":"HTTP GET JSONPlaceholder"}' | jq .
+      - name: Smoke Apply via REST alias
+        run: |
+          PLAN=$(curl -fsS -X POST http://localhost:3000/plan -H 'content-type: application/json' -d '{"prompt":"HTTP GET JSONPlaceholder"}')
+          echo "$PLAN" | jq .
+          curl -fsS -X POST http://localhost:3000/rest/ai/graph/demo/batch -H 'content-type: application/json' -d "$PLAN" | jq .
+      - name: Smoke Audit Logs
+        run: curl -fsS http://localhost:3000/rest/ai/audit/logs | jq '.items | length'
+      - name: Smoke Validate/Simulate via REST alias (hooks proxy)
+        run: |
+          curl -fsS -X POST 'http://localhost:3000/rest/ai/graph/demo/validate?autofix=1' -H 'content-type: application/json' -d '{}' | jq .
+          curl -fsS -X POST http://localhost:3000/rest/ai/graph/demo/simulate -H 'content-type: application/json' -d '{}' | jq .
+      - name: Smoke Workflow Map
+        run: curl -fsS http://localhost:3000/workflow-map | jq .
+      - name: UI Smoke (vite preview)
+        run: |
+          pnpm -C packages/n8n-ai-panel build
+          (pnpm -C packages/n8n-ai-panel preview --port 3001 &) && sleep 2
+          curl -fsS http://localhost:3001 | head -n 1
+      - name: Docker logs (on failure)
+        if: failure()
+        run: docker compose logs --no-color | tail -n 500
+      - name: Stop docker services
+        if: always()
+        run: docker compose down
+
+  ui-e2e:
+    name: Panel UI E2E (Playwright)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v2
+        with:
+          version: 8.15.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+      - name: Install dependencies
+        run: pnpm install
+      - name: Build orchestrator
+        run: pnpm -C packages/n8n-ai-orchestrator build
+      - name: Start orchestrator
+        run: node packages/n8n-ai-orchestrator/dist/server.js & echo $! > server.pid && sleep 2
+      - name: Wait for orchestrator health
+        run: curl -f http://localhost:3000/api/v1/ai/health
+      - name: Build panel
+        run: pnpm -C packages/n8n-ai-panel build
+      - name: Install Playwright
+        run: pnpm -C packages/n8n-ai-panel e2e:install
+      - name: Run UI e2e (preview)
+        run: |
+          (pnpm -C packages/n8n-ai-panel preview --port 3001 &) && sleep 2
+          UI_BASE=http://localhost:3001 pnpm -C packages/n8n-ai-panel e2e:ui
+      - name: Upload UI e2e artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ui-e2e-artifacts
+          path: packages/n8n-ai-panel/test-results
+      - name: Stop orchestrator
+        if: always()
+        run: kill $(cat server.pid) || true
+
+  rest-e2e:
+    name: Orchestrator REST alias E2E
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v2
+        with:
+          version: 8.15.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+      - name: Install dependencies
+        run: pnpm install
+      - name: Build packages
+        run: pnpm run build
+      - name: Run REST E2E
+        run: pnpm -C packages/n8n-ai-orchestrator test:rest:e2e
 
   type-check:
     name: Type Check

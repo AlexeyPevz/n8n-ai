@@ -7,7 +7,9 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "lint": "eslint --ext .ts,.vue src"
+    "lint": "eslint --ext .ts,.vue src",
+    "e2e:ui": "playwright test",
+    "e2e:install": "playwright install --with-deps"
   },
   "dependencies": {
     "vue": "^3.4.37"
@@ -15,6 +17,7 @@
   "devDependencies": {
     "@typescript-eslint/eslint-plugin": "^6.0.0",
     "@typescript-eslint/parser": "^6.0.0",
+    "@playwright/test": "^1.47.2",
     "@vitejs/plugin-vue": "^5.0.5",
     "eslint": "^8.0.0",
     "eslint-plugin-vue": "^9.25.0",

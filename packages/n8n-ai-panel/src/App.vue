@@ -11,20 +11,31 @@
           @input="maybeOpenExpr"
           @blur="closeExprLater"
         />
-        <div v-if="exprOpen && exprItems.length" class="expr-suggest">
-          <div class="hdr">Подсказки выражений</div>
+        <div
+          v-if="exprOpen && exprItems.length"
+          class="expr-suggest"
+        >
+          <div class="hdr">
+            Подсказки выражений
+          </div>
           <ul>
             <li
               v-for="(s, i) in exprItems"
               :key="s"
               :class="{ active: i === exprIndex }"
               @mousedown.prevent="applyExpr(s)"
-            >{{ s }}</li>
+            >
+              {{ s }}
+            </li>
           </ul>
-          <div class="hint">Enter — вставить • ↑/↓ — навигация • Esc — закрыть</div>
+          <div class="hint">
+            Enter — вставить • ↑/↓ — навигация • Esc — закрыть
+          </div>
         </div>
       </div>
-      <button @click="plan">Plan</button>
+      <button @click="plan">
+        Plan
+      </button>
       <ErrorCard 
         v-if="lastError"
         :code="lastError.code"
@@ -35,8 +46,14 @@
         @dismiss="lastError = null"
         @action="onErrorAction"
       />
-      <div class="progress" v-if="progress >= 0">
-        <div class="bar" :style="{ width: progress + '%' }"></div>
+      <div
+        v-if="progress >= 0"
+        class="progress"
+      >
+        <div
+          class="bar"
+          :style="{ width: progress + '%' }"
+        />
         <span class="pct">{{ progress }}%</span>
       </div>
     </section>
@@ -44,14 +61,30 @@
     <section v-if="planItems.length">
       <h3>Plan</h3>
       <ul>
-        <li v-for="(p, i) in planItems" :key="i">{{ p }}</li>
+        <li
+          v-for="(p, i) in planItems"
+          :key="i"
+        >
+          {{ p }}
+        </li>
       </ul>
-      <button @click="preview">Preview Diff</button>
+      <button @click="preview">
+        Preview Diff
+      </button>
     </section>
 
     <section v-if="diff">
       <h3>Diff Preview</h3>
-      <div class="changes" v-if="summary.total">
+      <div v-if="liveOverlay.length" style="margin: 6px 0; font-size: 12px; color: #334155;">
+        Live: 
+        <span v-for="wf in liveOverlay" :key="wf.id" style="margin-right: 10px;">
+          <strong>{{ wf.name }}</strong> — {{ wf.status }} · $ {{ (wf.estimatedCostCents/100).toFixed(2) }}
+        </span>
+      </div>
+      <div
+        v-if="summary.total"
+        class="changes"
+      >
         <span class="chg add">+ {{ summary.add_node }}</span>
         <span class="chg connect">→ {{ summary.connect }}</span>
         <span class="chg set">⋯ {{ summary.set_params }}</span>
@@ -60,55 +93,115 @@
       </div>
       
       <!-- Canvas visualization -->
-      <div v-if="currentWorkflow" class="canvas-wrapper">
+      <div
+        v-if="currentWorkflow"
+        class="canvas-wrapper"
+      >
         <WorkflowCanvas 
-          :nodes="currentWorkflow.nodes"
-          :connections="currentWorkflow.connections"
+          :nodes="(currentWorkflow.workflow?.nodes || currentWorkflow.nodes || [])"
+          :connections="(currentWorkflow.workflow?.connections || currentWorkflow.connections || [])"
           :changes="canvasChanges"
           @node-click="handleNodeClick"
         />
       </div>
       <ul v-if="diffItems.length">
-        <li v-for="(item, i) in diffItems" :key="i" :class="['diff-item', item.kind]">
-          <span class="badge" :class="item.kind">{{ item.badge }}</span>
+        <li
+          v-for="(item, i) in diffItems"
+          :key="i"
+          :class="['diff-item', item.kind]"
+        >
+          <span
+            class="badge"
+            :class="item.kind"
+          >{{ item.badge }}</span>
           <span class="text">{{ item.text }}</span>
         </li>
       </ul>
       <pre v-else>{{ diff }}</pre>
-      <button @click="apply" :disabled="hasErrors">Apply</button>
-      <button @click="undo">Undo</button>
-      <button @click="test">Test</button>
-      <div v-if="lints.length" class="lints">
-        <div v-for="(l, i) in lints" :key="i" :class="['lint', l.level]">
+      <button
+        :disabled="hasErrors"
+        @click="apply"
+      >
+        Apply
+      </button>
+      <button @click="undo">
+        Undo
+      </button>
+      <button @click="test">
+        Test
+      </button>
+      <button @click="gitExport">
+        Git Export
+      </button>
+      <div v-if="gitMessage" class="git-msg">{{ gitMessage }}</div>
+      <div
+        v-if="lints.length"
+        class="lints"
+      >
+        <div
+          v-for="(l, i) in lints"
+          :key="i"
+          :class="['lint', l.level]"
+        >
           <strong>[{{ l.level }}]</strong> {{ l.message }} <span v-if="l.node">({{ l.node }})</span>
         </div>
       </div>
-      <div v-if="simStats" class="sim">
-        <div class="sim-row">Nodes visited: <strong>{{ simStats.nodesVisited }}</strong></div>
-        <div class="sim-row">Estimated: <strong>{{ simStats.estimatedDurationMs }}ms</strong> (p95: {{ simStats.p95DurationMs }}ms)</div>
-        <div v-if="simStats.dataShapes" class="sim-shapes">
-          <div class="shape" v-for="(shape, node) in simStats.dataShapes" :key="node">
-            <div class="shape-title">{{ node }}</div>
+      <div
+        v-if="simStats"
+        class="sim"
+      >
+        <div class="sim-row">
+          Nodes visited: <strong>{{ simStats.nodesVisited }}</strong>
+        </div>
+        <div class="sim-row">
+          Estimated: <strong>{{ simStats.estimatedDurationMs }}ms</strong> (p95: {{ simStats.p95DurationMs }}ms)
+        </div>
+        <div
+          v-if="simStats.dataShapes"
+          class="sim-shapes"
+        >
+          <div
+            v-for="(shape, node) in simStats.dataShapes"
+            :key="node"
+            class="shape"
+          >
+            <div class="shape-title">
+              {{ node }}
+            </div>
             <pre class="shape-pre">{{ shape }}</pre>
           </div>
         </div>
       </div>
     </section>
+
+    <section>
+      <h3>Audit Logs</h3>
+      <button @click="refreshAudit">Refresh Audit</button>
+      <div v-if="auditError" class="lints">
+        <div class="lint error">{{ auditError }}</div>
+      </div>
+      <ul v-if="auditItems.length">
+        <li v-for="(a, i) in auditItems" :key="i">
+          <strong>{{ a.workflowId }}</strong>: {{ a.appliedOperations }} ops — {{ new Date(a.ts).toLocaleString() }}
+          <span v-if="a.userId"> ({{ a.userId }})</span>
+        </li>
+      </ul>
+    </section>
   </main>
-  </template>
+</template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onBeforeUnmount } from "vue";
+import { ref, computed, onMounted, onBeforeUnmount } from 'vue';
 import WorkflowCanvas from './components/WorkflowCanvas.vue';
 import ErrorCard from './components/ErrorCard.vue';
 
-const prompt = ref("");
+const prompt = ref('');
 const promptEl = ref<HTMLTextAreaElement|null>(null);
 const planItems = ref<string[]>([]);
-const diff = ref<string>("");
+const diff = ref<string>('');
 const diffList = ref<string[]>([]);
-const diffJson = computed<any>(() => {
-  try { return diff.value ? JSON.parse(diff.value) : null; } catch { return null; }
+const diffJson = computed(() => {
+  try { return diff.value ? JSON.parse(diff.value) : null; } catch (e) { return null; }
 });
 const summary = computed(() => {
   const s: Record<string, number> = { add_node: 0, connect: 0, set_params: 0, delete: 0, annotate: 0, total: 0 };
@@ -118,7 +211,7 @@ const summary = computed(() => {
 });
 const diffItems = computed(() => {
   const ops = diffJson.value?.ops || [];
-  return ops.map((op: any) => {
+  return ops.map((op: Record<string, unknown>) => {
     if (op.op === 'add_node') return { kind: 'add', badge: '+', text: `add_node: ${op.node?.name || op.node?.id || ''}` };
     if (op.op === 'connect') return { kind: 'connect', badge: '→', text: `connect: ${op.from} -> ${op.to}` };
     if (op.op === 'set_params') return { kind: 'set', badge: '⋯', text: `set_params: ${op.name}` };
@@ -128,14 +221,20 @@ const diffItems = computed(() => {
   });
 });
 const lastUndoId = ref<string|undefined>();
-const apiBase = (import.meta as any).env?.VITE_API_BASE || window.location.origin.replace(/:\d+$/, ":3000");
-const workflowId = "demo";
-const lints = ref<any[]>([]);
+const apiBase = (import.meta as unknown as { env?: Record<string, unknown> })?.env?.VITE_API_BASE || window.location.origin.replace(/:\d+$/, ':3000');
+const workflowId = 'demo';
+type Lint = { level: 'info' | 'warn' | 'error'; message: string; node?: string };
+const lints = ref<Lint[]>([]);
 const hasErrors = computed(() => lints.value.some(l => l.level === 'error'));
 const progress = ref<number>(-1);
-const simStats = ref<any|null>(null);
-const currentWorkflow = ref<any>(null);
-const lastError = ref<any|null>(null);
+const simStats = ref<Record<string, unknown>|null>(null);
+const currentWorkflow = ref<Record<string, unknown>|null>(null);
+const lastError = ref<Record<string, unknown>|null>(null);
+// Live overlay from /workflow-map/live
+const liveOverlay = ref<Array<{ id: string; name: string; status: 'idle' | 'running' | 'error'; estimatedCostCents: number }>>([]);
+const gitMessage = ref<string>('');
+const auditItems = ref<Array<{ ts: number; userId?: string; workflowId: string; appliedOperations: number }>>([]);
+const auditError = ref<string>('');
 
 // Canvas changes tracking
 const canvasChanges = computed(() => {
@@ -144,7 +243,7 @@ const canvasChanges = computed(() => {
   const deleted: string[] = [];
   
   const ops = diffJson.value?.ops || [];
-  ops.forEach((op: any) => {
+  ops.forEach((op: Record<string, unknown>) => {
     if (op.op === 'add_node' && op.node?.id) added.push(op.node.id);
     if (op.op === 'set_params' && op.name) modified.push(op.name);
     if (op.op === 'delete' && op.name) deleted.push(op.name);
@@ -158,17 +257,17 @@ const canvasChanges = computed(() => {
 const exprOpen = ref(false);
 const exprIndex = ref(0);
 const exprAll = [
-  "={{ $json }}",
-  "={{ $json.field }}",
-  "={{ $now }}",
-  "={{ $env.VAR }}",
-  "={{ $binary.data }}"
+  '={{ $json }}',
+  '={{ $json.field }}',
+  '={{ $now }}',
+  '={{ $env.VAR }}',
+  '={{ $binary.data }}'
 ];
 const exprItems = ref<string[]>(exprAll);
 
 function maybeOpenExpr() {
   const value = prompt.value;
-  if (value.includes("={{")) {
+  if (value.includes('={{')) {
     exprItems.value = exprAll;
     exprIndex.value = 0;
     exprOpen.value = true;
@@ -185,7 +284,7 @@ function closeExprLater() {
 }
 
 function onPromptKeydown(e: KeyboardEvent) {
-  if ((e.ctrlKey || e.metaKey) && e.code === "Space") {
+  if ((e.ctrlKey || e.metaKey) && e.code === 'Space') {
     exprItems.value = exprAll;
     exprIndex.value = 0;
     exprOpen.value = true;
@@ -193,16 +292,16 @@ function onPromptKeydown(e: KeyboardEvent) {
     return;
   }
   if (!exprOpen.value) return;
-  if (e.key === "ArrowDown") {
+  if (e.key === 'ArrowDown') {
     exprIndex.value = (exprIndex.value + 1) % exprItems.value.length;
     e.preventDefault();
-  } else if (e.key === "ArrowUp") {
+  } else if (e.key === 'ArrowUp') {
     exprIndex.value = (exprIndex.value - 1 + exprItems.value.length) % exprItems.value.length;
     e.preventDefault();
-  } else if (e.key === "Enter") {
+  } else if (e.key === 'Enter') {
     applyExpr(exprItems.value[exprIndex.value]);
     e.preventDefault();
-  } else if (e.key === "Escape") {
+  } else if (e.key === 'Escape') {
     closeExpr();
     e.preventDefault();
   }
@@ -230,21 +329,37 @@ onMounted(() => {
   try {
     es = new EventSource(`${apiBase}/events`);
     es.addEventListener('build_progress', (ev: MessageEvent) => {
-      try { const data = JSON.parse((ev as any).data); progress.value = Math.max(progress.value, data.progress ?? 0); } catch {}
+      try {
+        const data = JSON.parse((ev as unknown as { data: string }).data);
+        progress.value = Math.max(progress.value, (data as Record<string, unknown>).progress as number ?? 0);
+      } catch (e) {
+        // ignore parse errors
+      }
     });
     es.addEventListener('heartbeat', () => { if (progress.value < 0) progress.value = 0; });
+  } catch (e) {
+    // ignore EventSource init errors in dev
+  }
+  try {
+    const mapEs = new EventSource(`${apiBase}/workflow-map/live`);
+    mapEs.addEventListener('live', (ev: MessageEvent) => {
+      try {
+        const data = JSON.parse((ev as unknown as { data: string }).data) as { workflows?: Array<{ id: string; name: string; status: 'idle' | 'running' | 'error'; estimatedCostCents: number }> };
+        if (data?.workflows) liveOverlay.value = data.workflows;
+      } catch {}
+    });
   } catch {}
 });
 onBeforeUnmount(() => { if (es) { es.close(); es = null; } });
 
 function plan() {
-  planItems.value = ["Add HTTP Request node", "Connect to Manual Trigger"];
+  planItems.value = ['Add HTTP Request node', 'Connect to Manual Trigger'];
 }
 async function preview() {
   try {
     const r = await fetch(`${apiBase}/plan`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ prompt: prompt.value })
     });
     const json = await r.json();
@@ -255,7 +370,7 @@ async function preview() {
       lastError.value = null;
     }
     diff.value = JSON.stringify(json, null, 2);
-    diffList.value = Array.isArray(json?.ops) ? json.ops.map((op: any) => op.op) : [];
+    diffList.value = Array.isArray(json?.ops) ? json.ops.map((op: Record<string, unknown>) => (op as { op?: string }).op) as string[] : [];
     
     // Fetch current workflow state for canvas
     await fetchWorkflowState();
@@ -274,7 +389,7 @@ async function fetchWorkflowState() {
   }
 }
 
-function handleNodeClick(node: any) {
+function handleNodeClick(node: unknown) {
   console.log('Node clicked:', node);
   // Можно добавить логику для показа деталей ноды
 }
@@ -283,12 +398,12 @@ async function apply() {
   try {
     const batch = diff.value ? JSON.parse(diff.value) : null;
     if (!batch || !batch.ops) {
-      alert("No batch to apply");
+      alert('No batch to apply');
       return;
     }
     const r = await fetch(`${apiBase}/graph/${workflowId}/batch`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(batch)
     });
     const json = await r.json();
@@ -319,17 +434,38 @@ async function undo() {
 }
 async function test() {
   try {
-    const r = await fetch(`${apiBase}/graph/${workflowId}/validate`, { method: "POST" });
+    const r = await fetch(`${apiBase}/graph/${workflowId}/validate`, { method: 'POST' });
     const json = await r.json();
     lints.value = json.lints || [];
     alert(json.ok ? `Lints: ${json.lints?.length || 0}` : `Error: ${json.error}`);
     // simulate as part of test
-    const rs = await fetch(`${apiBase}/graph/${workflowId}/simulate`, { method: "POST" });
+    const rs = await fetch(`${apiBase}/graph/${workflowId}/simulate`, { method: 'POST' });
     const js = await rs.json();
     simStats.value = js?.stats || null;
     lastError.value = null;
   } catch (e) {
     lastError.value = { code: 'NETWORK', message: String(e) };
+  }
+}
+
+async function gitExport() {
+  try {
+    const r = await fetch(`${apiBase}/rest/ai/git/export`, { method: 'POST' });
+    const json = await r.json();
+    gitMessage.value = json?.message || 'Export done';
+  } catch (e) {
+    gitMessage.value = `Git export error: ${String(e)}`;
+  }
+}
+
+async function refreshAudit() {
+  try {
+    const r = await fetch(`${apiBase}/rest/ai/audit/logs`);
+    const json = await r.json();
+    auditItems.value = Array.isArray(json?.items) ? json.items : [];
+    auditError.value = '';
+  } catch (e) {
+    auditError.value = `Audit error: ${String(e)}`;
   }
 }
 

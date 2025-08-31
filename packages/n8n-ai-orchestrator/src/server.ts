@@ -7,6 +7,7 @@ import { graphManager } from './graph-manager.js';
 import { metrics, METRICS } from './metrics.js';
 import { buildWorkflowMap, type WorkflowMapIndex } from './workflow-map.js';
 import { handleError, errorToResponse, ValidationError, ValidationFailedError, NotFoundError, AmbiguousPromptError } from './error-handler.js';
+import { getDiffPolicies } from './config.js';
 import { randomUUID } from 'node:crypto';
 
 const server = Fastify({ logger: true });
@@ -121,7 +122,7 @@ server.get('/api/v1/ai/metrics', async () => {
 // Простой прокси для n8n-ai-hooks Introspect API (с пробросом auth заголовков)
 function pickForwardHeaders(h: import('fastify').FastifyRequest['headers']): Record<string, string> {
   const out: Record<string, string> = { Accept: 'application/json' };
-  const allow = ['authorization', 'cookie', 'x-session-token', 'x-xsrf-token'];
+  const allow = ['authorization', 'cookie', 'x-session-token', 'x-xsrf-token', 'x-user-id'];
   for (const key of allow) {
     const val = h[key as keyof typeof h];
     if (!val) continue;
@@ -262,6 +263,18 @@ server.post<{
   if (!parsed.success) {
     return { ok: false, error: 'invalid_operation_batch', issues: parsed.error.format() };
   }
+  // Diff policies (basic)
+  const { maxAddNodes: policyMaxAdd, domainBlacklist: blacklist } = getDiffPolicies();
+  const addCount = parsed.data.ops.filter((op: any) => op.op === 'add_node').length;
+  if (addCount > policyMaxAdd) {
+    return { ok: false, error: 'policy_violation', details: { rule: 'max_add_nodes', limit: policyMaxAdd, actual: addCount } };
+  }
+  if (blacklist.length > 0) {
+    const hasBlocked = parsed.data.ops.some((op: any) => op.op === 'add_node' && typeof op.node?.parameters?.url === 'string' && blacklist.some(d => (op.node.parameters.url as string).includes(d)));
+    if (hasBlocked) {
+      return { ok: false, error: 'policy_violation', details: { rule: 'domain_blacklist' } };
+    }
+  }
   
   // Применяем операции через GraphManager
   const result = graphManager.applyBatch(workflowId, parsed.data);
@@ -285,6 +298,8 @@ server.post<{
       appliedOperations: result.appliedOperations,
       undoId: result.undoId 
     }, 'Operations applied successfully');
+    // Audit success
+    auditLogs.push({ ts: Date.now(), userId: (req.headers['x-user-id'] as string|undefined), workflowId, appliedOperations: result.appliedOperations ?? 0 });
     try {
       // rebuild workflow map on changes
       workflowMapIndex = buildWorkflowMap(graphManager.listWorkflows(), process.env.N8N_WEBHOOK_BASE);
@@ -309,8 +324,29 @@ server.post<{ Params: { id: string } }>('/graph/:id/validate', async (req) => {
   const { id: workflowId } = req.params;
   const url = new URL(req.url, `http://${req.headers.host}`);
   const autofix = url.searchParams.get('autofix') === '1';
+
+  // Optional proxy to hooks if enabled
+  const useHooks = (process.env.USE_HOOKS_VALIDATE === '1' || process.env.USE_HOOKS === '1');
+  const incomingOrigin = req.headers['x-ai-origin'];
+  if (useHooks && incomingOrigin !== 'hooks') {
+    try {
+      const hooksBase = process.env.N8N_URL ?? 'http://localhost:5678';
+      const headers = { ...pickForwardHeaders(req.headers), 'x-ai-origin': 'orchestrator' };
+      const resp = await fetchWithRetry(`${hooksBase}/api/v1/ai/graph/${encodeURIComponent(workflowId)}/validate${autofix ? '?autofix=1' : ''}`, {
+        method: 'POST',
+        headers,
+        timeoutMs: 3000,
+        body: JSON.stringify(req.body ?? {})
+      });
+      const json = await resp.json();
+      if (resp.ok) return json;
+      server.log.warn({ status: resp.status, body: json }, 'Hooks validate returned non-200, falling back to local');
+    } catch (e) {
+      server.log.warn({ error: e }, 'Hooks validate failed, falling back to local');
+    }
+  }
+
   const validationResult = graphManager.validate(workflowId, { autofix });
-  
   return {
     ok: validationResult.valid,
     lints: validationResult.lints
@@ -319,9 +355,29 @@ server.post<{ Params: { id: string } }>('/graph/:id/validate', async (req) => {
 
 server.post<{ Params: { id: string } }>('/graph/:id/simulate', async (req) => {
   const { id: workflowId } = req.params;
-  
+
+  // Optional proxy to hooks if enabled
+  const useHooks = (process.env.USE_HOOKS_SIMULATE === '1' || process.env.USE_HOOKS === '1');
+  const incomingOrigin = req.headers['x-ai-origin'];
+  if (useHooks && incomingOrigin !== 'hooks') {
+    try {
+      const hooksBase = process.env.N8N_URL ?? 'http://localhost:5678';
+      const headers = { ...pickForwardHeaders(req.headers), 'x-ai-origin': 'orchestrator' };
+      const resp = await fetchWithRetry(`${hooksBase}/api/v1/ai/graph/${encodeURIComponent(workflowId)}/simulate`, {
+        method: 'POST',
+        headers,
+        timeoutMs: 3000,
+        body: JSON.stringify(req.body ?? {})
+      });
+      const json = await resp.json();
+      if (resp.ok) return json;
+      server.log.warn({ status: resp.status, body: json }, 'Hooks simulate returned non-200, falling back to local');
+    } catch (e) {
+      server.log.warn({ error: e }, 'Hooks simulate failed, falling back to local');
+    }
+  }
+
   const simulationResult = graphManager.simulate(workflowId);
-  
   return simulationResult;
 });
 
@@ -459,6 +515,16 @@ server.get('/patterns', async () => {
 // --- Workflow Map: in-memory index, refreshed on changes ---
 let workflowMapIndex: WorkflowMapIndex = { edges: [], updatedAt: Date.now() };
 
+// --- Simple Audit Log ---
+type AuditEntry = {
+  ts: number;
+  userId?: string;
+  workflowId: string;
+  appliedOperations: number;
+  policy?: string;
+};
+const auditLogs: AuditEntry[] = [];
+
 server.get('/workflow-map', async () => {
   return { ok: true, edges: workflowMapIndex.edges, updatedAt: workflowMapIndex.updatedAt };
 });
@@ -475,8 +541,18 @@ server.get('/workflow-map/live', async (_req, reply) => {
       reply.raw.write(`data: ${JSON.stringify(data)}\n\n`);
     } catch {}
   };
+  const summarize = () => {
+    // простая синтетика статусов и стоимости
+    const items = graphManager.listWorkflows().map(w => ({
+      id: w.id,
+      name: w.name,
+      status: 'idle' as const,
+      estimatedCostCents: Math.max(1, Math.min(50, w.nodes.length * 5))
+    }));
+    return { ts: Date.now(), edges: workflowMapIndex.edges.length, workflows: items };
+  };
   send('hello', { ts: Date.now(), kind: 'workflow-map' });
-  const interval = setInterval(() => send('live', { ts: Date.now(), edges: workflowMapIndex.edges.length }), 20000);
+  const interval = setInterval(() => send('live', summarize()), 5000);
   _req.raw.on('close', () => clearInterval(interval));
   return reply;
 });
@@ -529,6 +605,28 @@ server.get('/events', async (req, reply) => {
   }, 15000);
   req.raw.on('close', () => { clearInterval(interval); try { sseClients.delete(reply.raw); } catch {} });
   return reply;
+});
+
+// Prometheus metrics endpoint
+server.get('/metrics', async () => {
+  const snapshot = metrics.getMetrics();
+  const lines: string[] = [];
+  for (const [k, v] of Object.entries(snapshot.counters)) {
+    lines.push(`# TYPE ${k.replace(/\{.*\}$/,'')} counter`);
+    lines.push(`${k} ${v}`);
+  }
+  for (const [k, h] of Object.entries(snapshot.histograms)) {
+    const base = k.replace(/\{.*\}$/,'');
+    lines.push(`# TYPE ${base}_count gauge`);
+    lines.push(`${k}_count ${h.count}`);
+    lines.push(`# TYPE ${base}_p50 gauge`);
+    lines.push(`${k}_p50 ${h.p50}`);
+    lines.push(`# TYPE ${base}_p95 gauge`);
+    lines.push(`${k}_p95 ${h.p95}`);
+    lines.push(`# TYPE ${base}_p99 gauge`);
+    lines.push(`${k}_p99 ${h.p99}`);
+  }
+  return lines.join('\n') + '\n';
 });
 
 async function start() {
@@ -594,7 +692,15 @@ server.get('/rest/ai/introspect/nodes', async (req, reply) => proxyTo('/introspe
 server.post('/rest/ai/plan', async (req, reply) => proxyTo('/plan', 'POST', req, reply));
 
 // Graph operations
-server.post('/rest/ai/graph/:id/batch', async (req, reply) => proxyTo('/graph/:id/batch', 'POST', req, reply));
+server.post('/rest/ai/graph/:id/batch', async (req, reply) => {
+  // Pre-validate OperationBatch and enforce 400
+  const parsed = OperationBatchSchema.safeParse(req.body);
+  if (!parsed.success) {
+    reply.code(400);
+    return reply.send({ ok: false, error: 'invalid_operation_batch', issues: parsed.error.format() });
+  }
+  return proxyTo('/graph/:id/batch', 'POST', req, reply);
+});
 server.post('/rest/ai/graph/:id/validate', async (req, reply) => proxyTo('/graph/:id/validate', 'POST', req, reply));
 server.post('/rest/ai/graph/:id/simulate', async (req, reply) => proxyTo('/graph/:id/simulate', 'POST', req, reply));
 server.post('/rest/ai/graph/:id/critic', async (req, reply) => proxyTo('/graph/:id/critic', 'POST', req, reply));
@@ -611,3 +717,11 @@ server.get('/rest/ai/workflow-map', async (req, reply) => proxyTo('/workflow-map
 // Streaming endpoints: use redirect to original SSE routes
 server.get('/rest/ai/workflow-map/live', async (_req, reply) => reply.redirect(307, '/workflow-map/live'));
 server.get('/rest/ai/events', async (_req, reply) => reply.redirect(307, '/events'));
+
+// Git integration stub
+server.post('/git/export', async () => ({ ok: true, message: 'Git export stub: create PR with diff and simulation report (todo)' }));
+server.post('/rest/ai/git/export', async (req, reply) => proxyTo('/git/export', 'POST', req, reply));
+
+// Audit logs endpoints
+server.get('/audit/logs', async () => ({ ok: true, items: auditLogs.slice(-100) }));
+server.get('/rest/ai/audit/logs', async (req, reply) => proxyTo('/audit/logs', 'GET', req, reply));
