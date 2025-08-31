@@ -92,8 +92,8 @@
         class="canvas-wrapper"
       >
         <WorkflowCanvas 
-          :nodes="currentWorkflow.nodes"
-          :connections="currentWorkflow.connections"
+          :nodes="(currentWorkflow.workflow?.nodes || currentWorkflow.nodes || [])"
+          :connections="(currentWorkflow.workflow?.connections || currentWorkflow.connections || [])"
           :changes="canvasChanges"
           @node-click="handleNodeClick"
         />
