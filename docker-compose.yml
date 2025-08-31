@@ -47,6 +47,7 @@ services:
       - REDIS_URL=redis://redis:6379
       - QDRANT_URL=http://qdrant:6333
       - N8N_URL=http://n8n:5678
+      - USE_HOOKS=1
       - LOG_LEVEL=debug
     volumes:
       - ./:/workspace

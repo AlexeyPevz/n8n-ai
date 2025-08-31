@@ -312,10 +312,11 @@ server.post<{ Params: { id: string } }>('/graph/:id/validate', async (req) => {
 
   // Optional proxy to hooks if enabled
   const useHooks = (process.env.USE_HOOKS_VALIDATE === '1' || process.env.USE_HOOKS === '1');
-  if (useHooks) {
+  const incomingOrigin = req.headers['x-ai-origin'];
+  if (useHooks && incomingOrigin !== 'hooks') {
     try {
       const hooksBase = process.env.N8N_URL ?? 'http://localhost:5678';
-      const headers = pickForwardHeaders(req.headers);
+      const headers = { ...pickForwardHeaders(req.headers), 'x-ai-origin': 'orchestrator' };
       const resp = await fetchWithRetry(`${hooksBase}/api/v1/ai/graph/${encodeURIComponent(workflowId)}/validate${autofix ? '?autofix=1' : ''}`, {
         method: 'POST',
         headers,
@@ -342,10 +343,11 @@ server.post<{ Params: { id: string } }>('/graph/:id/simulate', async (req) => {
 
   // Optional proxy to hooks if enabled
   const useHooks = (process.env.USE_HOOKS_SIMULATE === '1' || process.env.USE_HOOKS === '1');
-  if (useHooks) {
+  const incomingOrigin = req.headers['x-ai-origin'];
+  if (useHooks && incomingOrigin !== 'hooks') {
     try {
       const hooksBase = process.env.N8N_URL ?? 'http://localhost:5678';
-      const headers = pickForwardHeaders(req.headers);
+      const headers = { ...pickForwardHeaders(req.headers), 'x-ai-origin': 'orchestrator' };
       const resp = await fetchWithRetry(`${hooksBase}/api/v1/ai/graph/${encodeURIComponent(workflowId)}/simulate`, {
         method: 'POST',
         headers,
