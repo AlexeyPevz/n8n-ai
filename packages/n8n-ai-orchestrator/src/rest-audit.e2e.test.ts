@@ -13,7 +13,14 @@ async function req(path: string, init?: RequestInit): Promise<any> {
 }
 
 describe('REST audit logs', () => {
-  beforeAll(async () => { await req('/patterns'); });
+  beforeAll(async () => {
+    try {
+      await req('/api/v1/ai/health');
+    } catch (error) {
+      console.error('Server not running. Use: pnpm test:rest:e2e');
+      throw error;
+    }
+  });
 
   it('logs batch apply and exposes via /rest/ai/audit/logs', async () => {
     const plan = await req('/plan', { method: 'POST', body: JSON.stringify({ prompt: 'HTTP GET JSONPlaceholder' }) });

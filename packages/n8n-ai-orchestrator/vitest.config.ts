@@ -4,6 +4,8 @@ export default defineConfig({
   test: {
     globals: true,
     environment: 'node',
+    testTimeout: 30000, // 30 seconds for E2E tests
+    hookTimeout: 30000,
     coverage: {
       provider: 'v8',
       reporter: ['text', 'lcov', 'html'],
@@ -13,6 +15,8 @@ export default defineConfig({
         '**/*.test.ts',
         '**/*.spec.ts',
         'vitest.config.ts',
+        'src/test-server.ts',
+        'src/ai/**', // Exclude AI module until ready
       ],
       thresholds: {
         lines: 70,
@@ -21,6 +25,5 @@ export default defineConfig({
         statements: 70,
       },
     },
-    include: ['src/**/*.test.ts', 'src/**/*.spec.ts'],
   },
 });

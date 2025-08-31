@@ -11,7 +11,12 @@ async function reqRaw(path: string, init?: RequestInit): Promise<Response> {
 
 describe('REST aliases invalid batch', () => {
   beforeAll(async () => {
-    await (await reqRaw('/patterns')).json();
+    try {
+      await (await reqRaw('/api/v1/ai/health')).json();
+    } catch (error) {
+      console.error('Server not running. Use: pnpm test:rest:e2e');
+      throw error;
+    }
   });
 
   it('rejects invalid batch via /rest/ai/graph/:id/batch', async () => {

@@ -8,10 +8,11 @@
     "build": "tsc -p tsconfig.json",
     "start": "node dist/server.js",
     "lint": "eslint --ext .ts src",
-    "test": "vitest run --exclude src/e2e.test.ts --coverage.enabled=true --coverage.reporter=lcov --coverage.reporter=text",
+    "test": "vitest run --exclude src/e2e.test.ts --exclude src/**/*.e2e.test.ts --coverage.enabled=true --coverage.reporter=lcov --coverage.reporter=text",
     "test:e2e": "vitest run src/e2e.test.ts",
-    "test:with-server": "tsx src/test-server.ts & SERVER_PID=$! && sleep 2 && vitest run src/e2e.test.ts; kill $SERVER_PID",
-    "test:rest:e2e": "tsx src/test-server.ts & SERVER_PID=$! && sleep 2 && vitest run src/rest*.e2e.test.ts; kill $SERVER_PID"
+    "test:with-server": "concurrently -k -s first \"tsx src/test-server.ts\" \"sleep 2 && vitest run src/e2e.test.ts\"",
+    "test:rest:e2e": "concurrently -k -s first \"tsx src/test-server.ts\" \"sleep 2 && vitest run src/rest*.e2e.test.ts\"",
+    "test:all": "vitest run --coverage.enabled=true --coverage.reporter=lcov --coverage.reporter=text"
   },
   "dependencies": {
     "@fastify/cors": "^9.0.1",
@@ -20,6 +21,7 @@
   },
   "devDependencies": {
     "@types/node": "20",
+    "concurrently": "^8.2.2",
     "tsx": "^4.16.2",
     "typescript": "^5.5.4",
     "vitest": "^3.2.4"
