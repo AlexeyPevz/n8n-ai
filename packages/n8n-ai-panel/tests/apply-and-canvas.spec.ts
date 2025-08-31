@@ -9,5 +9,9 @@ test('Apply batch and show canvas', async ({ page, baseURL }) => {
   await page.getByRole('button', { name: /^Apply$/ }).click();
   // After apply, lints or notification may appear; just ensure canvas exists
   await expect(page.locator('.canvas-wrapper')).toBeVisible();
+  // Node with added class present
+  await expect(page.locator('.node.added').first()).toBeVisible();
+  // Connection path may be marked as added
+  await expect(page.locator('svg.connections-layer path.connection.added').first()).toBeVisible();
 });
 
