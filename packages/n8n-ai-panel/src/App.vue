@@ -75,6 +75,12 @@
 
     <section v-if="diff">
       <h3>Diff Preview</h3>
+      <div v-if="liveOverlay.length" style="margin: 6px 0; font-size: 12px; color: #334155;">
+        Live: 
+        <span v-for="wf in liveOverlay" :key="wf.id" style="margin-right: 10px;">
+          <strong>{{ wf.name }}</strong> — {{ wf.status }} · $ {{ (wf.estimatedCostCents/100).toFixed(2) }}
+        </span>
+      </div>
       <div
         v-if="summary.total"
         class="changes"
