@@ -1,5 +1,6 @@
 import type { AIProvider } from './base.js';
 import { OpenAIProvider } from './openai.js';
+import { OpenRouterProvider } from './openrouter.js';
 import type { AIProviderConfig } from '../config.js';
 
 export class AIProviderFactory {
@@ -13,6 +14,18 @@ export class AIProviderFactory {
           apiKey: config.apiKey,
           baseUrl: config.baseUrl,
           model: config.model,
+        });
+      
+      case 'openrouter':
+        if (!config.apiKey) {
+          throw new Error('OpenRouter API key is required');
+        }
+        return new OpenRouterProvider({
+          apiKey: config.apiKey,
+          baseUrl: config.baseUrl,
+          model: config.model,
+          siteUrl: config.siteUrl,
+          siteName: config.siteName,
         });
       
       case 'anthropic':

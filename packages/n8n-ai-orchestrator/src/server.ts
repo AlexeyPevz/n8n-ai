@@ -26,6 +26,10 @@ function sendSse(event: string, data: unknown): void {
   }
 }
 
+// Import model selector for AI recommendations
+// TODO: Uncomment when AI module is ready for production
+// import { ModelSelector } from './ai/model-selector.js';
+
 // Simple fetch with timeout and retries for proxying to n8n hooks
 async function fetchWithRetry(url: string, init: any = {}): Promise<any> {
   const retries = Math.max(0, Number(process.env.HOOKS_FETCH_RETRIES ?? 2));
@@ -606,6 +610,24 @@ server.get('/events', async (req, reply) => {
   req.raw.on('close', () => { clearInterval(interval); try { sseClients.delete(reply.raw); } catch {} });
   return reply;
 });
+
+// AI Model recommendation endpoint
+// TODO: Enable when AI module is ready
+// server.post<{ Body: { prompt: string } }>('/ai/recommend-model', async (req) => {
+//   const { prompt } = req.body;
+//   if (!prompt) {
+//     return { error: 'prompt is required' };
+//   }
+//   
+//   const recommendation = ModelSelector.recommend(prompt);
+//   const requirements = ModelSelector.analyzePrompt(prompt);
+//   
+//   return {
+//     recommendation,
+//     requirements,
+//     availableModels: Object.keys(ModelSelector.MODEL_CAPABILITIES || {}),
+//   };
+// });
 
 // Prometheus metrics endpoint
 server.get('/metrics', async () => {

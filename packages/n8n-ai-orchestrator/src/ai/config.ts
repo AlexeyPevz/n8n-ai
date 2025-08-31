@@ -1,10 +1,13 @@
 export interface AIProviderConfig {
-  provider: 'openai' | 'anthropic' | 'ollama';
+  provider: 'openai' | 'anthropic' | 'ollama' | 'openrouter';
   apiKey?: string;
   baseUrl?: string;
   model: string;
   temperature?: number;
   maxTokens?: number;
+  // OpenRouter specific
+  siteUrl?: string;
+  siteName?: string;
 }
 
 export interface AIConfig {
@@ -41,11 +44,15 @@ export function getAIConfig(): AIConfig {
         model: process.env.AI_MODEL || 'gpt-4-turbo-preview',
         temperature: Number(process.env.AI_TEMPERATURE || 0.3),
         maxTokens: Number(process.env.AI_MAX_TOKENS || 4000),
+        siteUrl: process.env.OPENROUTER_SITE_URL,
+        siteName: process.env.OPENROUTER_SITE_NAME,
       },
       fallback: process.env.AI_FALLBACK_PROVIDER ? {
         provider: process.env.AI_FALLBACK_PROVIDER as any,
         apiKey: process.env.AI_FALLBACK_API_KEY,
         model: process.env.AI_FALLBACK_MODEL || 'claude-3-sonnet-20240229',
+        siteUrl: process.env.OPENROUTER_FALLBACK_SITE_URL,
+        siteName: process.env.OPENROUTER_FALLBACK_SITE_NAME,
       } : undefined,
     },
     features: {

@@ -29,6 +29,12 @@ AI_FALLBACK_MODEL=claude-3-sonnet-20240229
 - Best for: Complex reasoning, code generation
 - Cost: Higher
 
+#### OpenRouter
+- Models: 50+ models from various providers
+- Best for: Testing different models, cost optimization
+- Cost: Variable (pay per model)
+- Includes: Claude, Gemini, Llama, Mistral, and more
+
 #### Anthropic (Coming Soon)
 - Models: claude-3-opus, claude-3-sonnet, claude-3-haiku
 - Best for: Long context, safety
@@ -51,6 +57,40 @@ LLM Provider → Generate Operations
 Schema Validation
     ↓
 Operation Batch
+```
+
+## OpenRouter Configuration
+
+OpenRouter provides access to 50+ AI models through a single API. It's perfect for:
+- Testing different models without separate API keys
+- Cost optimization by choosing the right model for each task
+- Access to the latest models as soon as they're released
+
+### Setup
+1. Get API key from https://openrouter.ai/keys
+2. Configure environment:
+```bash
+AI_PROVIDER=openrouter
+AI_API_KEY=your-openrouter-key
+AI_MODEL=anthropic/claude-3-opus  # or any other model
+```
+
+### Popular Models on OpenRouter
+```bash
+# High Performance
+AI_MODEL=anthropic/claude-3-opus      # Best overall
+AI_MODEL=openai/gpt-4-turbo          # Best for code
+AI_MODEL=google/gemini-pro            # Good balance
+
+# Cost Effective
+AI_MODEL=anthropic/claude-3-haiku     # Fast and cheap
+AI_MODEL=mistralai/mixtral-8x7b       # Open source
+AI_MODEL=meta-llama/llama-3-70b       # Free tier available
+
+# Specialized
+AI_MODEL=phind/phind-codellama-34b    # Code generation
+AI_MODEL=perplexity/pplx-70b-online   # With internet access
+AI_MODEL=deepseek/deepseek-coder-33b  # Technical tasks
 ```
 
 ## Usage
