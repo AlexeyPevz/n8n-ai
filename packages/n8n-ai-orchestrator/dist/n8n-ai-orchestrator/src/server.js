@@ -485,8 +485,18 @@ server.get('/workflow-map/live', async (_req, reply) => {
         }
         catch { }
     };
+    const summarize = () => {
+        // простая синтетика статусов и стоимости
+        const items = graphManager.listWorkflows().map(w => ({
+            id: w.id,
+            name: w.name,
+            status: 'idle',
+            estimatedCostCents: Math.max(1, Math.min(50, w.nodes.length * 5))
+        }));
+        return { ts: Date.now(), edges: workflowMapIndex.edges.length, workflows: items };
+    };
     send('hello', { ts: Date.now(), kind: 'workflow-map' });
-    const interval = setInterval(() => send('live', { ts: Date.now(), edges: workflowMapIndex.edges.length }), 20000);
+    const interval = setInterval(() => send('live', summarize()), 20000);
     _req.raw.on('close', () => clearInterval(interval));
     return reply;
 });
@@ -539,6 +549,27 @@ server.get('/events', async (req, reply) => {
     }
     catch { } });
     return reply;
+});
+// Prometheus metrics endpoint
+server.get('/metrics', async () => {
+    const snapshot = metrics.getMetrics();
+    const lines = [];
+    for (const [k, v] of Object.entries(snapshot.counters)) {
+        lines.push(`# TYPE ${k.replace(/\{.*\}$/, '')} counter`);
+        lines.push(`${k} ${v}`);
+    }
+    for (const [k, h] of Object.entries(snapshot.histograms)) {
+        const base = k.replace(/\{.*\}$/, '');
+        lines.push(`# TYPE ${base}_count gauge`);
+        lines.push(`${k}_count ${h.count}`);
+        lines.push(`# TYPE ${base}_p50 gauge`);
+        lines.push(`${k}_p50 ${h.p50}`);
+        lines.push(`# TYPE ${base}_p95 gauge`);
+        lines.push(`${k}_p95 ${h.p95}`);
+        lines.push(`# TYPE ${base}_p99 gauge`);
+        lines.push(`${k}_p99 ${h.p99}`);
+    }
+    return lines.join('\n') + '\n';
 });
 async function start() {
     let port = Number(process.env.PORT ?? 3000);
@@ -600,7 +631,15 @@ server.get('/rest/ai/introspect/nodes', async (req, reply) => proxyTo('/introspe
 // Planner
 server.post('/rest/ai/plan', async (req, reply) => proxyTo('/plan', 'POST', req, reply));
 // Graph operations
-server.post('/rest/ai/graph/:id/batch', async (req, reply) => proxyTo('/graph/:id/batch', 'POST', req, reply));
+server.post('/rest/ai/graph/:id/batch', async (req, reply) => {
+    // Pre-validate OperationBatch and enforce 400
+    const parsed = OperationBatchSchema.safeParse(req.body);
+    if (!parsed.success) {
+        reply.code(400);
+        return reply.send({ ok: false, error: 'invalid_operation_batch', issues: parsed.error.format() });
+    }
+    return proxyTo('/graph/:id/batch', 'POST', req, reply);
+});
 server.post('/rest/ai/graph/:id/validate', async (req, reply) => proxyTo('/graph/:id/validate', 'POST', req, reply));
 server.post('/rest/ai/graph/:id/simulate', async (req, reply) => proxyTo('/graph/:id/simulate', 'POST', req, reply));
 server.post('/rest/ai/graph/:id/critic', async (req, reply) => proxyTo('/graph/:id/critic', 'POST', req, reply));

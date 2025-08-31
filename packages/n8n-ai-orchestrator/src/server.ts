@@ -667,7 +667,15 @@ server.get('/rest/ai/introspect/nodes', async (req, reply) => proxyTo('/introspe
 server.post('/rest/ai/plan', async (req, reply) => proxyTo('/plan', 'POST', req, reply));
 
 // Graph operations
-server.post('/rest/ai/graph/:id/batch', async (req, reply) => proxyTo('/graph/:id/batch', 'POST', req, reply));
+server.post('/rest/ai/graph/:id/batch', async (req, reply) => {
+  // Pre-validate OperationBatch and enforce 400
+  const parsed = OperationBatchSchema.safeParse(req.body);
+  if (!parsed.success) {
+    reply.code(400);
+    return reply.send({ ok: false, error: 'invalid_operation_batch', issues: parsed.error.format() });
+  }
+  return proxyTo('/graph/:id/batch', 'POST', req, reply);
+});
 server.post('/rest/ai/graph/:id/validate', async (req, reply) => proxyTo('/graph/:id/validate', 'POST', req, reply));
 server.post('/rest/ai/graph/:id/simulate', async (req, reply) => proxyTo('/graph/:id/simulate', 'POST', req, reply));
 server.post('/rest/ai/graph/:id/critic', async (req, reply) => proxyTo('/graph/:id/critic', 'POST', req, reply));
