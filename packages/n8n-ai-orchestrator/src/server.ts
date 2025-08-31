@@ -122,7 +122,7 @@ server.get('/api/v1/ai/metrics', async () => {
 // Простой прокси для n8n-ai-hooks Introspect API (с пробросом auth заголовков)
 function pickForwardHeaders(h: import('fastify').FastifyRequest['headers']): Record<string, string> {
   const out: Record<string, string> = { Accept: 'application/json' };
-  const allow = ['authorization', 'cookie', 'x-session-token', 'x-xsrf-token'];
+  const allow = ['authorization', 'cookie', 'x-session-token', 'x-xsrf-token', 'x-user-id'];
   for (const key of allow) {
     const val = h[key as keyof typeof h];
     if (!val) continue;
@@ -552,7 +552,7 @@ server.get('/workflow-map/live', async (_req, reply) => {
     return { ts: Date.now(), edges: workflowMapIndex.edges.length, workflows: items };
   };
   send('hello', { ts: Date.now(), kind: 'workflow-map' });
-  const interval = setInterval(() => send('live', summarize()), 20000);
+  const interval = setInterval(() => send('live', summarize()), 5000);
   _req.raw.on('close', () => clearInterval(interval));
   return reply;
 });

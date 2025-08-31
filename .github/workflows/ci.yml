@@ -238,6 +238,8 @@ jobs:
           PLAN=$(curl -fsS -X POST http://localhost:3000/plan -H 'content-type: application/json' -d '{"prompt":"HTTP GET JSONPlaceholder"}')
           echo "$PLAN" | jq .
           curl -fsS -X POST http://localhost:3000/rest/ai/graph/demo/batch -H 'content-type: application/json' -d "$PLAN" | jq .
+      - name: Smoke Audit Logs
+        run: curl -fsS http://localhost:3000/rest/ai/audit/logs | jq '.items | length'
       - name: Smoke Validate/Simulate via REST alias (hooks proxy)
         run: |
           curl -fsS -X POST 'http://localhost:3000/rest/ai/graph/demo/validate?autofix=1' -H 'content-type: application/json' -d '{}' | jq .

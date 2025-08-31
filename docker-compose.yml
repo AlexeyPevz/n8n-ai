@@ -48,6 +48,8 @@ services:
       - QDRANT_URL=http://qdrant:6333
       - N8N_URL=http://n8n:5678
       - USE_HOOKS=1
+      - HOOKS_FETCH_RETRIES=2
+      - HOOKS_FETCH_TIMEOUT_MS=3000
       - LOG_LEVEL=debug
     volumes:
       - ./:/workspace
