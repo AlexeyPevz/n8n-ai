@@ -268,6 +268,12 @@ jobs:
           cache: 'pnpm'
       - name: Install dependencies
         run: pnpm install
+      - name: Build orchestrator
+        run: pnpm -C packages/n8n-ai-orchestrator build
+      - name: Start orchestrator
+        run: node packages/n8n-ai-orchestrator/dist/server.js & echo $! > server.pid && sleep 2
+      - name: Wait for orchestrator health
+        run: curl -f http://localhost:3000/api/v1/ai/health
       - name: Build panel
         run: pnpm -C packages/n8n-ai-panel build
       - name: Install Playwright
@@ -275,7 +281,10 @@ jobs:
       - name: Run UI e2e (preview)
         run: |
           (pnpm -C packages/n8n-ai-panel preview --port 3001 &) && sleep 2
-          pnpm -C packages/n8n-ai-panel e2e:ui
+          UI_BASE=http://localhost:3001 pnpm -C packages/n8n-ai-panel e2e:ui
+      - name: Stop orchestrator
+        if: always()
+        run: kill $(cat server.pid) || true
 
   rest-e2e:
     name: Orchestrator REST alias E2E
