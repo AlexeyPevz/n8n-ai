@@ -543,3 +543,59 @@ export { server };
 if (import.meta.url === `file://${process.argv[1]}`) {
   start();
 }
+
+// --- n8n-style REST aliases for upstream compatibility ---
+// Helper to alias non-streaming endpoints via internal inject
+async function proxyTo(targetUrl: string, method: 'GET' | 'POST', req: any, reply: any) {
+  const params = (req.params || {}) as Record<string, string>;
+  let url = targetUrl;
+  // replace :id and other simple params
+  for (const [k, v] of Object.entries(params)) {
+    url = url.replace(`:${k}`, encodeURIComponent(String(v)));
+  }
+  const injected = await server.inject({
+    method,
+    url,
+    payload: method === 'POST' ? (req.body ?? undefined) : undefined,
+    headers: req.headers as Record<string, string>
+  });
+  reply.code(injected.statusCode);
+  // Copy minimal headers
+  for (const [h, v] of Object.entries(injected.headers)) {
+    if (typeof v === 'string') reply.header(h, v);
+  }
+  try {
+    return reply.send(injected.body);
+  } catch {
+    return reply.send(injected.payload);
+  }
+}
+
+// Health / Metrics
+server.get('/rest/ai/health', async (req, reply) => proxyTo('/api/v1/ai/health', 'GET', req, reply));
+server.get('/rest/ai/metrics', async (req, reply) => proxyTo('/api/v1/ai/metrics', 'GET', req, reply));
+
+// Introspect
+server.get('/rest/ai/introspect/nodes', async (req, reply) => proxyTo('/introspect/nodes', 'GET', req, reply));
+
+// Planner
+server.post('/rest/ai/plan', async (req, reply) => proxyTo('/plan', 'POST', req, reply));
+
+// Graph operations
+server.post('/rest/ai/graph/:id/batch', async (req, reply) => proxyTo('/graph/:id/batch', 'POST', req, reply));
+server.post('/rest/ai/graph/:id/validate', async (req, reply) => proxyTo('/graph/:id/validate', 'POST', req, reply));
+server.post('/rest/ai/graph/:id/simulate', async (req, reply) => proxyTo('/graph/:id/simulate', 'POST', req, reply));
+server.post('/rest/ai/graph/:id/critic', async (req, reply) => proxyTo('/graph/:id/critic', 'POST', req, reply));
+server.post('/rest/ai/graph/:id/undo', async (req, reply) => proxyTo('/graph/:id/undo', 'POST', req, reply));
+server.post('/rest/ai/graph/:id/redo', async (req, reply) => proxyTo('/graph/:id/redo', 'POST', req, reply));
+server.get('/rest/ai/graph/:id', async (req, reply) => proxyTo('/graph/:id', 'GET', req, reply));
+
+// Workflows overview
+server.get('/rest/ai/workflows', async (req, reply) => proxyTo('/workflows', 'GET', req, reply));
+
+// Workflow Map (REST)
+server.get('/rest/ai/workflow-map', async (req, reply) => proxyTo('/workflow-map', 'GET', req, reply));
+
+// Streaming endpoints: use redirect to original SSE routes
+server.get('/rest/ai/workflow-map/live', async (_req, reply) => reply.redirect(307, '/workflow-map/live'));
+server.get('/rest/ai/events', async (_req, reply) => reply.redirect(307, '/events'));
