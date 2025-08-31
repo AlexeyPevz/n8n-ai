@@ -99,7 +99,7 @@ server.addContentTypeParser('application/json', { parseAs: 'string' }, (req, bod
   }
 });
 
-await server.register(cors, { origin: true });
+await server.register(cors, { origin: true, credentials: true });
 
 // Global error handler
 server.setErrorHandler((error, request, reply) => {
@@ -118,12 +118,24 @@ server.get('/api/v1/ai/metrics', async () => {
   return metrics.getMetrics();
 });
 
-// Простой прокси для n8n-ai-hooks Introspect API
-server.get('/introspect/nodes', async () => {
+// Простой прокси для n8n-ai-hooks Introspect API (с пробросом auth заголовков)
+function pickForwardHeaders(h: import('fastify').FastifyRequest['headers']): Record<string, string> {
+  const out: Record<string, string> = { Accept: 'application/json' };
+  const allow = ['authorization', 'cookie', 'x-session-token', 'x-xsrf-token'];
+  for (const key of allow) {
+    const val = h[key as keyof typeof h];
+    if (!val) continue;
+    out[key] = Array.isArray(val) ? val.join('; ') : String(val);
+  }
+  return out;
+}
+
+server.get('/introspect/nodes', async (req) => {
   // Пытаемся проксировать в n8n-ai-hooks, если доступен
   const hooksBase = process.env.N8N_URL ?? 'http://localhost:5678';
   try {
-    const resp = await fetchWithRetry(`${hooksBase}/api/v1/ai/introspect/nodes`, { timeoutMs: 2500 });
+    const headers = pickForwardHeaders(req.headers);
+    const resp = await fetchWithRetry(`${hooksBase}/api/v1/ai/introspect/nodes`, { timeoutMs: 2500, headers });
     const data = (await resp.json()) as unknown;
     const nodes = Array.isArray(data) ? data : ((data as { nodes?: unknown }).nodes ?? []);
     if (Array.isArray(nodes) && nodes.length > 0) return nodes;
