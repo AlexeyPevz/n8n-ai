@@ -262,6 +262,19 @@ server.post<{
   if (!parsed.success) {
     return { ok: false, error: 'invalid_operation_batch', issues: parsed.error.format() };
   }
+  // Diff policies (basic)
+  const policyMaxAdd = Number(process.env.DIFF_POLICY_MAX_ADD_NODES ?? 10);
+  const blacklist = (process.env.DIFF_POLICY_DOMAIN_BLACKLIST ?? '').split(',').map(s => s.trim()).filter(Boolean);
+  const addCount = parsed.data.ops.filter((op: any) => op.op === 'add_node').length;
+  if (addCount > policyMaxAdd) {
+    return { ok: false, error: 'policy_violation', details: { rule: 'max_add_nodes', limit: policyMaxAdd, actual: addCount } };
+  }
+  if (blacklist.length > 0) {
+    const hasBlocked = parsed.data.ops.some((op: any) => op.op === 'add_node' && typeof op.node?.parameters?.url === 'string' && blacklist.some(d => (op.node.parameters.url as string).includes(d)));
+    if (hasBlocked) {
+      return { ok: false, error: 'policy_violation', details: { rule: 'domain_blacklist' } };
+    }
+  }
   
   // Применяем операции через GraphManager
   const result = graphManager.applyBatch(workflowId, parsed.data);
@@ -692,3 +705,7 @@ server.get('/rest/ai/workflow-map', async (req, reply) => proxyTo('/workflow-map
 // Streaming endpoints: use redirect to original SSE routes
 server.get('/rest/ai/workflow-map/live', async (_req, reply) => reply.redirect(307, '/workflow-map/live'));
 server.get('/rest/ai/events', async (_req, reply) => reply.redirect(307, '/events'));
+
+// Git integration stub
+server.post('/git/export', async () => ({ ok: true, message: 'Git export stub: create PR with diff and simulation report (todo)' }));
+server.post('/rest/ai/git/export', async (req, reply) => proxyTo('/git/export', 'POST', req, reply));
