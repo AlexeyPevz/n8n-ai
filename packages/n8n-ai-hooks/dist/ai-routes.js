@@ -246,7 +246,9 @@ export function createAIRoutes() {
                 hooksMetrics.increment(HOOKS_METRIC.API_REQUESTS, { path: req.path, method: req.method, status: String(res.statusCode) });
                 hooksMetrics.recordDuration(HOOKS_METRIC.API_DURATION, duration, { path: req.path, method: req.method, status: String(res.statusCode) });
             }
-            catch { }
+            catch {
+                // ignore metrics errors
+            }
             return originalEnd(chunk, encoding, cb);
         });
         next();

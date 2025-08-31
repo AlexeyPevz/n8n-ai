@@ -12,6 +12,12 @@ export class GraphManager {
         this.createWorkflow('demo', 'Demo Workflow');
     }
     /**
+     * Возвращает список всех воркфлоу (для индекса и обзора)
+     */
+    listWorkflows() {
+        return Array.from(this.workflows.values());
+    }
+    /**
      * Сбрасывает всё состояние (для тестов)
      */
     resetAll() {

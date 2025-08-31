@@ -177,6 +177,34 @@ describe('E2E: HTTP GET Workflow Creation', () => {
         expect(firstSuggestion.matchedKeywords).toBeDefined();
         expect(firstSuggestion.preview).toBeDefined();
     });
+    it('should build workflow map and expose via /workflow-map and /workflows', async () => {
+        const wfA = 'wf-a';
+        const wfB = 'wf-b';
+        const webhookPath = 'incoming-users';
+        const batchA = {
+            ops: [
+                { op: 'add_node', node: { id: 'wh1', name: 'Webhook A', type: 'n8n-nodes-base.webhook', typeVersion: 1, position: [0, 0], parameters: { path: webhookPath } } }
+            ]
+        };
+        const batchB = {
+            version: 'v1',
+            ops: [
+                { op: 'add_node', node: { id: 'http1', name: 'HTTP to A', type: 'n8n-nodes-base.httpRequest', typeVersion: 4, position: [0, 0], parameters: { method: 'GET', url: `http://localhost:5678/webhook/${webhookPath}` } } }
+            ]
+        };
+        const r1 = await apiRequest(`/graph/${wfA}/batch`, { method: 'POST', body: JSON.stringify(batchA) });
+        expect(r1.ok).toBe(true);
+        const r2 = await apiRequest(`/graph/${wfB}/batch`, { method: 'POST', body: JSON.stringify(batchB) });
+        expect(r2.ok).toBe(true);
+        const map = await apiRequest('/workflow-map');
+        expect(map.ok).toBe(true);
+        expect(Array.isArray(map.edges)).toBe(true);
+        const hasEdge = map.edges.some((e) => e.fromWorkflowId === wfB && e.toWorkflowId === wfA && e.via === 'http');
+        expect(hasEdge).toBe(true);
+        const list = await apiRequest('/workflows');
+        expect(list.ok).toBe(true);
+        expect(list.total).toBeGreaterThanOrEqual(2);
+    });
     it('should complete full workflow creation flow', async () => {
         // 1. План
         const planResult = await apiRequest('/plan', {
