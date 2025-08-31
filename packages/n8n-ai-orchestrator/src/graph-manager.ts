@@ -51,6 +51,13 @@ export class GraphManager {
   }
 
   /**
+   * Возвращает список всех воркфлоу (для индекса и обзора)
+   */
+  listWorkflows(): WorkflowState[] {
+    return Array.from(this.workflows.values());
+  }
+
+  /**
    * Сбрасывает всё состояние (для тестов)
    */
   resetAll(): void {

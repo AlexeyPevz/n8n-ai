@@ -5,6 +5,7 @@ import { SimplePlanner } from './planner.js';
 import { patternMatcher } from './pattern-matcher.js';
 import { graphManager } from './graph-manager.js';
 import { metrics, METRICS } from './metrics.js';
+import { buildWorkflowMap, type WorkflowMapIndex } from './workflow-map.js';
 import { handleError, errorToResponse, ValidationError, ValidationFailedError, NotFoundError, AmbiguousPromptError } from './error-handler.js';
 import { randomUUID } from 'node:crypto';
 
@@ -98,7 +99,7 @@ server.addContentTypeParser('application/json', { parseAs: 'string' }, (req, bod
   }
 });
 
-await server.register(cors, { origin: true });
+await server.register(cors, { origin: true, credentials: true });
 
 // Global error handler
 server.setErrorHandler((error, request, reply) => {
@@ -117,12 +118,24 @@ server.get('/api/v1/ai/metrics', async () => {
   return metrics.getMetrics();
 });
 
-// Простой прокси для n8n-ai-hooks Introspect API
-server.get('/introspect/nodes', async () => {
+// Простой прокси для n8n-ai-hooks Introspect API (с пробросом auth заголовков)
+function pickForwardHeaders(h: import('fastify').FastifyRequest['headers']): Record<string, string> {
+  const out: Record<string, string> = { Accept: 'application/json' };
+  const allow = ['authorization', 'cookie', 'x-session-token', 'x-xsrf-token'];
+  for (const key of allow) {
+    const val = h[key as keyof typeof h];
+    if (!val) continue;
+    out[key] = Array.isArray(val) ? val.join('; ') : String(val);
+  }
+  return out;
+}
+
+server.get('/introspect/nodes', async (req) => {
   // Пытаемся проксировать в n8n-ai-hooks, если доступен
   const hooksBase = process.env.N8N_URL ?? 'http://localhost:5678';
   try {
-    const resp = await fetchWithRetry(`${hooksBase}/api/v1/ai/introspect/nodes`, { timeoutMs: 2500 });
+    const headers = pickForwardHeaders(req.headers);
+    const resp = await fetchWithRetry(`${hooksBase}/api/v1/ai/introspect/nodes`, { timeoutMs: 2500, headers });
     const data = (await resp.json()) as unknown;
     const nodes = Array.isArray(data) ? data : ((data as { nodes?: unknown }).nodes ?? []);
     if (Array.isArray(nodes) && nodes.length > 0) return nodes;
@@ -272,6 +285,11 @@ server.post<{
       appliedOperations: result.appliedOperations,
       undoId: result.undoId 
     }, 'Operations applied successfully');
+    try {
+      // rebuild workflow map on changes
+      workflowMapIndex = buildWorkflowMap(graphManager.listWorkflows(), process.env.N8N_WEBHOOK_BASE);
+      sendSse('workflow_map_updated', { updatedAt: workflowMapIndex.updatedAt, edges: workflowMapIndex.edges.length });
+    } catch {}
     
     return { 
       ok: true, 
@@ -362,6 +380,10 @@ server.post<{
   
   if (result.success) {
     server.log.info({ workflowId, undoId: result.undoId }, 'Undo successful');
+    try {
+      workflowMapIndex = buildWorkflowMap(graphManager.listWorkflows(), process.env.N8N_WEBHOOK_BASE);
+      sendSse('workflow_map_updated', { updatedAt: workflowMapIndex.updatedAt, edges: workflowMapIndex.edges.length });
+    } catch {}
     return { 
       ok: true, 
       undoId: result.undoId,
@@ -379,6 +401,10 @@ server.post<{ Params: { id: string } }>('/graph/:id/redo', async (req) => {
   
   if (result.success) {
     server.log.info({ workflowId }, 'Redo successful');
+    try {
+      workflowMapIndex = buildWorkflowMap(graphManager.listWorkflows(), process.env.N8N_WEBHOOK_BASE);
+      sendSse('workflow_map_updated', { updatedAt: workflowMapIndex.updatedAt, edges: workflowMapIndex.edges.length });
+    } catch {}
     return { 
       ok: true,
       redoneOperations: result.appliedOperations
@@ -401,6 +427,19 @@ server.get<{ Params: { id: string } }>('/graph/:id', async (req) => {
   }
 });
 
+// List workflows overview
+server.get('/workflows', async () => {
+  const list = graphManager.listWorkflows().map(w => ({
+    id: w.id,
+    name: w.name,
+    nodes: w.nodes.length,
+    connections: w.connections.length,
+    version: w.version,
+    lastModified: w.lastModified
+  }));
+  return { ok: true, total: list.length, items: list };
+});
+
 server.get('/patterns', async () => {
   const categories = patternMatcher.getCategories();
   return {
@@ -417,12 +456,11 @@ server.get('/patterns', async () => {
   };
 });
 
-// --- Workflow Map (stub): static index and endpoints ---
-type WorkflowMapEdge = { fromWorkflowId: string; toWorkflowId: string; via: 'executeWorkflow' | 'webhook' | 'http' };
-const workflowMap: WorkflowMapEdge[] = [];
+// --- Workflow Map: in-memory index, refreshed on changes ---
+let workflowMapIndex: WorkflowMapIndex = { edges: [], updatedAt: Date.now() };
 
 server.get('/workflow-map', async () => {
-  return { ok: true, edges: workflowMap };
+  return { ok: true, edges: workflowMapIndex.edges, updatedAt: workflowMapIndex.updatedAt };
 });
 
 server.get('/workflow-map/live', async (_req, reply) => {
@@ -438,7 +476,7 @@ server.get('/workflow-map/live', async (_req, reply) => {
     } catch {}
   };
   send('hello', { ts: Date.now(), kind: 'workflow-map' });
-  const interval = setInterval(() => send('live', { ts: Date.now(), edges: workflowMap.length }), 20000);
+  const interval = setInterval(() => send('live', { ts: Date.now(), edges: workflowMapIndex.edges.length }), 20000);
   _req.raw.on('close', () => clearInterval(interval));
   return reply;
 });
@@ -517,3 +555,59 @@ export { server };
 if (import.meta.url === `file://${process.argv[1]}`) {
   start();
 }
+
+// --- n8n-style REST aliases for upstream compatibility ---
+// Helper to alias non-streaming endpoints via internal inject
+async function proxyTo(targetUrl: string, method: 'GET' | 'POST', req: any, reply: any) {
+  const params = (req.params || {}) as Record<string, string>;
+  let url = targetUrl;
+  // replace :id and other simple params
+  for (const [k, v] of Object.entries(params)) {
+    url = url.replace(`:${k}`, encodeURIComponent(String(v)));
+  }
+  const injected = await server.inject({
+    method,
+    url,
+    payload: method === 'POST' ? (req.body ?? undefined) : undefined,
+    headers: req.headers as Record<string, string>
+  });
+  reply.code(injected.statusCode);
+  // Copy minimal headers
+  for (const [h, v] of Object.entries(injected.headers)) {
+    if (typeof v === 'string') reply.header(h, v);
+  }
+  try {
+    return reply.send(injected.body);
+  } catch {
+    return reply.send(injected.payload);
+  }
+}
+
+// Health / Metrics
+server.get('/rest/ai/health', async (req, reply) => proxyTo('/api/v1/ai/health', 'GET', req, reply));
+server.get('/rest/ai/metrics', async (req, reply) => proxyTo('/api/v1/ai/metrics', 'GET', req, reply));
+
+// Introspect
+server.get('/rest/ai/introspect/nodes', async (req, reply) => proxyTo('/introspect/nodes', 'GET', req, reply));
+
+// Planner
+server.post('/rest/ai/plan', async (req, reply) => proxyTo('/plan', 'POST', req, reply));
+
+// Graph operations
+server.post('/rest/ai/graph/:id/batch', async (req, reply) => proxyTo('/graph/:id/batch', 'POST', req, reply));
+server.post('/rest/ai/graph/:id/validate', async (req, reply) => proxyTo('/graph/:id/validate', 'POST', req, reply));
+server.post('/rest/ai/graph/:id/simulate', async (req, reply) => proxyTo('/graph/:id/simulate', 'POST', req, reply));
+server.post('/rest/ai/graph/:id/critic', async (req, reply) => proxyTo('/graph/:id/critic', 'POST', req, reply));
+server.post('/rest/ai/graph/:id/undo', async (req, reply) => proxyTo('/graph/:id/undo', 'POST', req, reply));
+server.post('/rest/ai/graph/:id/redo', async (req, reply) => proxyTo('/graph/:id/redo', 'POST', req, reply));
+server.get('/rest/ai/graph/:id', async (req, reply) => proxyTo('/graph/:id', 'GET', req, reply));
+
+// Workflows overview
+server.get('/rest/ai/workflows', async (req, reply) => proxyTo('/workflows', 'GET', req, reply));
+
+// Workflow Map (REST)
+server.get('/rest/ai/workflow-map', async (req, reply) => proxyTo('/workflow-map', 'GET', req, reply));
+
+// Streaming endpoints: use redirect to original SSE routes
+server.get('/rest/ai/workflow-map/live', async (_req, reply) => reply.redirect(307, '/workflow-map/live'));
+server.get('/rest/ai/events', async (_req, reply) => reply.redirect(307, '/events'));

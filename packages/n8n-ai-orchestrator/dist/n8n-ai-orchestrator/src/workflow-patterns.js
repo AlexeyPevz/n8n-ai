@@ -3,6 +3,21 @@
  */
 export const WORKFLOW_PATTERNS = [
     {
+        name: 'foreach-and-branching',
+        keywords: ['for each', 'foreach', 'каждого', 'для каждого', 'ветвление', 'if', 'ошибка', 'telegram'],
+        nodes: [
+            { type: 'n8n-nodes-base.httpRequest', typeVersion: 4, name: 'HTTP Request', parameters: { method: 'GET', url: 'https://jsonplaceholder.typicode.com/users', responseFormat: 'json' } },
+            { type: 'n8n-nodes-base.code', typeVersion: 2, name: 'For Each', parameters: { jsCode: 'return items.map(i=>({json:i.json}));' } },
+            { type: 'n8n-nodes-base.if', typeVersion: 1, name: 'IF Email Domain', parameters: { conditions: { string: [{ value1: '={{ $json.email }}', operation: 'contains', value2: '@' }] } } },
+            { type: 'n8n-nodes-base.telegram', typeVersion: 1, name: 'Telegram Notify', parameters: { operation: 'sendMessage', text: 'Invalid email detected' } }
+        ],
+        connections: [
+            { from: 'HTTP Request', to: 'For Each' },
+            { from: 'For Each', to: 'IF Email Domain' },
+            { from: 'IF Email Domain', to: 'Telegram Notify' }
+        ]
+    },
+    {
         name: 'webhook-to-slack',
         keywords: ['webhook', 'slack', 'notification', 'alert'],
         nodes: [
@@ -234,6 +249,14 @@ export const WORKFLOW_PATTERNS = [
             { from: 'Check Inventory', to: 'Low Stock?' },
             { from: 'Low Stock?', to: 'Alert' }
         ]
+    },
+    {
+        name: 'insert-after-existing',
+        keywords: ['insert after', 'после', 'логирование', 'logging', 'debug'],
+        nodes: [
+            { type: 'n8n-nodes-base.code', typeVersion: 2, name: 'Log Response', parameters: { jsCode: 'console.log($json); return items;' } }
+        ],
+        connections: []
     }
 ];
 /**

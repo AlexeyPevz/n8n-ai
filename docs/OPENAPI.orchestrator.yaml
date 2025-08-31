@@ -32,6 +32,41 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/OperationBatch'
+  /graph/{id}/batch:
+    post:
+      tags: [Validation]
+      summary: Apply OperationBatch to a workflow with pre-validation and rollback on errors
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OperationBatch'
+      responses:
+        "200":
+          description: Apply result
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+  /graph/{id}:
+    get:
+      tags: [Validation]
+      summary: Get current workflow state
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Workflow state
   /graph/{id}/validate:
     post:
       tags: [Validation]
@@ -97,6 +132,13 @@ paths:
                   before: { $ref: '#/components/schemas/ValidateResponse' }
                   after: { $ref: '#/components/schemas/ValidateResponse' }
                   error: { type: string }
+  /workflows:
+    get:
+      tags: [Validation]
+      summary: List workflows overview
+      responses:
+        "200":
+          description: List of workflows
   /workflow-map:
     get:
       tags: [Validation]
@@ -118,6 +160,46 @@ paths:
       responses:
         "200":
           description: text/event-stream
+  /rest/ai/plan:
+    post:
+      tags: [Planning]
+      summary: Alias to /plan (n8n-style)
+  /rest/ai/graph/{id}/batch:
+    post:
+      tags: [Validation]
+      summary: Alias to /graph/{id}/batch (n8n-style)
+  /rest/ai/graph/{id}:
+    get:
+      tags: [Validation]
+      summary: Alias to /graph/{id} (n8n-style)
+  /rest/ai/graph/{id}/validate:
+    post:
+      tags: [Validation]
+      summary: Alias to /graph/{id}/validate (n8n-style)
+  /rest/ai/graph/{id}/simulate:
+    post:
+      tags: [Simulation]
+      summary: Alias to /graph/{id}/simulate (n8n-style)
+  /rest/ai/graph/{id}/critic:
+    post:
+      tags: [Validation]
+      summary: Alias to /graph/{id}/critic (n8n-style)
+  /rest/ai/workflows:
+    get:
+      tags: [Validation]
+      summary: Alias to /workflows (n8n-style)
+  /rest/ai/workflow-map:
+    get:
+      tags: [Validation]
+      summary: Alias to /workflow-map (n8n-style)
+  /rest/ai/workflow-map/live:
+    get:
+      tags: [Events]
+      summary: Redirect to /workflow-map/live (n8n-style)
+  /rest/ai/events:
+    get:
+      tags: [Events]
+      summary: Redirect to /events (n8n-style)
 components:
   schemas:
     OperationBatch:
