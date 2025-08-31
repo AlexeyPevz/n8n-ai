@@ -199,7 +199,10 @@ curl -N http://localhost:3000/events | sed -n '1,10p'
 * `POST /graph/:id/batch`
 * `POST /graph/:id/validate`
 * `POST /graph/:id/simulate`
+* `GET /audit/logs` — аудит операций
+* `GET /metrics` — метрики Prometheus
 * SSE `/events`
+* `/workflow-map` и `/workflow-map/live` (SSE) — карта/живые статусы и стоимость (базово)
 * OpenAPI (Hooks): `docs/OPENAPI.yaml`
 * OpenAPI (Orchestrator/Planner): `docs/OPENAPI.orchestrator.yaml`
 
