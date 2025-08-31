@@ -282,6 +282,12 @@ jobs:
         run: |
           (pnpm -C packages/n8n-ai-panel preview --port 3001 &) && sleep 2
           UI_BASE=http://localhost:3001 pnpm -C packages/n8n-ai-panel e2e:ui
+      - name: Upload UI e2e artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ui-e2e-artifacts
+          path: packages/n8n-ai-panel/test-results
       - name: Stop orchestrator
         if: always()
         run: kill $(cat server.pid) || true
