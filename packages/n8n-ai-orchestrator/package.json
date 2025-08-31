@@ -10,7 +10,8 @@
     "lint": "eslint --ext .ts src",
     "test": "vitest run --exclude src/e2e.test.ts --coverage.enabled=true --coverage.reporter=lcov --coverage.reporter=text",
     "test:e2e": "vitest run src/e2e.test.ts",
-    "test:with-server": "tsx src/test-server.ts & SERVER_PID=$! && sleep 2 && vitest run src/e2e.test.ts; kill $SERVER_PID"
+    "test:with-server": "tsx src/test-server.ts & SERVER_PID=$! && sleep 2 && vitest run src/e2e.test.ts; kill $SERVER_PID",
+    "test:rest:e2e": "tsx src/test-server.ts & SERVER_PID=$! && sleep 2 && vitest run src/rest.e2e.test.ts; kill $SERVER_PID"
   },
   "dependencies": {
     "@fastify/cors": "^9.0.1",

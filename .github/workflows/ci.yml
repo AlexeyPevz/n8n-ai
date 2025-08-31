@@ -254,6 +254,48 @@ jobs:
         if: always()
         run: docker compose down
 
+  ui-e2e:
+    name: Panel UI E2E (Playwright)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v2
+        with:
+          version: 8.15.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+      - name: Install dependencies
+        run: pnpm install
+      - name: Build panel
+        run: pnpm -C packages/n8n-ai-panel build
+      - name: Install Playwright
+        run: pnpm -C packages/n8n-ai-panel e2e:install
+      - name: Run UI e2e (preview)
+        run: |
+          (pnpm -C packages/n8n-ai-panel preview --port 3001 &) && sleep 2
+          pnpm -C packages/n8n-ai-panel e2e:ui
+
+  rest-e2e:
+    name: Orchestrator REST alias E2E
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v2
+        with:
+          version: 8.15.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+      - name: Install dependencies
+        run: pnpm install
+      - name: Build packages
+        run: pnpm run build
+      - name: Run REST E2E
+        run: pnpm -C packages/n8n-ai-orchestrator test:rest:e2e
+
   type-check:
     name: Type Check
     runs-on: ubuntu-latest
