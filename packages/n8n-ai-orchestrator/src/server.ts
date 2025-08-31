@@ -6,6 +6,7 @@ import { patternMatcher } from './pattern-matcher.js';
 import { graphManager } from './graph-manager.js';
 import { metrics, METRICS } from './metrics.js';
 import { buildWorkflowMap, type WorkflowMapIndex } from './workflow-map.js';
+import { enforcePolicies } from './policies.js';
 import { handleError, errorToResponse, ValidationError, ValidationFailedError, NotFoundError, AmbiguousPromptError } from './error-handler.js';
 import { randomUUID } from 'node:crypto';
 
@@ -264,6 +265,19 @@ server.post<{
   }
   
   // Применяем операции через GraphManager
+  // Политики диффов
+  const current = graphManager.getWorkflow(workflowId)!;
+  const policyViolations = enforcePolicies(parsed.data as any, current as any, {
+    maxNodesAdded: Number(process.env.POLICY_MAX_NODES_ADDED ?? 20),
+    maxOpsPerBatch: Number(process.env.POLICY_MAX_OPS_PER_BATCH ?? 500),
+    maxPayloadBytes: Number(process.env.POLICY_MAX_PAYLOAD_BYTES ?? 256 * 1024),
+    domainBlacklist: (process.env.POLICY_DOMAIN_BLACKLIST ?? '').split(',').map(s => s.trim()).filter(Boolean)
+  });
+  if (policyViolations.length) {
+    reply.status(429);
+    return { ok: false, error: 'policy_violation', violations: policyViolations };
+  }
+
   const result = graphManager.applyBatch(workflowId, parsed.data);
   
   if (result.success) {
