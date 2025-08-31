@@ -24,10 +24,12 @@
     "check:types": "pnpm -r exec tsc --noEmit"
   },
   "devDependencies": {
-    "tsx": "^4.16.2",
-    "typescript": "^5.5.4",
+    "@types/node": "20",
     "@typescript-eslint/eslint-plugin": "^6.0.0",
     "@typescript-eslint/parser": "^6.0.0",
-    "eslint": "^8.0.0"
+    "@vitest/coverage-v8": "^3.2.4",
+    "eslint": "^8.0.0",
+    "tsx": "^4.16.2",
+    "typescript": "^5.5.4"
   }
 }

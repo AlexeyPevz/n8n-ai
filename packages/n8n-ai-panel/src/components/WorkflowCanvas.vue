@@ -1,9 +1,19 @@
 <template>
   <div class="workflow-canvas">
-    <div class="canvas-container" ref="canvasRef">
+    <div
+      ref="canvasRef"
+      class="canvas-container"
+    >
       <!-- Простая визуализация нод и связей -->
-      <svg class="connections-layer" :width="canvasSize.width" :height="canvasSize.height">
-        <g v-for="connection in connections" :key="`${connection.from}-${connection.to}`">
+      <svg
+        class="connections-layer"
+        :width="canvasSize.width"
+        :height="canvasSize.height"
+      >
+        <g
+          v-for="connection in connections"
+          :key="`${connection.from}-${connection.to}`"
+        >
           <path
             :d="getConnectionPath(connection)"
             :class="['connection', getConnectionClass(connection)]"
@@ -20,23 +30,32 @@
         :style="getNodeStyle(node)"
         @click="$emit('node-click', node)"
       >
-        <div class="node-icon">{{ getNodeIcon(node.type) }}</div>
-        <div class="node-name">{{ node.name }}</div>
-        <div v-if="node.annotation" class="node-annotation">{{ node.annotation }}</div>
+        <div class="node-icon">
+          {{ getNodeIcon(node.type) }}
+        </div>
+        <div class="node-name">
+          {{ node.name }}
+        </div>
+        <div
+          v-if="node.annotation"
+          class="node-annotation"
+        >
+          {{ node.annotation }}
+        </div>
       </div>
     </div>
     
     <div class="canvas-legend">
       <div class="legend-item">
-        <span class="legend-color added"></span>
+        <span class="legend-color added" />
         <span>Добавлено</span>
       </div>
       <div class="legend-item">
-        <span class="legend-color modified"></span>
+        <span class="legend-color modified" />
         <span>Изменено</span>
       </div>
       <div class="legend-item">
-        <span class="legend-color deleted"></span>
+        <span class="legend-color deleted" />
         <span>Удалено</span>
       </div>
     </div>
@@ -58,6 +77,7 @@ interface Props {
 }
 
 const props = defineProps<Props>();
+defineEmits<{ (e: 'node-click', node: Node): void }>();
 const canvasRef = ref<HTMLElement>();
 
 const canvasSize = computed(() => ({
@@ -68,8 +88,8 @@ const canvasSize = computed(() => ({
 const nodePositions = computed(() => {
   // Простой layout алгоритм
   const positions: Record<string, { x: number; y: number }> = {};
-  let x = 100;
-  let y = 100;
+  const x = 100;
+  const y = 100;
   
   props.nodes.forEach((node, index) => {
     positions[node.id] = {

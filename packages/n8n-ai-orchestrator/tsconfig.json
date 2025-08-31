@@ -4,5 +4,8 @@
     "outDir": "dist",
     "declaration": false
   },
-  "include": ["src"]
+  "include": ["src"],
+  "exclude": [
+    "src/**/*.test.ts"
+  ]
 }

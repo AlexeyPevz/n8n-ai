@@ -2,16 +2,39 @@
   <div class="error-card">
     <div class="hdr">
       <span class="code">{{ code }}</span>
-      <button class="x" @click="$emit('dismiss')">×</button>
+      <button
+        class="x"
+        @click="$emit('dismiss')"
+      >
+        ×
+      </button>
     </div>
-    <div class="msg">{{ message }}</div>
-    <div v-if="suggestion" class="suggestion">{{ suggestion }}</div>
-    <div v-if="actions && actions.length" class="actions">
-      <button v-for="a in actions" :key="a" class="action" @click="$emit('action', a)">
+    <div class="msg">
+      {{ message }}
+    </div>
+    <div
+      v-if="suggestion"
+      class="suggestion"
+    >
+      {{ suggestion }}
+    </div>
+    <div
+      v-if="actions && actions.length"
+      class="actions"
+    >
+      <button
+        v-for="a in actions"
+        :key="a"
+        class="action"
+        @click="$emit('action', a)"
+      >
         {{ label(a) }}
       </button>
     </div>
-    <details v-if="details" class="details">
+    <details
+      v-if="details"
+      class="details"
+    >
       <summary>Подробности</summary>
       <pre>{{ pretty(details) }}</pre>
     </details>
@@ -20,6 +43,7 @@
 
 <script setup lang="ts">
 defineProps<{ code: string; message: string; suggestion?: string; actions?: string[]; details?: unknown }>();
+defineEmits<{ (e: 'dismiss'): void; (e: 'action', action: string): void }>();
 
 function label(action: string): string {
   if (action === 'critic_autofix') return 'Попробовать авто‑исправить';

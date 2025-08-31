@@ -222,6 +222,7 @@ describe('E2E: HTTP GET Workflow Creation', () => {
 
     const webhookPath = 'incoming-users';
     const batchA = {
+      version: 'v1',
       ops: [
         { op: 'add_node', node: { id: 'wh1', name: 'Webhook A', type: 'n8n-nodes-base.webhook', typeVersion: 1, position: [0,0], parameters: { path: webhookPath } } }
       ]
