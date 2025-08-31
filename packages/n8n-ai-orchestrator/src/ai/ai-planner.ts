@@ -4,6 +4,7 @@ import type { AIProvider } from './providers/base.js';
 import { AIProviderFactory } from './providers/factory.js';
 import { getAIConfig, type AIConfig } from './config.js';
 import type { IntrospectAPI } from '../../../n8n-ai-hooks/introspect-api.js';
+import { RAGSystem } from './rag/rag-system.js';
 
 export interface AIPlannerContext {
   prompt: string;
@@ -16,10 +17,25 @@ export class AIPlanner {
   private provider: AIProvider;
   private config: AIConfig;
   private nodeSchemaCache: Map<string, any> = new Map();
+  private ragSystem?: RAGSystem;
 
   constructor(config?: AIConfig) {
     this.config = config || getAIConfig();
     this.provider = AIProviderFactory.create(this.config.providers.primary);
+    
+    // Initialize RAG system if enabled
+    if (this.config.features.rag.enabled && process.env.QDRANT_URL) {
+      this.ragSystem = new RAGSystem({
+        vectorStore: {
+          type: 'qdrant',
+          url: process.env.QDRANT_URL,
+          apiKey: process.env.QDRANT_API_KEY,
+          collectionName: this.config.features.rag.collectionName,
+        },
+        embedder: this.provider,
+        topK: this.config.features.rag.topK,
+      });
+    }
   }
 
   async plan(context: AIPlannerContext): Promise<OperationBatch> {
@@ -29,7 +45,7 @@ export class AIPlanner {
       
       // Build the prompt
       const systemPrompt = this.buildSystemPrompt(nodeSchemas);
-      const userPrompt = this.buildUserPrompt(context);
+      const userPrompt = await this.buildUserPrompt(context);
       
       // Call AI
       const response = await this.provider.complete({
@@ -107,11 +123,28 @@ export class AIPlanner {
     return this.config.prompts.systemPrompt.replace('{nodeSchemas}', schemasStr);
   }
 
-  private buildUserPrompt(context: AIPlannerContext): string {
+  private async buildUserPrompt(context: AIPlannerContext): Promise<string> {
     let prompt = this.config.prompts.plannerTemplate
       .replace('{prompt}', context.prompt)
       .replace('{currentWorkflow}', JSON.stringify(context.currentWorkflow || {}, null, 2))
       .replace('{availableNodes}', (context.availableNodes || []).join(', '));
+    
+    // Add RAG context if available
+    if (this.ragSystem) {
+      try {
+        const ragContext = await this.ragSystem.getContext({
+          query: context.prompt,
+          nodeTypes: context.availableNodes,
+          workflowContext: context.currentWorkflow,
+        });
+        
+        if (ragContext) {
+          prompt = ragContext + '\n\n' + prompt;
+        }
+      } catch (error) {
+        console.warn('Failed to get RAG context:', error);
+      }
+    }
     
     // Add examples for better results
     prompt += `

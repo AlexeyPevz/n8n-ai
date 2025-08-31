@@ -29,6 +29,8 @@ function sendSse(event: string, data: unknown): void {
 // Import model selector for AI recommendations
 // TODO: Uncomment when AI module is ready for production
 // import { ModelSelector } from './ai/model-selector.js';
+// import { RAGSystem } from './ai/rag/rag-system.js';
+// import { DocumentIndexer } from './ai/rag/indexer.js';
 
 // Simple fetch with timeout and retries for proxying to n8n hooks
 async function fetchWithRetry(url: string, init: any = {}): Promise<any> {
