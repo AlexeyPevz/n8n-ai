@@ -309,8 +309,28 @@ server.post<{ Params: { id: string } }>('/graph/:id/validate', async (req) => {
   const { id: workflowId } = req.params;
   const url = new URL(req.url, `http://${req.headers.host}`);
   const autofix = url.searchParams.get('autofix') === '1';
+
+  // Optional proxy to hooks if enabled
+  const useHooks = (process.env.USE_HOOKS_VALIDATE === '1' || process.env.USE_HOOKS === '1');
+  if (useHooks) {
+    try {
+      const hooksBase = process.env.N8N_URL ?? 'http://localhost:5678';
+      const headers = pickForwardHeaders(req.headers);
+      const resp = await fetchWithRetry(`${hooksBase}/api/v1/ai/graph/${encodeURIComponent(workflowId)}/validate${autofix ? '?autofix=1' : ''}`, {
+        method: 'POST',
+        headers,
+        timeoutMs: 3000,
+        body: JSON.stringify(req.body ?? {})
+      });
+      const json = await resp.json();
+      if (resp.ok) return json;
+      server.log.warn({ status: resp.status, body: json }, 'Hooks validate returned non-200, falling back to local');
+    } catch (e) {
+      server.log.warn({ error: e }, 'Hooks validate failed, falling back to local');
+    }
+  }
+
   const validationResult = graphManager.validate(workflowId, { autofix });
-  
   return {
     ok: validationResult.valid,
     lints: validationResult.lints
@@ -319,9 +339,28 @@ server.post<{ Params: { id: string } }>('/graph/:id/validate', async (req) => {
 
 server.post<{ Params: { id: string } }>('/graph/:id/simulate', async (req) => {
   const { id: workflowId } = req.params;
-  
+
+  // Optional proxy to hooks if enabled
+  const useHooks = (process.env.USE_HOOKS_SIMULATE === '1' || process.env.USE_HOOKS === '1');
+  if (useHooks) {
+    try {
+      const hooksBase = process.env.N8N_URL ?? 'http://localhost:5678';
+      const headers = pickForwardHeaders(req.headers);
+      const resp = await fetchWithRetry(`${hooksBase}/api/v1/ai/graph/${encodeURIComponent(workflowId)}/simulate`, {
+        method: 'POST',
+        headers,
+        timeoutMs: 3000,
+        body: JSON.stringify(req.body ?? {})
+      });
+      const json = await resp.json();
+      if (resp.ok) return json;
+      server.log.warn({ status: resp.status, body: json }, 'Hooks simulate returned non-200, falling back to local');
+    } catch (e) {
+      server.log.warn({ error: e }, 'Hooks simulate failed, falling back to local');
+    }
+  }
+
   const simulationResult = graphManager.simulate(workflowId);
-  
   return simulationResult;
 });
 
