@@ -516,8 +516,18 @@ server.get('/workflow-map/live', async (_req, reply) => {
       reply.raw.write(`data: ${JSON.stringify(data)}\n\n`);
     } catch {}
   };
+  const summarize = () => {
+    // простая синтетика статусов и стоимости
+    const items = graphManager.listWorkflows().map(w => ({
+      id: w.id,
+      name: w.name,
+      status: 'idle' as const,
+      estimatedCostCents: Math.max(1, Math.min(50, w.nodes.length * 5))
+    }));
+    return { ts: Date.now(), edges: workflowMapIndex.edges.length, workflows: items };
+  };
   send('hello', { ts: Date.now(), kind: 'workflow-map' });
-  const interval = setInterval(() => send('live', { ts: Date.now(), edges: workflowMapIndex.edges.length }), 20000);
+  const interval = setInterval(() => send('live', summarize()), 20000);
   _req.raw.on('close', () => clearInterval(interval));
   return reply;
 });
@@ -570,6 +580,28 @@ server.get('/events', async (req, reply) => {
   }, 15000);
   req.raw.on('close', () => { clearInterval(interval); try { sseClients.delete(reply.raw); } catch {} });
   return reply;
+});
+
+// Prometheus metrics endpoint
+server.get('/metrics', async () => {
+  const snapshot = metrics.getMetrics();
+  const lines: string[] = [];
+  for (const [k, v] of Object.entries(snapshot.counters)) {
+    lines.push(`# TYPE ${k.replace(/\{.*\}$/,'')} counter`);
+    lines.push(`${k} ${v}`);
+  }
+  for (const [k, h] of Object.entries(snapshot.histograms)) {
+    const base = k.replace(/\{.*\}$/,'');
+    lines.push(`# TYPE ${base}_count gauge`);
+    lines.push(`${k}_count ${h.count}`);
+    lines.push(`# TYPE ${base}_p50 gauge`);
+    lines.push(`${k}_p50 ${h.p50}`);
+    lines.push(`# TYPE ${base}_p95 gauge`);
+    lines.push(`${k}_p95 ${h.p95}`);
+    lines.push(`# TYPE ${base}_p99 gauge`);
+    lines.push(`${k}_p99 ${h.p99}`);
+  }
+  return lines.join('\n') + '\n';
 });
 
 async function start() {

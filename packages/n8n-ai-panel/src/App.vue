@@ -206,6 +206,8 @@ const progress = ref<number>(-1);
 const simStats = ref<Record<string, unknown>|null>(null);
 const currentWorkflow = ref<Record<string, unknown>|null>(null);
 const lastError = ref<Record<string, unknown>|null>(null);
+// Live overlay from /workflow-map/live
+const liveOverlay = ref<Array<{ id: string; name: string; status: 'idle' | 'running' | 'error'; estimatedCostCents: number }>>([]);
 
 // Canvas changes tracking
 const canvasChanges = computed(() => {
@@ -311,6 +313,15 @@ onMounted(() => {
   } catch (e) {
     // ignore EventSource init errors in dev
   }
+  try {
+    const mapEs = new EventSource(`${apiBase}/workflow-map/live`);
+    mapEs.addEventListener('live', (ev: MessageEvent) => {
+      try {
+        const data = JSON.parse((ev as unknown as { data: string }).data) as { workflows?: Array<{ id: string; name: string; status: 'idle' | 'running' | 'error'; estimatedCostCents: number }> };
+        if (data?.workflows) liveOverlay.value = data.workflows;
+      } catch {}
+    });
+  } catch {}
 });
 onBeforeUnmount(() => { if (es) { es.close(); es = null; } });
 

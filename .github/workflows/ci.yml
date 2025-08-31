@@ -195,6 +195,8 @@ jobs:
         run: node packages/n8n-ai-orchestrator/dist/server.js & echo $! > server.pid && sleep 2
       - name: Check /workflow-map
         run: curl -f http://localhost:3000/workflow-map | jq .
+      - name: Check /metrics
+        run: curl -f http://localhost:3000/metrics | head -n 20
       - name: Check /workflow-map/live SSE (headers only)
         run: |
           curl -I http://localhost:3000/workflow-map/live | grep -i 'text/event-stream'

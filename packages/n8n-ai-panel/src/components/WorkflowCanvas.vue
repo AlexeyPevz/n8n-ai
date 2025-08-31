@@ -74,6 +74,7 @@ interface Props {
     modified: string[];
     deleted: string[];
   };
+  liveOverlay?: Array<{ id: string; name: string; status: 'idle' | 'running' | 'error'; estimatedCostCents: number }>
 }
 
 const props = defineProps<Props>();
