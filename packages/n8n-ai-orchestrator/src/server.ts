@@ -5,6 +5,7 @@ import { SimplePlanner } from './planner.js';
 import { patternMatcher } from './pattern-matcher.js';
 import { graphManager } from './graph-manager.js';
 import { metrics, METRICS } from './metrics.js';
+import { buildWorkflowMap, type WorkflowMapIndex } from './workflow-map.js';
 import { handleError, errorToResponse, ValidationError, ValidationFailedError, NotFoundError, AmbiguousPromptError } from './error-handler.js';
 import { randomUUID } from 'node:crypto';
 
@@ -272,6 +273,11 @@ server.post<{
       appliedOperations: result.appliedOperations,
       undoId: result.undoId 
     }, 'Operations applied successfully');
+    try {
+      // rebuild workflow map on changes
+      workflowMapIndex = buildWorkflowMap(graphManager.listWorkflows(), process.env.N8N_WEBHOOK_BASE);
+      sendSse('workflow_map_updated', { updatedAt: workflowMapIndex.updatedAt, edges: workflowMapIndex.edges.length });
+    } catch {}
     
     return { 
       ok: true, 
@@ -362,6 +368,10 @@ server.post<{
   
   if (result.success) {
     server.log.info({ workflowId, undoId: result.undoId }, 'Undo successful');
+    try {
+      workflowMapIndex = buildWorkflowMap(graphManager.listWorkflows(), process.env.N8N_WEBHOOK_BASE);
+      sendSse('workflow_map_updated', { updatedAt: workflowMapIndex.updatedAt, edges: workflowMapIndex.edges.length });
+    } catch {}
     return { 
       ok: true, 
       undoId: result.undoId,
@@ -379,6 +389,10 @@ server.post<{ Params: { id: string } }>('/graph/:id/redo', async (req) => {
   
   if (result.success) {
     server.log.info({ workflowId }, 'Redo successful');
+    try {
+      workflowMapIndex = buildWorkflowMap(graphManager.listWorkflows(), process.env.N8N_WEBHOOK_BASE);
+      sendSse('workflow_map_updated', { updatedAt: workflowMapIndex.updatedAt, edges: workflowMapIndex.edges.length });
+    } catch {}
     return { 
       ok: true,
       redoneOperations: result.appliedOperations
@@ -401,6 +415,19 @@ server.get<{ Params: { id: string } }>('/graph/:id', async (req) => {
   }
 });
 
+// List workflows overview
+server.get('/workflows', async () => {
+  const list = graphManager.listWorkflows().map(w => ({
+    id: w.id,
+    name: w.name,
+    nodes: w.nodes.length,
+    connections: w.connections.length,
+    version: w.version,
+    lastModified: w.lastModified
+  }));
+  return { ok: true, total: list.length, items: list };
+});
+
 server.get('/patterns', async () => {
   const categories = patternMatcher.getCategories();
   return {
@@ -417,12 +444,11 @@ server.get('/patterns', async () => {
   };
 });
 
-// --- Workflow Map (stub): static index and endpoints ---
-type WorkflowMapEdge = { fromWorkflowId: string; toWorkflowId: string; via: 'executeWorkflow' | 'webhook' | 'http' };
-const workflowMap: WorkflowMapEdge[] = [];
+// --- Workflow Map: in-memory index, refreshed on changes ---
+let workflowMapIndex: WorkflowMapIndex = { edges: [], updatedAt: Date.now() };
 
 server.get('/workflow-map', async () => {
-  return { ok: true, edges: workflowMap };
+  return { ok: true, edges: workflowMapIndex.edges, updatedAt: workflowMapIndex.updatedAt };
 });
 
 server.get('/workflow-map/live', async (_req, reply) => {
@@ -438,7 +464,7 @@ server.get('/workflow-map/live', async (_req, reply) => {
     } catch {}
   };
   send('hello', { ts: Date.now(), kind: 'workflow-map' });
-  const interval = setInterval(() => send('live', { ts: Date.now(), edges: workflowMap.length }), 20000);
+  const interval = setInterval(() => send('live', { ts: Date.now(), edges: workflowMapIndex.edges.length }), 20000);
   _req.raw.on('close', () => clearInterval(interval));
   return reply;
 });
