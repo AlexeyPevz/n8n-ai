@@ -7,6 +7,7 @@ import { graphManager } from './graph-manager.js';
 import { metrics, METRICS } from './metrics.js';
 import { buildWorkflowMap, type WorkflowMapIndex } from './workflow-map.js';
 import { handleError, errorToResponse, ValidationError, ValidationFailedError, NotFoundError, AmbiguousPromptError } from './error-handler.js';
+import { getDiffPolicies } from './config.js';
 import { randomUUID } from 'node:crypto';
 
 const server = Fastify({ logger: true });
@@ -263,8 +264,7 @@ server.post<{
     return { ok: false, error: 'invalid_operation_batch', issues: parsed.error.format() };
   }
   // Diff policies (basic)
-  const policyMaxAdd = Number(process.env.DIFF_POLICY_MAX_ADD_NODES ?? 10);
-  const blacklist = (process.env.DIFF_POLICY_DOMAIN_BLACKLIST ?? '').split(',').map(s => s.trim()).filter(Boolean);
+  const { maxAddNodes: policyMaxAdd, domainBlacklist: blacklist } = getDiffPolicies();
   const addCount = parsed.data.ops.filter((op: any) => op.op === 'add_node').length;
   if (addCount > policyMaxAdd) {
     return { ok: false, error: 'policy_violation', details: { rule: 'max_add_nodes', limit: policyMaxAdd, actual: addCount } };
