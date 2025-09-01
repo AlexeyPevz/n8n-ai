@@ -1,20 +1,3 @@
-import { getSecurityPreset } from './security-config.js';
-export async function registerSecurityRoutes(server) {
-    server.get('/api/v1/ai/security', async () => {
-        const cfg = getSecurityPreset();
-        return {
-            features: {
-                rateLimit: !!cfg.rateLimit,
-                authentication: (cfg.auth?.apiKeys?.length || 0) > 0,
-                encryption: true,
-                audit: process.env.SECURITY_ENABLE_AUDIT === 'true',
-            },
-        };
-    });
-}
-export async function registerSecurityUtilities(_server) {
-    // Placeholder for utilities (token mint, key mgmt, etc.)
-}
 import { z } from 'zod';
 import { SecurityAuditor, generateSecurityReport } from './security-audit.js';
 import { validateInput, generateSecureToken, hashSensitiveData } from './security-middleware.js';
@@ -71,7 +54,8 @@ export async function registerSecurityRoutes(server) {
             });
         }
         const auditor = new SecurityAuditor();
-        const targetPath = request.body.targetPath || process.cwd();
+        const body = request.body;
+        const targetPath = body?.targetPath || process.cwd();
         try {
             const result = await auditor.runAudit(targetPath);
             const report = generateSecurityReport(result);
@@ -102,7 +86,8 @@ export async function registerSecurityRoutes(server) {
             })),
         ],
     }, async (request, reply) => {
-        const { length = 32, purpose } = request.body;
+        const body = request.body;
+        const { length = 32, purpose } = body || {};
         const token = generateSecureToken(length);
         const hashedToken = hashSensitiveData(token);
         // Log token generation
@@ -126,7 +111,8 @@ export async function registerSecurityRoutes(server) {
             })),
         ],
     }, async (request, reply) => {
-        const { schemaType, data } = request.body;
+        const body = request.body;
+        const { schemaType, data } = body || {};
         try {
             let schema;
             switch (schemaType) {
@@ -155,7 +141,10 @@ export async function registerSecurityRoutes(server) {
                     errors: error.errors,
                 };
             }
-            throw error;
+            return {
+                valid: false,
+                errors: [{ message: error?.message || 'Unknown error' }],
+            };
         }
     });
     // Security headers test endpoint
@@ -253,7 +242,8 @@ export async function registerSecurityUtilities(server) {
             })),
         ],
     }, async (request, reply) => {
-        const { password } = request.body;
+        const body = request.body;
+        const { password } = body || {};
         const checks = {
             length: password.length >= 12,
             uppercase: /[A-Z]/.test(password),
@@ -281,7 +271,8 @@ export async function registerSecurityUtilities(server) {
             })),
         ],
     }, async (request, reply) => {
-        const { url } = request.body;
+        const body = request.body;
+        const { url } = body || {};
         try {
             const parsed = new URL(url);
             const checks = {

@@ -12,13 +12,10 @@ export class DocumentIndexer {
      * Index all builtin n8n nodes
      */
     async indexBuiltinNodes() {
-        console.log('Loading builtin nodes...');
+        // Using structured logs would be preferable in production
         const nodes = loadBuiltinNodes();
-        console.log(`Found ${nodes.length} builtin nodes`);
         const nodeDescriptions = nodes.map(n => n.description).filter(Boolean);
-        console.log(`Indexing ${nodeDescriptions.length} node descriptions...`);
         await this.ragSystem.indexNodeTypes(nodeDescriptions);
-        console.log('Builtin nodes indexed successfully');
     }
     /**
      * Index common workflow patterns
@@ -127,7 +124,6 @@ export class DocumentIndexer {
                 tags: ['webhook', 'api', 'conditional', 'error-handling'],
             },
         ];
-        console.log(`Indexing ${patterns.length} workflow patterns...`);
         for (const pattern of patterns) {
             await this.ragSystem.indexWorkflowExample(pattern.workflow, {
                 title: pattern.title,
@@ -135,7 +131,6 @@ export class DocumentIndexer {
                 tags: pattern.tags,
             });
         }
-        console.log('Workflow patterns indexed successfully');
     }
     /**
      * Index n8n documentation guides
@@ -199,15 +194,13 @@ Performance tips:
                 category: 'advanced-guide',
             },
         ];
-        console.log(`Indexing ${guides.length} documentation guides...`);
         for (const guide of guides) {
             const doc = DocumentProcessor.processGuide(guide.content, {
                 title: guide.title,
                 category: guide.category,
             });
-            await this.ragSystem.vectorStore.upsert([doc]);
+            await this.ragSystem.upsertDocuments([doc]);
         }
-        console.log('Documentation guides indexed successfully');
     }
     /**
      * Get indexing statistics
@@ -220,7 +213,6 @@ Performance tips:
  * CLI tool to index documents
  */
 export async function runIndexer() {
-    console.log('Starting document indexer...');
     // Initialize AI provider
     const config = getAIConfig();
     const provider = AIProviderFactory.create(config.providers.primary);
@@ -243,8 +235,6 @@ export async function runIndexer() {
         await indexer.indexGuides();
         // Show stats
         const stats = await indexer.getStats();
-        console.log('\nIndexing complete!');
-        console.log('Statistics:', JSON.stringify(stats, null, 2));
     }
     catch (error) {
         console.error('Indexing failed:', error);

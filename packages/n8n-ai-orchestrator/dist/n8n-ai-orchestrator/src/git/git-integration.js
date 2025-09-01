@@ -217,7 +217,7 @@ export class GitIntegration {
     generateDiffUrl(branch, commitHash) {
         // This would vary by provider
         if (this.config.pullRequest?.provider === 'github') {
-            const { stdout: remoteUrl } = execSync(`git config --get remote.${this.config.remote}.url`).toString();
+            const remoteUrl = execSync(`git config --get remote.${this.config.remote}.url`).toString();
             const repoInfo = this.parseGitHubUrl(remoteUrl.trim());
             if (repoInfo) {
                 return `https://github.com/${repoInfo.owner}/${repoInfo.repo}/commit/${commitHash}`;

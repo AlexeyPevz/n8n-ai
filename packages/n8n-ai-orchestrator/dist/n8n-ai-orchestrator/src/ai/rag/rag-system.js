@@ -24,17 +24,14 @@ export class RAGSystem {
     async initialize() {
         if (this.isInitialized)
             return;
-        console.log('Initializing RAG system...');
         await this.vectorStore.ensureCollection();
         // Check if we need to populate initial data
         const count = await this.vectorStore.count();
         if (count === 0) {
-            console.log('No documents in vector store, skipping population for now');
             // In production, this would load initial n8n documentation
             // await this.populateInitialData();
         }
         this.isInitialized = true;
-        console.log(`RAG system initialized with ${count} documents`);
     }
     /**
      * Index node types into the vector store
@@ -56,7 +53,6 @@ export class RAGSystem {
         for (let i = 0; i < chunkedDocs.length; i += batchSize) {
             const batch = chunkedDocs.slice(i, i + batchSize);
             await this.vectorStore.upsert(batch);
-            console.log(`Indexed ${i + batch.length}/${chunkedDocs.length} documents`);
         }
     }
     /**
@@ -110,6 +106,13 @@ export class RAGSystem {
             ...sections,
             '---',
         ].join('\n');
+    }
+    /**
+     * Public helper to upsert documents without exposing the underlying store
+     */
+    async upsertDocuments(documents) {
+        await this.initialize();
+        await this.vectorStore.upsert(documents);
     }
     /**
      * Generate enhanced prompt with RAG context

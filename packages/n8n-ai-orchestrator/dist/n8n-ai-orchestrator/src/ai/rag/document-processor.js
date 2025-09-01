@@ -146,7 +146,7 @@ export class DocumentProcessor {
                 const type = prop.type;
                 sections.push(`- ${prop.displayName}${required}: ${type} - ${prop.description || 'No description'}`);
                 if (prop.options && prop.options.length > 0) {
-                    const optionsList = prop.options.map(opt => typeof opt === 'object' ? opt.name : opt).join(', ');
+                    const optionsList = prop.options.map((opt) => typeof opt === 'object' ? opt.name : opt).join(', ');
                     sections.push(`  Options: ${optionsList}`);
                 }
             }

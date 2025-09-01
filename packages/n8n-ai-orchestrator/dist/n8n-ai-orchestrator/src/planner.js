@@ -22,7 +22,8 @@ export class SimplePlanner {
             }
             catch (error) {
                 // AI planner failed, fall back to pattern matching
-                metrics.ai_errors.labels({ model: 'unknown', error: 'planning_failed' }).inc();
+                // Минимальная фиксация: увеличим счётчик ошибок планирования через generic API
+                metrics.increment('ai_planning_errors_total', { model: 'unknown', error: 'planning_failed' });
             }
         }
         // Fallback to pattern-based planning
@@ -70,7 +71,7 @@ export class SimplePlanner {
         if (matchResults.length > 0) {
             const bestMatch = matchResults[0];
             // Track pattern match in metrics
-            metrics.pattern_matches.labels({ pattern: bestMatch.pattern.name }).inc();
+            metrics.increment('pattern_matches_total', { pattern: bestMatch.pattern.name });
             const operations = generateOperationsFromPattern(bestMatch.pattern);
             // Если запрос про "insert after" — добавим соединение к целевой ноде, если она есть
             if (promptLower.includes('insert after') || promptLower.includes('после')) {

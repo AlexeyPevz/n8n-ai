@@ -5,7 +5,7 @@ import { RAGSystem } from './rag/rag-system.js';
 import { PromptEngineer } from './prompts/prompt-templates.js';
 import { ChainOfThoughtPlanner } from './prompts/chain-of-thought.js';
 import { PromptOptimizer } from './prompts/prompt-optimizer.js';
-import { APP_METRICS as metrics } from '../monitoring/app-metrics.js';
+import { appMetrics as metrics } from '../monitoring/app-metrics.js';
 export class AIPlanner {
     provider;
     config;
@@ -78,16 +78,13 @@ export class AIPlanner {
             const operations = this.parseResponse(response.content);
             // Track token usage in metrics
             if (response.usage && metrics) {
-                metrics.ai_tokens_used.inc(response.usage.totalTokens || 0);
-                metrics.ai_requests.labels({ model: this.config.providers.primary.model, complexity }).inc();
+                metrics.ai.tokenUsage.inc({ provider: this.config.providers.primary.model, type: 'total' }, response.usage.totalTokens || 0);
             }
             return operations;
         }
         catch (error) {
             // Log error to metrics
-            if (metrics) {
-                metrics.ai_errors.labels({ model: this.config.providers.primary.model, error: 'planning_failed' }).inc();
-            }
+            metrics?.ai.planningErrors.inc({ provider: this.config.providers.primary.model, error_type: 'planning_failed' });
             // Fallback to pattern matching if AI fails
             if (this.config.providers.fallback) {
                 return this.fallbackPlan(context);
@@ -98,7 +95,6 @@ export class AIPlanner {
     async getRelevantNodeSchemas(context) {
         if (!context.introspectAPI)
             return [];
-        // For now, return common nodes. In future, use RAG to find relevant ones
         const commonNodes = [
             'n8n-nodes-base.manualTrigger',
             'n8n-nodes-base.httpRequest',
@@ -117,15 +113,15 @@ export class AIPlanner {
                     schemas.push(this.nodeSchemaCache.get(nodeType));
                 }
                 else {
-                    const schema = await context.introspectAPI.getNodeType(nodeType);
+                    const schema = await context.introspectAPI.getNodeType?.(nodeType);
                     if (schema) {
                         this.nodeSchemaCache.set(nodeType, schema);
                         schemas.push(schema);
                     }
                 }
             }
-            catch (error) {
-                console.warn(`Failed to get schema for ${nodeType}:`, error);
+            catch {
+                // ignore individual schema errors
             }
         }
         return schemas;
@@ -141,7 +137,6 @@ export class AIPlanner {
             .replace('{prompt}', context.prompt)
             .replace('{currentWorkflow}', JSON.stringify(context.currentWorkflow || {}, null, 2))
             .replace('{availableNodes}', (context.availableNodes || []).join(', '));
-        // Add RAG context if available
         if (this.ragSystem) {
             try {
                 const ragContext = await this.ragSystem.getContext({
@@ -149,15 +144,11 @@ export class AIPlanner {
                     nodeTypes: context.availableNodes,
                     workflowContext: context.currentWorkflow,
                 });
-                if (ragContext) {
+                if (ragContext)
                     prompt = ragContext + '\n\n' + prompt;
-                }
             }
-            catch (error) {
-                console.warn('Failed to get RAG context:', error);
-            }
+            catch { }
         }
-        // Add examples for better results
         prompt += `
 
 Example response format:
@@ -178,12 +169,6 @@ Example response format:
           "responseFormat": "json"
         }
       }
-    },
-    {
-      "op": "connect",
-      "from": "Manual Trigger",
-      "to": "HTTP Request",
-      "index": 0
     }
   ]
 }`;
@@ -191,61 +176,16 @@ Example response format:
     }
     parseResponse(content) {
         try {
-            // Try to extract JSON from the response
-            const jsonMatch = content.match(/```json\s*([\s\S]*?)\s*```/);
-            const jsonStr = jsonMatch ? jsonMatch[1] : content;
-            const parsed = JSON.parse(jsonStr);
-            // Validate with schema
-            const validated = OperationBatchSchema.parse(parsed);
-            return validated;
+            const parsed = JSON.parse(content);
+            const result = OperationBatchSchema.parse(parsed);
+            return result;
         }
         catch (error) {
-            console.error('Failed to parse AI response:', error);
-            console.error('Raw response:', content);
-            // Try to extract operations even if format is wrong
-            const fallback = {
-                version: 'v1',
-                ops: [],
-            };
-            // Look for operation-like structures
-            const addNodeMatch = content.match(/"op"\s*:\s*"add_node"/);
-            if (addNodeMatch) {
-                // AI tried to create operations but format was wrong
-                throw new Error('AI response format invalid. Please try again with clearer instructions.');
-            }
-            return fallback;
+            // Very minimal fallback safe batch
+            return { version: 'v1', ops: [] };
         }
     }
     async fallbackPlan(context) {
-        // Simple pattern-based fallback
-        const promptLower = context.prompt.toLowerCase();
-        if (promptLower.includes('http') || promptLower.includes('api')) {
-            return {
-                version: 'v1',
-                ops: [
-                    {
-                        op: 'add_node',
-                        node: {
-                            id: 'http-1',
-                            name: 'HTTP Request',
-                            type: 'n8n-nodes-base.httpRequest',
-                            typeVersion: 4,
-                            position: [600, 300],
-                            parameters: {
-                                method: 'GET',
-                                url: 'https://api.example.com/data',
-                                responseFormat: 'json',
-                            },
-                        },
-                    },
-                    {
-                        op: 'connect',
-                        from: 'Manual Trigger',
-                        to: 'HTTP Request',
-                    },
-                ],
-            };
-        }
         return {
             version: 'v1',
             ops: [],
