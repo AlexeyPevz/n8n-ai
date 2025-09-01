@@ -371,7 +371,7 @@ function formatPercentage(value: number): string {
 }
 
 function handleNodeClick(node: MapNode) {
-  console.log('Node clicked:', node);
+  // Node click handler placeholder
   // TODO: Navigate to workflow or show details
 }
 
@@ -433,7 +433,7 @@ function connectWebSocket() {
   ws = new WebSocket(wsUrl);
   
   ws.onopen = () => {
-    console.log('WebSocket connected');
+    // WebSocket connected
     wsConnected.value = true;
     
     // Subscribe to all workflows in the current map
@@ -459,7 +459,7 @@ function connectWebSocket() {
   };
   
   ws.onclose = () => {
-    console.log('WebSocket disconnected');
+    // WebSocket disconnected
     wsConnected.value = false;
     
     // Reconnect after 5 seconds
