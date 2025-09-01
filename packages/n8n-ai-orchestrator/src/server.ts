@@ -1,5 +1,6 @@
 import Fastify from 'fastify';
 import cors from '@fastify/cors';
+import websocket from '@fastify/websocket';
 import { OperationBatchSchema } from '@n8n-ai/schemas';
 import { SimplePlanner } from './planner.js';
 import { patternMatcher } from './pattern-matcher.js';
@@ -16,6 +17,9 @@ import { registerPaginationRoutes, registerPaginationExamples } from './paginati
 import { securityPlugin } from './security/security-middleware.js';
 import { getSecurityPreset } from './security/security-config.js';
 import { registerSecurityRoutes, registerSecurityUtilities } from './security/security-routes.js';
+import { WorkflowMapWebSocketHandler } from './workflow-map/websocket-handler.js';
+import { WorkflowMapService } from './workflow-map/workflow-map-service.js';
+import { registerWorkflowMapRoutes } from './workflow-map/workflow-map-routes.js';
 
 const server = Fastify({ logger: true });
 
@@ -35,7 +39,7 @@ function sendSse(event: string, data: unknown): void {
 
 // Import model selector for AI recommendations
 // TODO: Uncomment when AI module is ready for production
-// import { ModelSelector } from './ai/model-selector.js';
+import { ModelSelector } from './ai/model-selector.js';
 // import { RAGSystem } from './ai/rag/rag-system.js';
 // import { DocumentIndexer } from './ai/rag/indexer.js';
 
@@ -114,6 +118,7 @@ server.addContentTypeParser('application/json', { parseAs: 'string' }, (req, bod
 });
 
 await server.register(cors, { origin: true, credentials: true });
+await server.register(websocket);
 
 // Get security configuration
 const securityConfig = getSecurityPreset();
@@ -134,6 +139,17 @@ await registerPaginationExamples(server);
 // Register security routes
 await registerSecurityRoutes(server);
 await registerSecurityUtilities(server);
+
+// Initialize Workflow Map
+const mapService = new WorkflowMapService({} as any); // TODO: Pass proper introspect API
+await registerWorkflowMapRoutes(server, { mapService });
+
+// Initialize WebSocket handler
+const wsHandler = new WorkflowMapWebSocketHandler(server);
+await wsHandler.initialize();
+
+// Make wsHandler available globally for emitting events
+(global as any).workflowMapWsHandler = wsHandler;
 
 // Global error handler
 server.setErrorHandler((error, request, reply) => {
@@ -642,21 +658,21 @@ server.get('/events', async (req, reply) => {
 
 // AI Model recommendation endpoint
 // TODO: Enable when AI module is ready
-// server.post<{ Body: { prompt: string } }>('/ai/recommend-model', async (req) => {
-//   const { prompt } = req.body;
-//   if (!prompt) {
-//     return { error: 'prompt is required' };
+server.post<{ Body: { prompt: string } }>('/ai/recommend-model', async (req) => {
+  const { prompt } = req.body;
+  if (!prompt) {
+    return { error: 'prompt is required' };
 //   }
 //   
-//   const recommendation = ModelSelector.recommend(prompt);
-//   const requirements = ModelSelector.analyzePrompt(prompt);
+  const recommendation = ModelSelector.recommend(prompt);
+  const requirements = ModelSelector.analyzePrompt(prompt);
 //   
-//   return {
-//     recommendation,
-//     requirements,
-//     availableModels: Object.keys(ModelSelector.MODEL_CAPABILITIES || {}),
-//   };
-// });
+  return {
+    recommendation,
+    requirements,
+    availableModels: Object.keys(ModelSelector.MODEL_CAPABILITIES || {}),
+  };
+});
 
 // Prometheus metrics endpoint
 server.get('/metrics', async () => {

@@ -1,0 +1,375 @@
+import type { FastifyInstance } from 'fastify';
+import { WebSocket } from 'ws';
+import { z } from 'zod';
+
+// Message schemas
+const WorkflowStatusMessageSchema = z.object({
+  type: z.literal('workflow_status'),
+  workflowId: z.string(),
+  status: z.enum(['running', 'success', 'error', 'waiting']),
+  timestamp: z.string().datetime(),
+});
+
+const NodeStatusMessageSchema = z.object({
+  type: z.literal('node_status'),
+  workflowId: z.string(),
+  nodeId: z.string(),
+  status: z.enum(['running', 'success', 'error', 'waiting', 'skipped']),
+  executionTime: z.number().optional(),
+  itemsProcessed: z.number().optional(),
+  error: z.string().optional(),
+  timestamp: z.string().datetime(),
+});
+
+const CostUpdateMessageSchema = z.object({
+  type: z.literal('cost_update'),
+  workflowId: z.string(),
+  nodeId: z.string().optional(),
+  cost: z.number(),
+  costType: z.enum(['tokens', 'api_calls', 'execution_time']),
+  timestamp: z.string().datetime(),
+});
+
+const ConnectionStatusMessageSchema = z.object({
+  type: z.literal('connection_status'),
+  sourceWorkflowId: z.string(),
+  targetWorkflowId: z.string(),
+  active: z.boolean(),
+  throughput: z.number().optional(), // items per second
+  timestamp: z.string().datetime(),
+});
+
+const LiveMessageSchema = z.union([
+  WorkflowStatusMessageSchema,
+  NodeStatusMessageSchema,
+  CostUpdateMessageSchema,
+  ConnectionStatusMessageSchema,
+]);
+
+type LiveMessage = z.infer<typeof LiveMessageSchema>;
+
+// Client subscription
+interface WebSocketClient {
+  ws: WebSocket;
+  subscriptions: Set<string>; // workflow IDs
+  isAlive: boolean;
+}
+
+export class WorkflowMapWebSocketHandler {
+  private clients: Map<WebSocket, WebSocketClient> = new Map();
+  private workflowSubscribers: Map<string, Set<WebSocket>> = new Map();
+  
+  constructor(private server: FastifyInstance) {}
+  
+  /**
+   * Initialize WebSocket handler
+   */
+  async initialize() {
+    // Register WebSocket route
+    await this.server.register(async function (fastify) {
+      fastify.get('/live', { websocket: true }, (connection, req) => {
+        const { socket } = connection;
+        
+        // Create client
+        const client: WebSocketClient = {
+          ws: socket as WebSocket,
+          subscriptions: new Set(),
+          isAlive: true,
+        };
+        
+        this.clients.set(socket as WebSocket, client);
+        
+        // Send initial connection message
+        socket.send(JSON.stringify({
+          type: 'connected',
+          timestamp: new Date().toISOString(),
+        }));
+        
+        // Handle messages
+        socket.on('message', (message) => {
+          try {
+            const data = JSON.parse(message.toString());
+            this.handleClientMessage(socket as WebSocket, data);
+          } catch (error) {
+            socket.send(JSON.stringify({
+              type: 'error',
+              error: 'Invalid message format',
+            }));
+          }
+        });
+        
+        // Handle pong for keepalive
+        socket.on('pong', () => {
+          const client = this.clients.get(socket as WebSocket);
+          if (client) {
+            client.isAlive = true;
+          }
+        });
+        
+        // Handle disconnect
+        socket.on('close', () => {
+          this.handleDisconnect(socket as WebSocket);
+        });
+        
+        socket.on('error', (error) => {
+          req.log.error(error, 'WebSocket error');
+          this.handleDisconnect(socket as WebSocket);
+        });
+      });
+    });
+    
+    // Start heartbeat interval
+    this.startHeartbeat();
+  }
+  
+  /**
+   * Handle client messages
+   */
+  private handleClientMessage(ws: WebSocket, data: any) {
+    const client = this.clients.get(ws);
+    if (!client) return;
+    
+    switch (data.type) {
+      case 'subscribe':
+        this.handleSubscribe(client, data.workflowIds || []);
+        break;
+        
+      case 'unsubscribe':
+        this.handleUnsubscribe(client, data.workflowIds || []);
+        break;
+        
+      case 'ping':
+        ws.send(JSON.stringify({ type: 'pong' }));
+        break;
+        
+      default:
+        ws.send(JSON.stringify({
+          type: 'error',
+          error: `Unknown message type: ${data.type}`,
+        }));
+    }
+  }
+  
+  /**
+   * Handle workflow subscriptions
+   */
+  private handleSubscribe(client: WebSocketClient, workflowIds: string[]) {
+    for (const workflowId of workflowIds) {
+      // Add to client subscriptions
+      client.subscriptions.add(workflowId);
+      
+      // Add to workflow subscribers
+      if (!this.workflowSubscribers.has(workflowId)) {
+        this.workflowSubscribers.set(workflowId, new Set());
+      }
+      this.workflowSubscribers.get(workflowId)!.add(client.ws);
+    }
+    
+    // Send confirmation
+    client.ws.send(JSON.stringify({
+      type: 'subscribed',
+      workflowIds,
+      timestamp: new Date().toISOString(),
+    }));
+    
+    // Send current status for subscribed workflows
+    this.sendCurrentStatus(client, workflowIds);
+  }
+  
+  /**
+   * Handle workflow unsubscriptions
+   */
+  private handleUnsubscribe(client: WebSocketClient, workflowIds: string[]) {
+    for (const workflowId of workflowIds) {
+      // Remove from client subscriptions
+      client.subscriptions.delete(workflowId);
+      
+      // Remove from workflow subscribers
+      const subscribers = this.workflowSubscribers.get(workflowId);
+      if (subscribers) {
+        subscribers.delete(client.ws);
+        if (subscribers.size === 0) {
+          this.workflowSubscribers.delete(workflowId);
+        }
+      }
+    }
+    
+    // Send confirmation
+    client.ws.send(JSON.stringify({
+      type: 'unsubscribed',
+      workflowIds,
+      timestamp: new Date().toISOString(),
+    }));
+  }
+  
+  /**
+   * Handle client disconnect
+   */
+  private handleDisconnect(ws: WebSocket) {
+    const client = this.clients.get(ws);
+    if (!client) return;
+    
+    // Remove from all workflow subscribers
+    for (const workflowId of client.subscriptions) {
+      const subscribers = this.workflowSubscribers.get(workflowId);
+      if (subscribers) {
+        subscribers.delete(ws);
+        if (subscribers.size === 0) {
+          this.workflowSubscribers.delete(workflowId);
+        }
+      }
+    }
+    
+    // Remove client
+    this.clients.delete(ws);
+  }
+  
+  /**
+   * Send current status for workflows
+   */
+  private async sendCurrentStatus(client: WebSocketClient, workflowIds: string[]) {
+    // TODO: Get actual status from execution engine
+    // For now, send mock data
+    for (const workflowId of workflowIds) {
+      const mockStatus: WorkflowStatusMessageSchema = {
+        type: 'workflow_status',
+        workflowId,
+        status: 'waiting',
+        timestamp: new Date().toISOString(),
+      };
+      
+      client.ws.send(JSON.stringify(mockStatus));
+    }
+  }
+  
+  /**
+   * Broadcast message to workflow subscribers
+   */
+  broadcastToWorkflow(workflowId: string, message: LiveMessage) {
+    const subscribers = this.workflowSubscribers.get(workflowId);
+    if (!subscribers) return;
+    
+    const messageStr = JSON.stringify(message);
+    
+    for (const ws of subscribers) {
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.send(messageStr);
+      }
+    }
+  }
+  
+  /**
+   * Broadcast message to all clients
+   */
+  broadcastToAll(message: LiveMessage) {
+    const messageStr = JSON.stringify(message);
+    
+    for (const client of this.clients.values()) {
+      if (client.ws.readyState === WebSocket.OPEN) {
+        client.ws.send(messageStr);
+      }
+    }
+  }
+  
+  /**
+   * Start heartbeat to detect disconnected clients
+   */
+  private startHeartbeat() {
+    setInterval(() => {
+      for (const [ws, client] of this.clients) {
+        if (!client.isAlive) {
+          // Client didn't respond to last ping
+          ws.terminate();
+          this.handleDisconnect(ws);
+        } else {
+          // Send ping
+          client.isAlive = false;
+          ws.ping();
+        }
+      }
+    }, 30000); // 30 seconds
+  }
+  
+  /**
+   * Emit workflow status update
+   */
+  emitWorkflowStatus(workflowId: string, status: 'running' | 'success' | 'error' | 'waiting') {
+    const message: WorkflowStatusMessageSchema = {
+      type: 'workflow_status',
+      workflowId,
+      status,
+      timestamp: new Date().toISOString(),
+    };
+    
+    this.broadcastToWorkflow(workflowId, message);
+  }
+  
+  /**
+   * Emit node status update
+   */
+  emitNodeStatus(
+    workflowId: string,
+    nodeId: string,
+    status: 'running' | 'success' | 'error' | 'waiting' | 'skipped',
+    details?: {
+      executionTime?: number;
+      itemsProcessed?: number;
+      error?: string;
+    }
+  ) {
+    const message: NodeStatusMessageSchema = {
+      type: 'node_status',
+      workflowId,
+      nodeId,
+      status,
+      ...details,
+      timestamp: new Date().toISOString(),
+    };
+    
+    this.broadcastToWorkflow(workflowId, message);
+  }
+  
+  /**
+   * Emit cost update
+   */
+  emitCostUpdate(
+    workflowId: string,
+    cost: number,
+    costType: 'tokens' | 'api_calls' | 'execution_time',
+    nodeId?: string
+  ) {
+    const message: CostUpdateMessageSchema = {
+      type: 'cost_update',
+      workflowId,
+      nodeId,
+      cost,
+      costType,
+      timestamp: new Date().toISOString(),
+    };
+    
+    this.broadcastToWorkflow(workflowId, message);
+  }
+  
+  /**
+   * Emit connection status update
+   */
+  emitConnectionStatus(
+    sourceWorkflowId: string,
+    targetWorkflowId: string,
+    active: boolean,
+    throughput?: number
+  ) {
+    const message: ConnectionStatusMessageSchema = {
+      type: 'connection_status',
+      sourceWorkflowId,
+      targetWorkflowId,
+      active,
+      throughput,
+      timestamp: new Date().toISOString(),
+    };
+    
+    // Broadcast to both workflows
+    this.broadcastToWorkflow(sourceWorkflowId, message);
+    this.broadcastToWorkflow(targetWorkflowId, message);
+  }
+}

@@ -6,7 +6,6 @@
   },
   "include": ["src"],
   "exclude": [
-    "src/**/*.test.ts",
-    "src/ai/**/*"
+    "src/**/*.test.ts"
   ]
 }
