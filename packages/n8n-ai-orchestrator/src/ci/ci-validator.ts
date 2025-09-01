@@ -47,12 +47,26 @@ export const CISimulationResultSchema = z.object({
 
 export type CISimulationResult = z.infer<typeof CISimulationResultSchema>;
 
+export type ValidationResult = {
+  valid: boolean;
+  errors: Array<any>;
+  warnings: Array<any>;
+};
+
+export type SimulationResult = CISimulationResult;
+
 export class CIValidator {
   private policyManager: DiffPolicyManager;
+  private introspectApi?: any;
+  private strict: boolean = true;
+  private enableSimulation: boolean = true;
   
-  constructor() {
-    const policies = getDefaultPolicies('strict'); // Use strict policies for CI
+  constructor(opts?: { introspectApi?: any; strict?: boolean; enableSimulation?: boolean }) {
+    const policies = getDefaultPolicies(opts?.strict ? 'strict' : 'lenient');
     this.policyManager = new DiffPolicyManager(policies);
+    this.introspectApi = opts?.introspectApi;
+    this.strict = opts?.strict ?? true;
+    this.enableSimulation = opts?.enableSimulation ?? true;
   }
   
   /**
@@ -170,6 +184,50 @@ export class CIValidator {
     };
   }
   
+  async validateWorkflow(workflow: any): Promise<ValidationResult> {
+    const errors: any[] = [];
+    const warnings: any[] = [];
+
+    // Trigger presence
+    const hasTrigger = Object.values(workflow.connections || {}).some((c: any) => Array.isArray(c.main) && c.main.length > 0) || workflow.nodes.some((n: any) => n.type.includes('webhook') || n.type.includes('manualTrigger') || n.type.includes('scheduleTrigger'));
+    if (!hasTrigger) {
+      errors.push({ code: 'MISSING_TRIGGER', message: 'Workflow has no trigger node' });
+    }
+
+    // Validate connections
+    for (const [from, cfg] of Object.entries(workflow.connections || {})) {
+      const main = (cfg as any).main || [];
+      for (const branch of main) {
+        for (const conn of branch) {
+          if (!workflow.nodes.find((n: any) => n.id === conn.node)) {
+            errors.push({ code: 'INVALID_CONNECTION', message: `Connection to non-existent node: ${conn.node}` });
+          }
+        }
+      }
+    }
+
+    // Validate required parameters using introspect API if available
+    if (this.introspectApi) {
+      for (const node of workflow.nodes) {
+        const desc = await this.introspectApi.getNodeDescription?.(node.type);
+        if (desc?.properties) {
+          for (const p of desc.properties as any[]) {
+            if (p.required && (node.parameters?.[p.name] === undefined || node.parameters?.[p.name] === '')) {
+              warnings.push({ code: 'MISSING_PARAMETER', message: `Missing required parameter: ${p.name}`, nodeId: node.id });
+            }
+          }
+        }
+      }
+    }
+
+    return { valid: errors.length === 0, errors, warnings };
+  }
+
+  async validateOperationBatch(batch: OperationBatch): Promise<{ valid: boolean; issues: any[] }> {
+    const parsed = (OperationBatchSchema as any).safeParse ? (OperationBatchSchema as any).safeParse(batch) : { success: true };
+    return { valid: !!(parsed as any).success, issues: (parsed as any).success ? [] : [(parsed as any).error] };
+  }
+
   /**
    * Simulate workflow execution
    */
@@ -230,6 +288,27 @@ export class CIValidator {
       },
       warnings,
     };
+  }
+  
+  async simulateWorkflow(workflow: any): Promise<SimulationResult> {
+    const batch: OperationBatch = { version: 'v1', ops: [] } as any;
+    return this.simulate('wf', batch, { baseWorkflow: workflow });
+  }
+
+  async validateWorkflowSecurity(workflow: any): Promise<{ issues: any[] }> {
+    // Very light stub: check for http without https
+    const issues: any[] = [];
+    for (const n of workflow.nodes || []) {
+      if (n.type.includes('httpRequest') && typeof n.parameters?.url === 'string' && n.parameters.url.startsWith('http://')) {
+        issues.push({ code: 'INSECURE_HTTP', message: 'Use HTTPS for HTTP Request node', nodeId: n.id });
+      }
+    }
+    return { issues };
+  }
+
+  async analyzePerformance(workflow: any): Promise<{ estimatedDuration: number; nodeCount: number }> {
+    const nodeCount = (workflow.nodes || []).length;
+    return { estimatedDuration: nodeCount * 10, nodeCount };
   }
   
   // Validation helpers

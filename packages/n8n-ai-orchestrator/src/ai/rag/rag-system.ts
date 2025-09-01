@@ -50,20 +50,23 @@ export class RAGSystem {
    */
   async initialize(): Promise<void> {
     if (this.isInitialized) return;
-    
-    
-    await this.vectorStore.ensureCollection();
-    
-    // Check if we need to populate initial data
-    const count = await this.vectorStore.count();
-    if (count === 0) {
-      
-      // In production, this would load initial n8n documentation
-      // await this.populateInitialData();
+    if (typeof (this.vectorStore as any).ensureCollection === 'function') {
+      await (this.vectorStore as any).ensureCollection();
     }
-    
+    // optional count
+    if (typeof (this.vectorStore as any).count === 'function') {
+      const count = await (this.vectorStore as any).count();
+      if (count === 0) {
+        // optionally seed
+      }
+    }
     this.isInitialized = true;
-    
+  }
+
+  async ensureCollection(): Promise<void> {
+    if (typeof (this.vectorStore as any).ensureCollection === 'function') {
+      await (this.vectorStore as any).ensureCollection();
+    }
   }
 
   /**
@@ -137,29 +140,19 @@ export class RAGSystem {
    */
   async getContext(context: RAGContext): Promise<string> {
     const results = await this.search(context);
-    
-    if (results.length === 0) {
-      return '';
-    }
-    
-    // Format results for prompt
+    if (!Array.isArray(results) || results.length === 0) return '';
     const sections = results.map((result, index) => {
-      const { document } = result;
-      const source = document.metadata.title || document.metadata.source;
-      
+      const document = (result as any).document ?? {};
+      const meta = document.metadata ?? {};
+      const source = meta.title || meta.source || 'unknown';
+      const content = document.content ?? (result as any).content ?? '';
       return [
-        `[${index + 1}] ${source} (relevance: ${(result.score * 100).toFixed(1)}%)`,
-        document.content,
+        `[${index + 1}] ${source} (relevance: ${((result as any).score * 100).toFixed(1)}%)`,
+        content,
         '',
       ].join('\n');
     });
-    
-    return [
-      'Relevant n8n documentation:',
-      '---',
-      ...sections,
-      '---',
-    ].join('\n');
+    return ['Relevant n8n documentation:', '---', ...sections, '---'].join('\n');
   }
 
   /**
@@ -168,6 +161,10 @@ export class RAGSystem {
   async upsertDocuments(documents: VectorDocument[]): Promise<void> {
     await this.initialize();
     await this.vectorStore.upsert(documents);
+  }
+
+  async indexDocuments(documents: VectorDocument[]): Promise<void> {
+    await this.upsertDocuments(documents);
   }
 
   /**
@@ -224,6 +221,11 @@ export class RAGSystem {
       byType,
       bySource,
     };
+  }
+
+  async getCollectionStats(): Promise<{ documentCount: number; collectionName: string; vectorStore: string }> {
+    const total = typeof (this.vectorStore as any).count === 'function' ? await (this.vectorStore as any).count() : 0;
+    return { documentCount: total, collectionName: (this.config.vectorStore as any).collectionName, vectorStore: this.config.vectorStore.type };
   }
 
   /**

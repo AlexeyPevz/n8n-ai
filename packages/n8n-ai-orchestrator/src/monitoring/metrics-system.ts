@@ -183,22 +183,60 @@ export class Metric {
     
     return result;
   }
+
+  value(labels?: Record<string, string>): number {
+    const key = this.getLabelKey(labels);
+    const current = this.values.get(key);
+    if (current) return current.value;
+    if (this.options.type === 'histogram' || this.options.type === 'summary') {
+      const snap = this.getSnapshot();
+      return snap.metadata?.sum ?? 0;
+    }
+    return 0;
+  }
+
+  valuesList(): number[] {
+    return this.history.map((h) => h.value);
+  }
+
+  buckets(): number[] | undefined {
+    return this.options.buckets;
+  }
+
+  percentiles(): Record<string, number> | undefined {
+    const snap = this.getSnapshot();
+    return snap.metadata?.percentiles;
+  }
+
+  sum(): number {
+    if (this.options.type === 'histogram' || this.options.type === 'summary') {
+      const snap = this.getSnapshot();
+      return snap.metadata?.sum ?? 0;
+    }
+    return this.value();
+  }
 }
 
 export class MetricsRegistry {
   private metrics: Map<string, Metric> = new Map();
   private defaultLabels: Record<string, string> = {};
+  private emitter = new EventEmitter();
 
   setDefaultLabels(labels: Record<string, string>): void {
     this.defaultLabels = { ...labels };
+  }
+
+  on(event: 'update', listener: (name: string, value: MetricValue) => void): void {
+    this.emitter.on(event, listener);
   }
 
   register(options: MetricOptions): Metric {
     if (this.metrics.has(options.name)) {
       throw new Error(`Metric ${options.name} is already registered`);
     }
-    
     const metric = new Metric(options);
+    // Forward metric updates
+    metric.on('update', (v) => this.emitter.emit('update', options.name, v));
     this.metrics.set(options.name, metric);
     return metric;
   }
@@ -315,6 +353,22 @@ export class MetricsRegistry {
     }
     
     return lines.join('\n');
+  }
+
+  collect(): MetricSnapshot[] {
+    return this.getAllMetrics();
+  }
+
+  toJSON(): MetricSnapshot[] {
+    return this.getAllMetrics();
+  }
+
+  getMetricNames(): string[] {
+    return Array.from(this.metrics.keys());
+  }
+
+  clear(): void {
+    this.metrics.clear();
   }
 }
 

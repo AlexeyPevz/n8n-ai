@@ -469,3 +469,61 @@ export class OptimizeBatchesHandler implements OperationHandler<OptimizeBatchesO
     return branch;
   }
 }
+
+export function replaceNode(graph: any, nodeId: string, newType: string, newParams: Record<string, any>) {
+  // Find predecessors and successors
+  const incoming = [] as any[];
+  const outgoing = [] as any[];
+  for (const [from, cfg] of Object.entries(graph.connections || {})) {
+    const main = (cfg as any).main || [];
+    main.forEach((branch: any[]) => {
+      branch.forEach((conn) => {
+        if (conn.node === nodeId) incoming.push({ from });
+        if (from === nodeId) outgoing.push({ to: conn.node, index: conn.index ?? 0 });
+      });
+    });
+  }
+
+  const ops: any[] = [];
+  ops.push({ op: 'delete', nodeId });
+  ops.push({ op: 'add_node', nodeType: newType, parameters: newParams });
+  if (incoming[0]) {
+    ops.push({ op: 'connect', source: { node: incoming[0].from, output: 'main', index: 0 }, target: { node: nodeId, input: 'main', index: 0 } });
+  }
+  if (outgoing[0]) {
+    ops.push({ op: 'connect', source: { output: 'main', index: 0 }, target: { node: outgoing[0].to, input: 'main', index: outgoing[0].index } });
+  }
+  return { version: 'v1', ops };
+}
+
+export function extractSubworkflow(graph: any, nodeIds: string[], name: string) {
+  const ops: any[] = [];
+  for (const id of nodeIds) ops.push({ op: 'delete', nodeId: id });
+  ops.push({ op: 'add_node', nodeType: 'n8n-nodes-base.executeWorkflow', name });
+  // naive: connect first predecessor to execute, and execute to first successor of last node
+  const first = nodeIds[0];
+  const last = nodeIds[nodeIds.length - 1];
+  let pred: string | undefined;
+  for (const [from, cfg] of Object.entries(graph.connections || {})) {
+    const main = (cfg as any).main || [];
+    if (main.some((b: any[]) => b.some((c) => c.node === first))) pred = String(from);
+  }
+  let succ: any | undefined;
+  const lastConns = (graph.connections?.[last]?.main?.[0] || []) as any[];
+  if (lastConns[0]) succ = { node: lastConns[0].node, index: lastConns[0].index ?? 0 };
+  if (pred) ops.push({ op: 'connect', source: { node: pred, output: 'main', index: 0 } });
+  if (succ) ops.push({ op: 'connect', target: { node: succ.node, input: 'main', index: succ.index } });
+  return { version: 'v1', ops };
+}
+
+export function optimizeBatches(batch: any) {
+  return batch; // placeholder passthrough
+}
+
+export function mergeSequentialNodes(graph: any) {
+  return { version: 'v1', ops: [] };
+}
+
+export function parallelizeIndependentNodes(graph: any) {
+  return { version: 'v1', ops: [] };
+}

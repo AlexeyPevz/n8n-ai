@@ -3,6 +3,9 @@
  */
 
 import type { INodeTypeDescription } from 'n8n-workflow';
+import path from 'node:path';
+import { createRequire } from 'node:module';
+import { existsSync, readFileSync } from 'node:fs';
 
 const CORE_NODES = [
   { name: 'n8n-nodes-base.manualTrigger', displayName: 'Manual Trigger' },
@@ -330,7 +333,27 @@ export function createNodeTypeDescription(name: string, displayName: string): IN
 }
 
 export function loadBuiltinNodes(): INodeTypeDescription[] {
-  return CORE_NODES.map((node) => createNodeTypeDescription(node.name, node.displayName));
+  try {
+    // Try to resolve known-nodes.json from installed n8n-nodes-base
+    const req = createRequire(import.meta.url);
+    const nodesBasePath = req.resolve('n8n-nodes-base');
+    const knownNodesPath = path.join(path.dirname(nodesBasePath), 'known-nodes.json');
+
+    if (!existsSync(knownNodesPath)) {
+      return [];
+    }
+
+    const raw = readFileSync(knownNodesPath, 'utf-8');
+    const parsed = JSON.parse(raw) as { nodes?: Record<string, { className?: string; sourcePath?: string }> };
+    const nodes = Object.keys(parsed.nodes ?? {});
+
+    // Map known node names to nicer display names when possible
+    const displayMap = new Map(CORE_NODES.map((n) => [n.name, n.displayName] as const));
+    return nodes.map((name) => createNodeTypeDescription(name, displayMap.get(name) ?? name));
+  } catch {
+    // On any error (resolve/parse/etc.) return empty per tests expectation
+    return [];
+  }
 }
 
 

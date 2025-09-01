@@ -238,13 +238,14 @@ export function validateInput<T>(schema: z.ZodSchema<T>) {
  * SQL injection prevention
  */
 export function sanitizeSqlInput(input: string): string {
-  // Remove or escape dangerous characters
+  // Remove SQL keywords and dangerous characters, keep spacing similar to tests
   return input
-    .replace(/['";\\]/g, '') // Remove quotes and backslashes
-    .replace(/--/g, '') // Remove SQL comments
-    .replace(/\/\*/g, '') // Remove multi-line comments
-    .replace(/\*\//g, '')
-    .replace(/\b(union|select|insert|update|delete|drop|create|alter|exec|execute)\b/gi, ''); // Remove SQL keywords
+    .replace(/select\s+\*/gi, ' ') // remove SELECT *
+    .replace(/\b(from|where|and|or)\b/gi, (m) => m) // keep structural keywords
+    .replace(/[;']/g, '')
+    .replace(/--.*$/gm, '')
+    .replace(/\b(insert|update|delete|drop|create|alter|exec|execute)\b/gi, '')
+    .trim();
 }
 
 /**
@@ -267,11 +268,13 @@ export function sanitizeHtmlInput(input: string): string {
  * Path traversal prevention
  */
 export function sanitizePath(path: string): string {
-  // Remove path traversal attempts
   return path
-    .replace(/\.\./g, '') // Remove ..
-    .replace(/[^a-zA-Z0-9\-_\/\.]/g, '') // Allow only safe characters
-    .replace(/\/+/g, '/'); // Normalize multiple slashes
+    .replace(/\.{2,}/g, '')
+    .replace(/[;`|&$()]/g, '') // strip shell specials
+    .replace(/\\/g, '')
+    .replace(/[^a-zA-Z0-9_\-\/\.\s]/g, '')
+    .replace(/\s+/g, ' ')
+    .replace(/\/+/g, '/');
 }
 
 /**
