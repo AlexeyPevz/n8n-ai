@@ -171,43 +171,13 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, computed } from 'vue';
 import axios from 'axios';
+import type { MapNode, MapEdge, MapData } from '../types/workflow-map';
+import { useWorkflowMap } from '../composables/useWorkflowMap';
 
-// Types
-interface MapNode {
-  id: string;
-  name: string;
-  type: 'workflow' | 'webhook' | 'external';
-  metadata?: Record<string, any>;
-  x?: number;
-  y?: number;
-  status?: 'running' | 'success' | 'error' | 'waiting';
-}
-
-interface MapEdge {
-  source: string;
-  target: string;
-  type: 'execute_workflow' | 'http_webhook' | 'trigger_webhook';
-  probability?: number;
-  metadata?: Record<string, any>;
-}
-
-interface MapData {
-  nodes: MapNode[];
-  edges: MapEdge[];
-  stats: {
-    totalWorkflows: number;
-    totalConnections: number;
-    executeWorkflowCoverage: number;
-    httpWebhookCoverage: number;
-  };
-  generatedAt: string;
-}
+// Types moved to ../types/workflow-map
 
 // State
-const isLoading = ref(false);
-const mapData = ref<MapData | null>(null);
-const nodes = ref<MapNode[]>([]);
-const edges = ref<MapEdge[]>([]);
+const { isLoading, mapData, nodes, edges, fetchMap } = useWorkflowMap();
 const viewDepth = ref(2);
 const showExternal = ref(false);
 const svgElement = ref<SVGElement>();
@@ -236,21 +206,11 @@ let currentScale = 1;
 
 // Methods
 async function refreshMap() {
-  isLoading.value = true;
   try {
-    const response = await axios.get('/api/v1/ai/workflow-map', {
-      params: {
-        depth: viewDepth.value,
-        includeExternal: showExternal.value,
-      },
-    });
-    
-    mapData.value = response.data;
-    layoutGraph(response.data);
+    const data = await fetchMap({ depth: viewDepth.value, includeExternal: showExternal.value });
+    layoutGraph(data);
   } catch (error) {
     console.error('Failed to load workflow map:', error);
-  } finally {
-    isLoading.value = false;
   }
 }
 
