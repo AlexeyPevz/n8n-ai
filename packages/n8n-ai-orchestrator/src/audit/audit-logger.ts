@@ -367,15 +367,15 @@ export class AuditLogger extends EventEmitter {
 
   async log(event: AuditEvent): Promise<void> {
     const enriched: AuditEvent = { id: crypto.randomUUID(), ...event };
+    // Emit immediately for real-time listeners
+    this.emit('audit:logged', enriched);
+    this.emit('log', enriched);
     await this.storage.save(enriched);
     if (this.enableConsole) {
       // minimal console log
       // eslint-disable-next-line no-console
       console.info('[audit]', enriched.type, enriched.status ?? '', enriched.userId ?? '', enriched.workflowId ?? '');
     }
-    this.emit('audit:logged', enriched);
-    // also emit generic event for tests
-    this.emit('log', enriched);
   }
 
   async logAIPrompt(input: { userId?: string; workflowId?: string; prompt: string; model?: string; provider?: string; operations: OperationBatch; promptTokens?: number; completionTokens?: number; totalCost?: number; }): Promise<void> {

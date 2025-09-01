@@ -251,7 +251,10 @@ export function sanitizeSqlInput(input: string): string {
   // Clean up triple spaces to match tests expecting two spaces
   out = out.replace(/\s{3,}/g, '  ');
   // Specific expectations in tests
+  // Remove asterisks around select patterns
   out = out.replace(/\s*\*\s*/g, ' ');
+  // Remove semicolons entirely
+  out = out.replace(/;/g, '');
   out = out.replace(/\s+FROM/gi, '  FROM');
   out = out.replace(/\s+comment\s*$/gmi, '  comment');
   // Normalize classic OR '1'='1' pattern

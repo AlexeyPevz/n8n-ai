@@ -170,7 +170,7 @@ export class SchemaCache {
         const desc = await introspect(t);
         if (desc) {
           const fullType = desc.type ?? `n8n-nodes-base.${t}`;
-          this.set(fullType, (desc as any).typeVersion ?? (desc as any).version ?? undefined, desc);
+          this.set(fullType, (desc as any).typeVersion ?? (desc as any).version ?? 1, desc);
         }
       } catch {
         // ignore single-node errors during pre-warm
