@@ -374,6 +374,8 @@ export class AuditLogger extends EventEmitter {
       console.info('[audit]', enriched.type, enriched.status ?? '', enriched.userId ?? '', enriched.workflowId ?? '');
     }
     this.emit('audit:logged', enriched);
+    // also emit generic event for tests
+    this.emit('log', enriched);
   }
 
   async logAIPrompt(input: { userId?: string; workflowId?: string; prompt: string; model?: string; provider?: string; operations: OperationBatch; promptTokens?: number; completionTokens?: number; totalCost?: number; }): Promise<void> {

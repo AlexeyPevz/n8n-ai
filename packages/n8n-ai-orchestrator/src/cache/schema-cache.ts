@@ -75,13 +75,15 @@ export class SchemaCache {
   /**
    * Set node description in cache
    */
-  set(nodeType: string, version: number | undefined, description: any): void {
+  set(nodeType: string, versionOrDesc: number | any | undefined, maybeDesc?: any): void {
+    const version = typeof versionOrDesc === 'number' || versionOrDesc === undefined ? (versionOrDesc as number | undefined) : undefined;
+    const description = version !== undefined ? maybeDesc : versionOrDesc;
     const key = this.makeKey(nodeType, version);
     
     // Create cached entry
     const cached: CachedNodeDescription = {
       ...description,
-      typeVersion: version || description.version || 1,
+      typeVersion: version || description.typeVersion || description.version || 1,
       cachedAt: new Date().toISOString(),
       hash: this.computeHash(description),
     };
@@ -94,6 +96,20 @@ export class SchemaCache {
     this.cache.set(key, cached);
     this.updateAccessOrder(key);
     this.stats.size = this.cache.size;
+  }
+
+  /**
+   * Invalidate cache entry if hash does not match
+   */
+  invalidate(nodeType: string, expectedHash: string, version?: number): boolean {
+    const key = this.makeKey(nodeType, version);
+    const entry = this.cache.get(key);
+    if (!entry) return false;
+    if (entry.hash !== expectedHash) {
+      this.delete(key);
+      return true;
+    }
+    return false;
   }
   
   /**
@@ -139,6 +155,22 @@ export class SchemaCache {
   async warmUp(nodeTypes: Array<{ type: string; version?: number; description: any }>): Promise<void> {
     for (const node of nodeTypes) {
       this.set(node.type, node.version, node.description);
+    }
+  }
+
+  /**
+   * Warm cache via introspect API and list of node type ids
+   */
+  async warmCache(introspect: (type: string) => Promise<any>, types: string[]): Promise<void> {
+    for (const t of types) {
+      try {
+        const desc = await introspect(t);
+        if (desc) {
+          this.set(t, (desc as any).version ?? undefined, desc);
+        }
+      } catch {
+        // ignore single-node errors during pre-warm
+      }
     }
   }
   
@@ -233,7 +265,8 @@ export class SchemaCache {
   }
   
   private computeHash(obj: any): string {
-    const json = JSON.stringify(obj, Object.keys(obj).sort());
+    const keys = obj && typeof obj === 'object' ? Object.keys(obj).sort() : undefined;
+    const json = JSON.stringify(obj ?? {}, keys);
     return crypto.createHash('sha256').update(json).digest('hex').substring(0, 16);
   }
 }

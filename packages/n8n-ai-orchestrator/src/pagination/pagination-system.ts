@@ -233,20 +233,24 @@ export class ArrayPaginator<T> {
       // Generate cursors for next/prev if applicable
       if (offset + normalized.limit < sorted.length) {
         const nextItem = sorted[offset + normalized.limit];
-        nextCursor = PaginationHelper.encodeCursor({
-          id: this.getKey(nextItem),
-          timestamp: Date.now(),
-          sortValue: this.getSortValue(nextItem),
-        });
+        if (nextItem !== undefined) {
+          nextCursor = PaginationHelper.encodeCursor({
+            id: this.getKey(nextItem),
+            timestamp: Date.now(),
+            sortValue: this.getSortValue(nextItem),
+          });
+        }
       }
       
       if (offset > 0) {
         const prevItem = sorted[Math.max(0, offset - 1)];
-        prevCursor = PaginationHelper.encodeCursor({
-          id: this.getKey(prevItem),
-          timestamp: Date.now(),
-          sortValue: this.getSortValue(prevItem),
-        });
+        if (prevItem !== undefined) {
+          prevCursor = PaginationHelper.encodeCursor({
+            id: this.getKey(prevItem),
+            timestamp: Date.now(),
+            sortValue: this.getSortValue(prevItem),
+          });
+        }
       }
     }
 

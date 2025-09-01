@@ -6,6 +6,8 @@ export default defineConfig({
     environment: 'node',
     testTimeout: 30000, // 30 seconds for E2E tests
     hookTimeout: 30000,
+    include: ['src/**/*.test.ts', 'src/**/*.spec.ts'],
+    exclude: ['src/**/*.e2e.test.ts', 'src/rest*.e2e.test.ts', 'src/**/rest*.e2e.test.ts'],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'lcov', 'html'],

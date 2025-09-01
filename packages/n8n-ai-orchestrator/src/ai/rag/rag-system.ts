@@ -157,7 +157,8 @@ export class RAGSystem {
       items = unique.slice(0, 2);
     }
     const sections = items.slice(0, 2).map((it) => it.content);
-    let out = sections.join('\n\n');
+    const header = context.workflowContext ? `Current workflow has ${Array.isArray((context.workflowContext as any).nodes) ? (context.workflowContext as any).nodes.length : 0} nodes` : '';
+    let out = header ? [header, '', ...sections].join('\n') : sections.join('\n\n');
     if (context.maxTokens && out.length >= context.maxTokens * 3) out = out.slice(0, context.maxTokens * 3 - 1);
     return out;
   }

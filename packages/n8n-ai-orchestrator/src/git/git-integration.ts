@@ -55,7 +55,7 @@ export class GitIntegration {
     } catch {}
 
     await new Promise<void>((resolve, reject) => {
-      exec('git init', { cwd: this.config.repoPath }, (err) => {
+      exec('git init', { cwd: this.config.repoPath }, (err, _stdout) => {
         if (err) return reject(err);
         resolve();
       });
@@ -68,7 +68,12 @@ export class GitIntegration {
     await fs.writeFile(workflowFile, JSON.stringify(workflow, null, 2));
 
     // git add
-    await this.execAsyncCompat(`git add ${workflowFile}`);
+    await new Promise<void>((resolve, reject) => {
+      exec(`git add ${workflowFile}`, { cwd: this.config.repoPath }, (err) => {
+        if (err) return reject(err);
+        resolve();
+      });
+    });
 
     // git commit
     const commitMsg = this.generateCommitMessage(workflow.name, { version: 'v1', ops: [] } as any, message ?? options?.promptUsed ?? '');
