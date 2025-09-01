@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { exec } from 'child_process';
 import { promisify } from 'util';
 import path from 'path';
-import fs from 'fs/promises';
+import { promises as fs } from 'fs';
 import type { OperationBatch } from '@n8n-ai/schemas';
 
 const execAsync = promisify(exec);
