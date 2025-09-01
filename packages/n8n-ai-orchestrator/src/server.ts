@@ -39,6 +39,9 @@ function sendSse(event: string, data: unknown): void {
   }
 }
 
+// Expose SSE sender globally for use in route modules
+try { (global as unknown as { sendSse?: typeof sendSse }).sendSse = sendSse; } catch {}
+
 // Import model selector for AI recommendations
 import { ModelSelector } from './ai/model-selector.js';
 import { registerPlannerRoutes } from './plugins/planner-routes.js';
@@ -70,8 +73,10 @@ async function fetchWithRetry(url: string, init: any = {}): Promise<any> {
     } catch (e) {
       lastError = e;
     }
-    // exponential backoff: 200ms, 400ms, 800ms ...
-    const backoff = 200 * Math.pow(2, i);
+    // exponential backoff with jitter: 200ms, 400ms, 800ms ...
+    const base = 200 * Math.pow(2, i);
+    const jitter = Math.floor(Math.random() * 100);
+    const backoff = base + jitter;
     await new Promise((r) => setTimeout(r, backoff));
   }
   throw lastError instanceof Error ? lastError : new Error('Unknown fetch error');

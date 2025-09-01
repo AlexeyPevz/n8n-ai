@@ -23,7 +23,8 @@ RUN pnpm build
 WORKDIR /usr/local/lib/node_modules/n8n
 
 # Добавляем наши зависимости в n8n
-RUN npm install @n8n-ai/schemas@file:/opt/n8n-ai-hooks
+# Устанавливаем скомпилированный пакет схем из dist hooks (в котором есть peer deps)
+RUN npm install /opt/n8n-ai-hooks
 
 # Копируем скрипт интеграции
 COPY integrate-ai-hooks.js /opt/

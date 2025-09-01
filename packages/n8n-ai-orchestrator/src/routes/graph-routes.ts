@@ -251,11 +251,12 @@ export async function registerGraphRoutes(
 
 // Mock function to fetch workflow - replace with actual implementation
 async function fetchWorkflow(workflowId: string): Promise<any> {
-  // TODO: Implement actual workflow fetching from n8n
-  return {
-    id: workflowId,
-    name: 'Mock Workflow',
-    nodes: [],
-    connections: {},
-  };
+  // Use in-memory state managed by graphManager for current workflow snapshot
+  const current = graphManager.getWorkflow(workflowId);
+  if (!current) {
+    const err = new Error('Workflow not found') as Error & { code?: string };
+    err.code = 'WORKFLOW_NOT_FOUND';
+    throw err;
+  }
+  return current;
 }
