@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { Router } from 'express';
-import { createAIRoutes } from '../ai-routes';
+import { createAIRoutes } from './ai-routes';
 import type { Request, Response, NextFunction } from 'express';
 
 // Mock dependencies

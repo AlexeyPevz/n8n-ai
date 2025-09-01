@@ -416,7 +416,7 @@ async function fetchWorkflowState() {
 }
 
 function handleNodeClick(node: unknown) {
-  console.log('Node clicked:', node);
+  // Node clicked handler (placeholder)
   // Можно добавить логику для показа деталей ноды
 }
 

@@ -28,7 +28,7 @@ export interface MetricSnapshot {
   }>;
   metadata?: {
     buckets?: number[];
-    percentiles?: number[];
+    percentiles?: Record<string, number>;
     count?: number;
     sum?: number;
     min?: number;
@@ -305,7 +305,8 @@ export class MetricsRegistry {
         // Summary percentiles
         if (percentiles && snapshot.type === 'summary') {
           for (const [key, value] of Object.entries(percentiles)) {
-            lines.push(`${snapshot.name}{quantile="${key.slice(1) / 100}"} ${value}`);
+            const q = Number(key.slice(1)) / 100;
+            lines.push(`${snapshot.name}{quantile="${q}"} ${value}`);
           }
         }
       }

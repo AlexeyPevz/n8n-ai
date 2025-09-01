@@ -1,5 +1,6 @@
 import Fastify from 'fastify';
 import cors from '@fastify/cors';
+import websocket from '@fastify/websocket';
 import { OperationBatchSchema } from '@n8n-ai/schemas';
 import { SimplePlanner } from './planner.js';
 import { patternMatcher } from './pattern-matcher.js';
@@ -7,7 +8,19 @@ import { graphManager } from './graph-manager.js';
 import { metrics, METRICS } from './metrics.js';
 import { buildWorkflowMap } from './workflow-map.js';
 import { handleError, errorToResponse, ValidationError, ValidationFailedError, AmbiguousPromptError } from './error-handler.js';
+import { getDiffPolicies, validateEnv } from './config.js';
 import { randomUUID } from 'node:crypto';
+import { metricsPlugin } from './monitoring/metrics-middleware.js';
+import { registerMetricsRoutes, registerDashboardRoute } from './monitoring/metrics-routes.js';
+import { paginationPlugin } from './pagination/pagination-middleware.js';
+import { registerPaginationRoutes, registerPaginationExamples } from './pagination/pagination-routes.js';
+import { securityPlugin } from './security/security-middleware.js';
+import { getSecurityPreset } from './security/security-config.js';
+import { registerSecurityRoutes, registerSecurityUtilities } from './security/security-routes.js';
+import { WorkflowMapWebSocketHandler } from './workflow-map/websocket-handler.js';
+import { WorkflowMapService } from './workflow-map/workflow-map-service.js';
+import { registerWorkflowMapRoutes } from './workflow-map/workflow-map-routes.js';
+validateEnv();
 const server = Fastify({ logger: true });
 // --- SSE clients registry ---
 const sseClients = new Set();
@@ -26,6 +39,8 @@ function sendSse(event, data) {
         }
     }
 }
+// Import model selector for AI recommendations
+import { ModelSelector } from './ai/model-selector.js';
 // Simple fetch with timeout and retries for proxying to n8n hooks
 async function fetchWithRetry(url, init = {}) {
     const retries = Math.max(0, Number(process.env.HOOKS_FETCH_RETRIES ?? 2));
@@ -99,6 +114,41 @@ server.addContentTypeParser('application/json', { parseAs: 'string' }, (req, bod
     }
 });
 await server.register(cors, { origin: true, credentials: true });
+await server.register(websocket);
+// Get security configuration
+const securityConfig = getSecurityPreset();
+// Register plugins
+await server.register(securityPlugin, securityConfig);
+await server.register(metricsPlugin);
+await server.register(paginationPlugin);
+// Register monitoring routes
+await registerMetricsRoutes(server);
+await registerDashboardRoute(server);
+// Register pagination routes
+await registerPaginationRoutes(server);
+await registerPaginationExamples(server);
+// Register security routes
+await registerSecurityRoutes(server);
+await registerSecurityUtilities(server);
+// Initialize Workflow Map
+// Initialize workflow map service with proper introspect API
+const introspectApi = {
+    getWorkflows: async () => {
+        // In production, this would connect to n8n API
+        return [];
+    },
+    getWorkflow: async (id) => {
+        // In production, this would connect to n8n API
+        return null;
+    },
+};
+const mapService = new WorkflowMapService(introspectApi);
+await registerWorkflowMapRoutes(server, { mapService });
+// Initialize WebSocket handler
+const wsHandler = new WorkflowMapWebSocketHandler(server);
+await wsHandler.initialize();
+// Make wsHandler available globally for emitting events
+global.workflowMapWsHandler = wsHandler;
 // Global error handler
 server.setErrorHandler((error, request, reply) => {
     const appError = handleError(error);
@@ -119,7 +169,7 @@ server.get('/api/v1/ai/metrics', async () => {
 // Простой прокси для n8n-ai-hooks Introspect API (с пробросом auth заголовков)
 function pickForwardHeaders(h) {
     const out = { Accept: 'application/json' };
-    const allow = ['authorization', 'cookie', 'x-session-token', 'x-xsrf-token'];
+    const allow = ['authorization', 'cookie', 'x-session-token', 'x-xsrf-token', 'x-user-id'];
     for (const key of allow) {
         const val = h[key];
         if (!val)
@@ -254,8 +304,7 @@ server.post('/graph/:id/batch', async (req) => {
         return { ok: false, error: 'invalid_operation_batch', issues: parsed.error.format() };
     }
     // Diff policies (basic)
-    const policyMaxAdd = Number(process.env.DIFF_POLICY_MAX_ADD_NODES ?? 10);
-    const blacklist = (process.env.DIFF_POLICY_DOMAIN_BLACKLIST ?? '').split(',').map(s => s.trim()).filter(Boolean);
+    const { maxAddNodes: policyMaxAdd, domainBlacklist: blacklist } = getDiffPolicies();
     const addCount = parsed.data.ops.filter((op) => op.op === 'add_node').length;
     if (addCount > policyMaxAdd) {
         return { ok: false, error: 'policy_violation', details: { rule: 'max_add_nodes', limit: policyMaxAdd, actual: addCount } };
@@ -512,7 +561,7 @@ server.get('/workflow-map/live', async (_req, reply) => {
         return { ts: Date.now(), edges: workflowMapIndex.edges.length, workflows: items };
     };
     send('hello', { ts: Date.now(), kind: 'workflow-map' });
-    const interval = setInterval(() => send('live', summarize()), 20000);
+    const interval = setInterval(() => send('live', summarize()), 5000);
     _req.raw.on('close', () => clearInterval(interval));
     return reply;
 });
@@ -565,6 +614,21 @@ server.get('/events', async (req, reply) => {
     }
     catch { } });
     return reply;
+});
+// AI Model recommendation endpoint
+server.post('/ai/recommend-model', async (req) => {
+    const { prompt } = req.body;
+    if (!prompt) {
+        return { error: 'prompt is required' };
+    }
+    const modelSelector = new ModelSelector();
+    const recommendation = modelSelector.recommend(prompt);
+    const requirements = ModelSelector.analyzePrompt(prompt);
+    return {
+        recommendation,
+        requirements,
+        availableModels: Object.keys(ModelSelector.MODEL_CAPABILITIES || {}),
+    };
 });
 // Prometheus metrics endpoint
 server.get('/metrics', async () => {
@@ -669,8 +733,7 @@ server.get('/rest/ai/workflow-map', async (req, reply) => proxyTo('/workflow-map
 // Streaming endpoints: use redirect to original SSE routes
 server.get('/rest/ai/workflow-map/live', async (_req, reply) => reply.redirect(307, '/workflow-map/live'));
 server.get('/rest/ai/events', async (_req, reply) => reply.redirect(307, '/events'));
-// Git integration stub
-server.post('/git/export', async () => ({ ok: true, message: 'Git export stub: create PR with diff and simulation report (todo)' }));
+// Git export endpoint - handled by git routes module
 server.post('/rest/ai/git/export', async (req, reply) => proxyTo('/git/export', 'POST', req, reply));
 // Audit logs endpoints
 server.get('/audit/logs', async () => ({ ok: true, items: auditLogs.slice(-100) }));

@@ -31,22 +31,10 @@ Key goals:
 
 See diagram at `docs/diagrams/architecture.mmd` (Mermaid).
 
-### 2.1 Thin fork of n8n (`n8n-ai-hooks`)
-* Adds **Introspect API** – runtime node description & sandbox `loadOptions`.
-* **Graph Mutation API** – typed batch ops (`add_node`, `set_params`, …) with pre-validation & undo/redo.
-* **Validate & Simulate API** – static + contextual checks, dry-run on synthetic data.
-* **Execution Events** – SSE/WebSocket stream (`start|finish|error`) for workflow / nodes.
-
-### 2.2 Orchestrator sidecar (`n8n-ai-orchestrator`)
-* Multi-agent loop: **Planner → Builder → Validator → Critic**.
-* **RAG** over official docs, examples & selected node source code.
-* **Schemas cache**, auto-repair loop, logging, metrics & cost tracking.
-
-### 2.3 Shared package (`n8n-ai-schemas`)
-* Zod/JSONSchema definitions for Node, Graph, OperationBatch, Lints.
-
-### 2.4 Optional panel (`n8n-ai-panel`)
-* Embeddable SPA if we need iframe isolation.
+Quick links:
+- API reference: `docs/API.md`
+- Environment vars: `docs/ENV.md`
+- Deployment: `DEPLOYMENT.md`, `docker-compose.yml`
 
 ---
 
@@ -130,24 +118,10 @@ pnpm test        # unit + lints
 pnpm e2e         # orchestrator e2e; golden flows: pnpm -C examples test
 ```
 
-### 5.4 Quick smoke tests
-```bash
-# Introspect
-curl -s http://localhost:3000/introspect/nodes | jq .
-
-# Plan (returns OperationBatch)
-curl -s -X POST http://localhost:3000/plan \
-  -H 'content-type: application/json' \
-  -d '{"prompt":"HTTP GET JSONPlaceholder"}' | jq .
-
-# Apply batch (mock OK response for now)
-curl -s -X POST http://localhost:3000/graph/demo/batch \
-  -H 'content-type: application/json' \
-  -d '{"version":"v1","ops":[{"op":"annotate","name":"Manual Trigger","text":"demo"}]}' | jq .
-
-# SSE events (hit Ctrl+C to stop)
-curl -N http://localhost:3000/events | sed -n '1,10p'
-```
+### 5.4 API & ENV
+- API: see `docs/API.md`
+- ENV: see `docs/ENV.md`
+- Deployment: see `DEPLOYMENT.md` and `docker-compose.yml`
 
 ### 5.5 Troubleshooting
 - pnpm not found: `corepack enable && corepack prepare pnpm@8.15.0 --activate`.

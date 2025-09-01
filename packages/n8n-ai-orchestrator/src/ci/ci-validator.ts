@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import type { OperationBatch } from '@n8n-ai/schemas';
+import { OperationBatchSchema } from '@n8n-ai/schemas';
 import { DiffPolicyManager } from '../policies/diff-policies.js';
 import { getDefaultPolicies } from '../policies/default-policies.js';
 
@@ -73,7 +74,7 @@ export class CIValidator {
     // 1. Schema validation
     totalChecks++;
     try {
-      OperationBatchSchema.parse(batch);
+      (OperationBatchSchema as any).parse ? (OperationBatchSchema as any).parse(batch) : null;
       passedChecks++;
     } catch (error) {
       errors.push({
@@ -275,26 +276,28 @@ export class CIValidator {
       if (op.op === 'add_node') {
         nodeIds.add(op.node.id);
       } else if (op.op === 'delete') {
-        nodeIds.delete(op.nodeId);
+        nodeIds.delete((op as any).nodeId || (op as any).name);
       }
     }
     
     // Validate connections
     for (const op of batch.ops) {
       if (op.op === 'connect') {
-        if (!nodeIds.has(op.from.nodeId)) {
+        const fromId = (op as any).from?.nodeId || (op as any).from || (op as any).fromId;
+        const toId = (op as any).to?.nodeId || (op as any).to || (op as any).toId;
+        if (!nodeIds.has(fromId)) {
           errors.push({
             type: 'invalid_connection',
             severity: 'error',
-            message: `Connection from non-existent node: ${op.from.nodeId}`,
+            message: `Connection from non-existent node: ${fromId}`,
             location: { operation: op },
           });
         }
-        if (!nodeIds.has(op.to.nodeId)) {
+        if (!nodeIds.has(toId)) {
           errors.push({
             type: 'invalid_connection',
             severity: 'error',
-            message: `Connection to non-existent node: ${op.to.nodeId}`,
+            message: `Connection to non-existent node: ${toId}`,
             location: { operation: op },
           });
         }
@@ -309,7 +312,7 @@ export class CIValidator {
     
     for (const op of batch.ops) {
       if (op.op === 'set_params' || op.op === 'add_node') {
-        const params = op.op === 'set_params' ? op.params : op.node.parameters;
+        const params = op.op === 'set_params' ? (op as any).parameters || (op as any).params : op.node.parameters;
         
         // Check for empty required parameters
         if (params) {
@@ -320,7 +323,7 @@ export class CIValidator {
                 severity: 'warning',
                 message: `Empty parameter: ${key}`,
                 location: { 
-                  nodeId: op.op === 'set_params' ? op.nodeId : op.node.id,
+                  nodeId: op.op === 'set_params' ? ((op as any).nodeId || (op as any).name) : op.node.id,
                   parameter: key,
                 },
                 suggestion: 'Provide a value or remove the parameter',
@@ -376,7 +379,7 @@ export class CIValidator {
     
     for (const op of batch.ops) {
       if (op.op === 'set_params' || op.op === 'add_node') {
-        const params = op.op === 'set_params' ? op.params : op.node.parameters;
+        const params = op.op === 'set_params' ? (op as any).parameters || (op as any).params : op.node.parameters;
         
         if (params) {
           const paramStr = JSON.stringify(params);
@@ -388,7 +391,7 @@ export class CIValidator {
               severity: 'error',
               message: 'Possible hardcoded credentials detected',
               location: { 
-                nodeId: op.op === 'set_params' ? op.nodeId : op.node.id,
+                nodeId: op.op === 'set_params' ? ((op as any).nodeId || (op as any).name) : op.node.id,
               },
               suggestion: 'Use n8n credentials instead of hardcoding sensitive data',
             });
@@ -430,7 +433,10 @@ export class CIValidator {
           workflow.nodes.push(op.node);
           break;
         case 'delete':
-          workflow.nodes = workflow.nodes.filter((n: any) => n.id !== op.nodeId);
+          {
+            const id = (op as any).nodeId || (op as any).name;
+            workflow.nodes = workflow.nodes.filter((n: any) => n.id !== id);
+          }
           break;
         // Handle other operations
       }

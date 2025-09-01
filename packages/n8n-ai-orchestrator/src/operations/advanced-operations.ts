@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import type { GraphOp } from '@n8n-ai/schemas';
+// Не используется напрямую; опишем собственные op-типы ниже
 
 // Replace node operation
 export const ReplaceNodeOpSchema = z.object({
@@ -108,7 +108,7 @@ export class ReplaceNodeHandler implements OperationHandler<ReplaceNodeOp> {
     const changes: any[] = [];
     
     // Create new node with preserved/mapped parameters
-    const newNode = {
+    const newNode: { id: string; name: string; type: string; position: [number, number]; parameters: Record<string, any> } = {
       id: op.nodeId,
       name: op.newNode.name || oldNode.name,
       type: op.newNode.type,

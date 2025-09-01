@@ -45,14 +45,6 @@ export async function registerWorkflowMapRoutes(
   
   // GET /api/v1/ai/workflow-map
   server.get('/workflow-map', {
-    schema: {
-      description: 'Get workflow dependency map',
-      tags: ['workflow-map'],
-      querystring: WorkflowMapRequestSchema,
-      response: {
-        200: WorkflowMapResponseSchema,
-      },
-    },
     handler: async (request, reply) => {
       const { workflowIds, includeExternal, depth } = request.query as z.infer<typeof WorkflowMapRequestSchema>;
       
@@ -77,20 +69,6 @@ export async function registerWorkflowMapRoutes(
   
   // GET /api/v1/ai/workflow-map/:workflowId
   server.get('/workflow-map/:workflowId', {
-    schema: {
-      description: 'Get dependency map for a specific workflow',
-      tags: ['workflow-map'],
-      params: z.object({
-        workflowId: z.string(),
-      }),
-      querystring: z.object({
-        direction: z.enum(['both', 'dependencies', 'dependents']).default('both'),
-        depth: z.number().int().min(1).max(5).default(2),
-      }),
-      response: {
-        200: WorkflowMapResponseSchema,
-      },
-    },
     handler: async (request, reply) => {
       const { workflowId } = request.params as { workflowId: string };
       const { direction, depth } = request.query as { direction: string; depth: number };
@@ -122,20 +100,6 @@ export async function registerWorkflowMapRoutes(
   
   // POST /api/v1/ai/workflow-map/refresh
   server.post('/workflow-map/refresh', {
-    schema: {
-      description: 'Refresh workflow dependency index',
-      tags: ['workflow-map'],
-      body: z.object({
-        workflowIds: z.array(z.string()).optional(),
-      }),
-      response: {
-        200: z.object({
-          success: z.boolean(),
-          indexedWorkflows: z.number(),
-          duration: z.number(),
-        }),
-      },
-    },
     handler: async (request, reply) => {
       const { workflowIds } = request.body as { workflowIds?: string[] };
       
@@ -161,31 +125,6 @@ export async function registerWorkflowMapRoutes(
   
   // GET /api/v1/ai/workflow-map/stats
   server.get('/workflow-map/stats', {
-    schema: {
-      description: 'Get workflow map statistics',
-      tags: ['workflow-map'],
-      response: {
-        200: z.object({
-          totalWorkflows: z.number(),
-          totalConnections: z.number(),
-          coverage: z.object({
-            executeWorkflow: z.number(),
-            httpWebhook: z.number(),
-            overall: z.number(),
-          }),
-          topDependencies: z.array(z.object({
-            workflowId: z.string(),
-            workflowName: z.string(),
-            dependentCount: z.number(),
-          })),
-          orphanedWorkflows: z.array(z.object({
-            workflowId: z.string(),
-            workflowName: z.string(),
-          })),
-          lastIndexed: z.string().datetime().nullable(),
-        }),
-      },
-    },
     handler: async (request, reply) => {
       try {
         const stats = await mapService.getStatistics();

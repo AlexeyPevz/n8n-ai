@@ -1,5 +1,6 @@
 import type { FastifyInstance } from 'fastify';
-import { WebSocket } from 'ws';
+// ws module is shimmed in shims.d.ts
+import WebSocket from 'ws';
 import { z } from 'zod';
 
 // Message schemas
@@ -66,7 +67,7 @@ export class WorkflowMapWebSocketHandler {
    */
   async initialize() {
     // Register WebSocket route
-    await this.server.register(async function (fastify) {
+    await this.server.register(async (fastify) => {
       fastify.get('/live', { websocket: true }, (connection, req) => {
         const { socket } = connection;
         
@@ -86,7 +87,7 @@ export class WorkflowMapWebSocketHandler {
         }));
         
         // Handle messages
-        socket.on('message', (message) => {
+        (socket as any).on('message', (message: any) => {
           try {
             const data = JSON.parse(message.toString());
             this.handleClientMessage(socket as WebSocket, data);
@@ -99,7 +100,7 @@ export class WorkflowMapWebSocketHandler {
         });
         
         // Handle pong for keepalive
-        socket.on('pong', () => {
+        (socket as any).on('pong', () => {
           const client = this.clients.get(socket as WebSocket);
           if (client) {
             client.isAlive = true;
@@ -107,11 +108,11 @@ export class WorkflowMapWebSocketHandler {
         });
         
         // Handle disconnect
-        socket.on('close', () => {
+        (socket as any).on('close', () => {
           this.handleDisconnect(socket as WebSocket);
         });
         
-        socket.on('error', (error) => {
+        (socket as any).on('error', (error: any) => {
           req.log.error(error, 'WebSocket error');
           this.handleDisconnect(socket as WebSocket);
         });
@@ -231,7 +232,7 @@ export class WorkflowMapWebSocketHandler {
     // Send current status for requested workflows
     for (const workflowId of workflowIds) {
       // In production, this would fetch actual status from execution engine
-      const statusMessage: WorkflowStatusMessageSchema = {
+      const statusMessage = {
         type: 'workflow_status',
         workflowId,
         status: 'waiting',
@@ -249,7 +250,7 @@ export class WorkflowMapWebSocketHandler {
   /**
    * Broadcast message to workflow subscribers
    */
-  broadcastToWorkflow(workflowId: string, message: LiveMessage) {
+  broadcastToWorkflow(workflowId: string, message: any) {
     const subscribers = this.workflowSubscribers.get(workflowId);
     if (!subscribers) return;
     
@@ -265,7 +266,7 @@ export class WorkflowMapWebSocketHandler {
   /**
    * Broadcast message to all clients
    */
-  broadcastToAll(message: LiveMessage) {
+  broadcastToAll(message: any) {
     const messageStr = JSON.stringify(message);
     
     for (const client of this.clients.values()) {
@@ -283,12 +284,12 @@ export class WorkflowMapWebSocketHandler {
       for (const [ws, client] of this.clients) {
         if (!client.isAlive) {
           // Client didn't respond to last ping
-          ws.terminate();
+          (ws as any).terminate?.();
           this.handleDisconnect(ws);
         } else {
           // Send ping
           client.isAlive = false;
-          ws.ping();
+          (ws as any).ping?.();
         }
       }
     }, 30000); // 30 seconds
@@ -298,7 +299,7 @@ export class WorkflowMapWebSocketHandler {
    * Emit workflow status update
    */
   emitWorkflowStatus(workflowId: string, status: 'running' | 'success' | 'error' | 'waiting') {
-    const message: WorkflowStatusMessageSchema = {
+    const message = {
       type: 'workflow_status',
       workflowId,
       status,
@@ -321,7 +322,7 @@ export class WorkflowMapWebSocketHandler {
       error?: string;
     }
   ) {
-    const message: NodeStatusMessageSchema = {
+    const message = {
       type: 'node_status',
       workflowId,
       nodeId,
@@ -342,7 +343,7 @@ export class WorkflowMapWebSocketHandler {
     costType: 'tokens' | 'api_calls' | 'execution_time',
     nodeId?: string
   ) {
-    const message: CostUpdateMessageSchema = {
+    const message = {
       type: 'cost_update',
       workflowId,
       nodeId,
@@ -363,7 +364,7 @@ export class WorkflowMapWebSocketHandler {
     active: boolean,
     throughput?: number
   ) {
-    const message: ConnectionStatusMessageSchema = {
+    const message = {
       type: 'connection_status',
       sourceWorkflowId,
       targetWorkflowId,

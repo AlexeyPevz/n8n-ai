@@ -16,15 +16,15 @@ export class DocumentIndexer {
    * Index all builtin n8n nodes
    */
   async indexBuiltinNodes(): Promise<void> {
-    console.log('Loading builtin nodes...');
+    // Using structured logs would be preferable in production
     const nodes = loadBuiltinNodes();
-    console.log(`Found ${nodes.length} builtin nodes`);
+    
     
     const nodeDescriptions = nodes.map(n => n.description).filter(Boolean);
-    console.log(`Indexing ${nodeDescriptions.length} node descriptions...`);
+    
     
     await this.ragSystem.indexNodeTypes(nodeDescriptions);
-    console.log('Builtin nodes indexed successfully');
+    
   }
 
   /**
@@ -135,7 +135,7 @@ export class DocumentIndexer {
       },
     ];
 
-    console.log(`Indexing ${patterns.length} workflow patterns...`);
+    
     
     for (const pattern of patterns) {
       await this.ragSystem.indexWorkflowExample(pattern.workflow, {
@@ -145,7 +145,7 @@ export class DocumentIndexer {
       });
     }
     
-    console.log('Workflow patterns indexed successfully');
+    
   }
 
   /**
@@ -211,7 +211,7 @@ Performance tips:
       },
     ];
 
-    console.log(`Indexing ${guides.length} documentation guides...`);
+    
     
     for (const guide of guides) {
       const doc = DocumentProcessor.processGuide(guide.content, {
@@ -219,10 +219,10 @@ Performance tips:
         category: guide.category,
       });
       
-      await this.ragSystem.vectorStore.upsert([doc]);
+      await this.ragSystem.upsertDocuments([doc]);
     }
     
-    console.log('Documentation guides indexed successfully');
+    
   }
 
   /**
@@ -237,7 +237,7 @@ Performance tips:
  * CLI tool to index documents
  */
 export async function runIndexer(): Promise<void> {
-  console.log('Starting document indexer...');
+  
   
   // Initialize AI provider
   const config = getAIConfig();
@@ -265,8 +265,7 @@ export async function runIndexer(): Promise<void> {
     
     // Show stats
     const stats = await indexer.getStats();
-    console.log('\nIndexing complete!');
-    console.log('Statistics:', JSON.stringify(stats, null, 2));
+    
   } catch (error) {
     console.error('Indexing failed:', error);
     process.exit(1);

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { loadBuiltinNodes } from '../load-builtin-nodes';
+import { loadBuiltinNodes } from './load-builtin-nodes';
 
 // Mock the module resolution
 vi.mock('node:module', () => ({
@@ -56,22 +56,22 @@ describe('loadBuiltinNodes', () => {
   it('should parse node types correctly', () => {
     const nodes = loadBuiltinNodes();
     
-    const httpNode = nodes.find(n => n.type === 'n8n-nodes-base.httpRequest');
+    const httpNode = nodes.find(n => n.name === 'n8n-nodes-base.httpRequest');
     expect(httpNode).toBeDefined();
     expect(httpNode?.description).toBeDefined();
   });
 
-  it('should handle missing known-nodes.json gracefully', () => {
-    const fs = vi.mocked(await import('node:fs'));
-    fs.existsSync.mockReturnValue(false);
+  it('should handle missing known-nodes.json gracefully', async () => {
+    const fs = await import('node:fs');
+    (fs as any).existsSync.mockReturnValue(false);
     
     const nodes = loadBuiltinNodes();
     expect(nodes).toEqual([]);
   });
 
-  it('should handle JSON parse errors', () => {
-    const fs = vi.mocked(await import('node:fs'));
-    fs.readFileSync.mockReturnValue('invalid json');
+  it('should handle JSON parse errors', async () => {
+    const fs = await import('node:fs');
+    (fs as any).readFileSync.mockReturnValue('invalid json');
     
     const nodes = loadBuiltinNodes();
     expect(nodes).toEqual([]);
@@ -79,7 +79,7 @@ describe('loadBuiltinNodes', () => {
 
   it('should include all essential node types', () => {
     const nodes = loadBuiltinNodes();
-    const nodeTypes = nodes.map(n => n.type);
+    const nodeNames = nodes.map(n => n.name);
     
     const essentialNodes = [
       'n8n-nodes-base.httpRequest',
@@ -88,7 +88,7 @@ describe('loadBuiltinNodes', () => {
     ];
     
     essentialNodes.forEach(nodeType => {
-      expect(nodeTypes).toContain(nodeType);
+      expect(nodeNames).toContain(nodeType);
     });
   });
 });

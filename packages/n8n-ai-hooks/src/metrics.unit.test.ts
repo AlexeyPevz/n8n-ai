@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { hooksMetrics, HOOKS_METRIC } from '../metrics.js';
+import { hooksMetrics, HOOKS_METRIC } from './metrics';
 
 describe('hooks metrics', () => {
   it('renders JSON and Prometheus outputs', () => {

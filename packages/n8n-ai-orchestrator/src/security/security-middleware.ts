@@ -31,7 +31,7 @@ export interface SecurityConfig {
 // Rate limiter store
 class RateLimitStore {
   private requests = new Map<string, { count: number; resetAt: number }>();
-  private cleanupInterval: NodeJS.Timer;
+  private cleanupInterval: NodeJS.Timeout;
 
   constructor() {
     // Cleanup old entries every minute
@@ -66,7 +66,7 @@ class RateLimitStore {
   }
 
   destroy(): void {
-    clearInterval(this.cleanupInterval);
+    clearInterval(this.cleanupInterval as unknown as number);
     this.requests.clear();
   }
 }
@@ -78,6 +78,35 @@ const rateLimitStore = new RateLimitStore();
  * Security plugin for Fastify
  */
 export async function securityPlugin(fastify: FastifyInstance, config: SecurityConfig) {
+  // CORS from env whitelist (comma-separated)
+  try {
+    const originsEnv = process.env.CORS_ORIGINS;
+    if (originsEnv) {
+      const list = originsEnv.split(',').map(s => s.trim()).filter(Boolean);
+      config.cors = { origins: list, credentials: true };
+    }
+  } catch {}
+  if (config.cors && config.cors.origins?.length) {
+    try {
+      const { origins, credentials } = config.cors;
+      const originSet = new Set(origins);
+      // Use preHandler to enforce CORS whitelist
+      fastify.addHook('onRequest', async (request, reply) => {
+        const origin = request.headers.origin as string | undefined;
+        if (origin && !originSet.has(origin)) {
+          reply.code(403);
+          return reply.send({ error: 'CORS forbidden' });
+        }
+        if (origin) {
+          reply.header('Access-Control-Allow-Origin', origin);
+          reply.header('Vary', 'Origin');
+        }
+        if (credentials) {
+          reply.header('Access-Control-Allow-Credentials', 'true');
+        }
+      });
+    } catch {}
+  }
   // Add security headers
   fastify.addHook('onSend', async (request, reply) => {
     // Security headers

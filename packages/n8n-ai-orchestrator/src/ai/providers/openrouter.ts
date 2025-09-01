@@ -17,7 +17,7 @@ export class OpenRouterProvider extends AIProvider {
 
   constructor(config: OpenRouterConfig) {
     super(config);
-    this.apiKey = config.apiKey;
+    this.apiKey = config.apiKey || '';
     this.baseUrl = config.baseUrl || 'https://openrouter.ai/api/v1';
     this.model = config.model;
     this.siteUrl = config.siteUrl || process.env.OPENROUTER_SITE_URL;
@@ -29,12 +29,12 @@ export class OpenRouterProvider extends AIProvider {
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${this.apiKey}`,
       'HTTP-Referer': this.siteUrl || 'http://localhost:3000',
-      'X-Title': this.siteName,
+      'X-Title': this.siteName || 'n8n-ai',
     };
 
     const response = await fetch(`${this.baseUrl}/chat/completions`, {
       method: 'POST',
-      headers,
+      headers: headers as any,
       body: JSON.stringify({
         model: this.model,
         messages: request.messages,
@@ -76,8 +76,8 @@ export class OpenRouterProvider extends AIProvider {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${this.apiKey}`,
         'HTTP-Referer': this.siteUrl || 'http://localhost:3000',
-        'X-Title': this.siteName,
-      },
+        'X-Title': this.siteName || 'n8n-ai',
+      } as any,
       body: JSON.stringify({
         model: embeddingModel,
         input: request.texts,

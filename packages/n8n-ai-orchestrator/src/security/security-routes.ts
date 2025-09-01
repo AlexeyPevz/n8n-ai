@@ -1,4 +1,9 @@
-import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
+import type { FastifyInstance } from 'fastify';
+import { getSecurityPreset } from './security-config.js';
+
+// Упрощённая версия: основной набор маршрутов ниже
+
+import type { FastifyInstance as FI, FastifyRequest, FastifyReply } from 'fastify';
 import { z } from 'zod';
 import { SecurityAuditor, generateSecurityReport } from './security-audit.js';
 import { validateInput, generateSecureToken, hashSensitiveData } from './security-middleware.js';
@@ -21,7 +26,7 @@ const SecurityStatusSchema = z.object({
   }),
 });
 
-export async function registerSecurityRoutes(server: FastifyInstance) {
+export async function registerSecurityRoutes(server: FI) {
   // Security status endpoint
   server.get('/api/v1/security/status', async (request, reply) => {
     const status = {
@@ -49,7 +54,7 @@ export async function registerSecurityRoutes(server: FastifyInstance) {
         targetPath: z.string().optional(),
       })),
     ],
-  }, async (request: FastifyRequest<{ Body: { targetPath?: string } }>, reply) => {
+  }, async (request: FastifyRequest, reply) => {
     // Check admin permissions (simplified for demo)
     const apiKey = request.headers['x-api-key'] as string;
     if (!apiKey || !apiKey.includes('admin')) {
@@ -60,7 +65,8 @@ export async function registerSecurityRoutes(server: FastifyInstance) {
     }
 
     const auditor = new SecurityAuditor();
-    const targetPath = request.body.targetPath || process.cwd();
+    const body = (request as any).body as { targetPath?: string };
+    const targetPath = body?.targetPath || process.cwd();
     
     try {
       const result = await auditor.runAudit(targetPath);
@@ -93,8 +99,9 @@ export async function registerSecurityRoutes(server: FastifyInstance) {
         purpose: z.string().optional(),
       })),
     ],
-  }, async (request: FastifyRequest<{ Body: { length?: number; purpose?: string } }>, reply) => {
-    const { length = 32, purpose } = request.body;
+  }, async (request: FastifyRequest, reply) => {
+    const body = (request as any).body as { length?: number; purpose?: string };
+    const { length = 32, purpose } = body || {};
     
     const token = generateSecureToken(length);
     const hashedToken = hashSensitiveData(token);
@@ -121,11 +128,12 @@ export async function registerSecurityRoutes(server: FastifyInstance) {
         data: z.any(),
       })),
     ],
-  }, async (request: FastifyRequest<{ Body: { schemaType: string; data: any } }>, reply) => {
-    const { schemaType, data } = request.body;
+  }, async (request: FastifyRequest, reply) => {
+    const body = (request as any).body as { schemaType: string; data: any };
+    const { schemaType, data } = body || ({} as any);
     
     try {
-      let schema;
+      let schema: any;
       switch (schemaType) {
         case 'operation':
           schema = validators.operation.batch;
@@ -153,7 +161,10 @@ export async function registerSecurityRoutes(server: FastifyInstance) {
           errors: error.errors,
         };
       }
-      throw error;
+      return {
+        valid: false,
+        errors: [{ message: (error as any)?.message || 'Unknown error' }],
+      };
     }
   });
 
@@ -249,7 +260,7 @@ export async function registerSecurityRoutes(server: FastifyInstance) {
 }
 
 // Security utility endpoints
-export async function registerSecurityUtilities(server: FastifyInstance) {
+export async function registerSecurityUtilities(server: FI) {
   // Password strength checker
   server.post('/api/v1/security/check-password', {
     preHandler: [
@@ -257,8 +268,9 @@ export async function registerSecurityUtilities(server: FastifyInstance) {
         password: z.string(),
       })),
     ],
-  }, async (request: FastifyRequest<{ Body: { password: string } }>, reply) => {
-    const { password } = request.body;
+  }, async (request: FastifyRequest, reply) => {
+    const body = (request as any).body as { password: string };
+    const { password } = body || {};
     
     const checks = {
       length: password.length >= 12,
@@ -289,8 +301,9 @@ export async function registerSecurityUtilities(server: FastifyInstance) {
         url: validators.common.url,
       })),
     ],
-  }, async (request: FastifyRequest<{ Body: { url: string } }>, reply) => {
-    const { url } = request.body;
+  }, async (request: FastifyRequest, reply) => {
+    const body = (request as any).body as { url: string };
+    const { url } = body || {};
     
     try {
       const parsed = new URL(url);

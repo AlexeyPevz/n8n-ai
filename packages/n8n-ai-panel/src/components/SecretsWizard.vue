@@ -399,7 +399,7 @@ async function testCredential(credential: RequiredCredential) {
     
     // Simulate random success/failure
     if (Math.random() > 0.2) {
-      console.log('Credential test passed:', credential.type);
+      // Credential test passed (placeholder)
     } else {
       throw new Error('Connection failed');
     }

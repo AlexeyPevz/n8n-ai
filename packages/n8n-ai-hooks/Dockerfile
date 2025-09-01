@@ -9,7 +9,8 @@ RUN npm install -g pnpm@8.15.0
 # Копируем наши AI hooks
 WORKDIR /opt/n8n-ai-hooks
 COPY package.json tsconfig.json ./
-COPY *.ts ./
+COPY src ./src
+COPY dev-server.ts ./
 COPY INTEGRATION.md ./
 
 # Устанавливаем зависимости для hooks

@@ -8,7 +8,7 @@ import { graphManager } from './graph-manager.js';
 import { metrics, METRICS } from './metrics.js';
 import { buildWorkflowMap, type WorkflowMapIndex } from './workflow-map.js';
 import { handleError, errorToResponse, ValidationError, ValidationFailedError, NotFoundError, AmbiguousPromptError } from './error-handler.js';
-import { getDiffPolicies } from './config.js';
+import { getDiffPolicies, validateEnv } from './config.js';
 import { randomUUID } from 'node:crypto';
 import { metricsPlugin } from './monitoring/metrics-middleware.js';
 import { registerMetricsRoutes, registerDashboardRoute } from './monitoring/metrics-routes.js';
@@ -20,7 +20,9 @@ import { registerSecurityRoutes, registerSecurityUtilities } from './security/se
 import { WorkflowMapWebSocketHandler } from './workflow-map/websocket-handler.js';
 import { WorkflowMapService } from './workflow-map/workflow-map-service.js';
 import { registerWorkflowMapRoutes } from './workflow-map/workflow-map-routes.js';
+import { registerRequestContext } from './monitoring/request-context.js';
 
+validateEnv();
 const server = Fastify({ logger: true });
 
 // --- SSE clients registry ---
@@ -39,6 +41,7 @@ function sendSse(event: string, data: unknown): void {
 
 // Import model selector for AI recommendations
 import { ModelSelector } from './ai/model-selector.js';
+import { registerPlannerRoutes } from './plugins/planner-routes.js';
 import { RAGSystem } from './ai/rag/rag-system.js';
 import { DocumentIndexer } from './ai/rag/indexer.js';
 
@@ -74,14 +77,8 @@ async function fetchWithRetry(url: string, init: any = {}): Promise<any> {
   throw lastError instanceof Error ? lastError : new Error('Unknown fetch error');
 }
 
-// Корреляция запросов: request-id
-server.addHook('onRequest', (req, reply, done) => {
-  const headerId = req.headers['x-request-id'];
-  const reqId = (Array.isArray(headerId) ? headerId[0] : headerId) || randomUUID();
-  (req as unknown as { requestId?: string }).requestId = reqId;
-  reply.header('x-request-id', reqId);
-  done();
-});
+// Request context & child logger
+await registerRequestContext(server);
 
 // Метрики по каждому запросу
 server.addHook('onResponse', (req, reply, done) => {
@@ -260,46 +257,8 @@ server.get('/introspect/nodes', async (req) => {
   ];
 });
 
-const planner = new SimplePlanner();
-
-server.post<{ Body: { prompt?: string } }>('/plan', async (req) => {
-  return metrics.measureAsync(METRICS.API_DURATION, async () => {
-    metrics.increment(METRICS.API_REQUESTS, { endpoint: 'plan' });
-    
-    const prompt = req.body?.prompt ?? '';
-    if (!prompt || prompt.trim().length < 3) {
-      throw new AmbiguousPromptError('Prompt is empty or too vague', {
-        suggestion: 'Уточните задачу: например, "Сделай HTTP GET на https://api.example.com и выведи JSON"',
-        nextActions: ['ask_clarifying_question']
-      });
-    }
-    
-    try {
-      const batch = await planner.plan({ prompt });
-      const parsed = OperationBatchSchema.safeParse(batch);
-      if (!parsed.success) {
-        server.log.error({ prompt, issues: parsed.error.format() }, 'Generated plan failed schema validation');
-        metrics.increment(METRICS.VALIDATION_ERRORS, { type: 'plan' });
-        const payload = {
-          lints: parsed.error.format(),
-          suggestion: 'Попробую авто‑исправить через Critic',
-          nextActions: ['critic_autofix']
-        } as const;
-        try { sendSse('plan_validation_failed', payload); } catch {}
-        throw new ValidationFailedError('invalid_generated_operation_batch', payload);
-      }
-      
-      metrics.increment(METRICS.PLAN_OPERATIONS, { count: String(parsed.data.ops.length) });
-      server.log.info({ prompt, operationsCount: parsed.data.ops.length }, 'Plan created');
-      return parsed.data;
-    } catch (error) {
-      if (error instanceof ValidationError) throw error;
-      
-      server.log.error({ error, prompt }, 'Planning failed');
-      throw error;
-    }
-  }, { endpoint: 'plan' });
-});
+// Planner & patterns routes
+await registerPlannerRoutes(server);
 
 // Тестовый endpoint: сбросить всё состояние
 server.post('/__test/reset', async () => {
@@ -555,21 +514,6 @@ server.get('/workflows', async () => {
   return { ok: true, total: list.length, items: list };
 });
 
-server.get('/patterns', async () => {
-  const categories = patternMatcher.getCategories();
-  return {
-    categories,
-    totalPatterns: patternMatcher['patterns'].length,
-    examples: categories.slice(0, 5).map(cat => ({
-      category: cat,
-      patterns: patternMatcher.suggestByCategory(cat).slice(0, 3).map(p => ({
-        name: p.name,
-        keywords: p.keywords,
-        nodeCount: p.nodes.length
-      }))
-    }))
-  };
-});
 
 // --- Workflow Map: in-memory index, refreshed on changes ---
 let workflowMapIndex: WorkflowMapIndex = { edges: [], updatedAt: Date.now() };
@@ -584,9 +528,7 @@ type AuditEntry = {
 };
 const auditLogs: AuditEntry[] = [];
 
-server.get('/workflow-map', async () => {
-  return { ok: true, edges: workflowMapIndex.edges, updatedAt: workflowMapIndex.updatedAt };
-});
+// Deprecated: basic workflow map snapshot is handled by workflow-map routes plugin
 
 server.get('/workflow-map/live', async (_req, reply) => {
   reply.raw.writeHead(200, {
@@ -616,31 +558,6 @@ server.get('/workflow-map/live', async (_req, reply) => {
   return reply;
 });
 
-server.post<{ Body: { prompt: string, category?: string } }>('/suggest', async (req) => {
-  const { prompt, category } = req.body;
-  
-  if (category) {
-    const patterns = patternMatcher.suggestByCategory(category);
-    return {
-      category,
-      patterns: patterns.map(p => ({
-        name: p.name,
-        description: `Workflow with ${p.nodes.length} nodes: ${p.nodes.map(n => n.name).join(' → ')}`
-      }))
-    };
-  }
-  
-  const matches = patternMatcher.findMatchingPatterns(prompt);
-  return {
-    prompt,
-    suggestions: matches.slice(0, 5).map(m => ({
-      pattern: m.pattern.name,
-      score: m.score,
-      matchedKeywords: m.matchedKeywords,
-      preview: m.pattern.nodes.map(n => n.name).join(' → ')
-    }))
-  };
-});
 
 server.get('/events', async (req, reply) => {
   reply.raw.writeHead(200, {
@@ -666,45 +583,9 @@ server.get('/events', async (req, reply) => {
   return reply;
 });
 
-// AI Model recommendation endpoint
-server.post<{ Body: { prompt: string } }>('/ai/recommend-model', async (req) => {
-  const { prompt } = req.body;
-  if (!prompt) {
-    return { error: 'prompt is required' };
-  }
-  
-  const modelSelector = new ModelSelector();
-  const recommendation = modelSelector.recommend(prompt);
-  const requirements = ModelSelector.analyzePrompt(prompt);
-  
-  return {
-    recommendation,
-    requirements,
-    availableModels: Object.keys(ModelSelector.MODEL_CAPABILITIES || {}),
-  };
-});
 
 // Prometheus metrics endpoint
-server.get('/metrics', async () => {
-  const snapshot = metrics.getMetrics();
-  const lines: string[] = [];
-  for (const [k, v] of Object.entries(snapshot.counters)) {
-    lines.push(`# TYPE ${k.replace(/\{.*\}$/,'')} counter`);
-    lines.push(`${k} ${v}`);
-  }
-  for (const [k, h] of Object.entries(snapshot.histograms)) {
-    const base = k.replace(/\{.*\}$/,'');
-    lines.push(`# TYPE ${base}_count gauge`);
-    lines.push(`${k}_count ${h.count}`);
-    lines.push(`# TYPE ${base}_p50 gauge`);
-    lines.push(`${k}_p50 ${h.p50}`);
-    lines.push(`# TYPE ${base}_p95 gauge`);
-    lines.push(`${k}_p95 ${h.p95}`);
-    lines.push(`# TYPE ${base}_p99 gauge`);
-    lines.push(`${k}_p99 ${h.p99}`);
-  }
-  return lines.join('\n') + '\n';
-});
+// Prometheus metrics endpoint is provided by registerMetricsRoutes
 
 async function start() {
   let port = Number(process.env.PORT ?? 3000);

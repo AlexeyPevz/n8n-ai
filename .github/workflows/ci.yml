@@ -336,9 +336,6 @@ jobs:
       - name: Check TypeScript
         run: pnpm run check:types
 
-  # Remove duplicate type-check job; keep a single job
-  # (the second definition below will be deleted)
-
   security:
     name: Security Scan
     runs-on: ubuntu-latest

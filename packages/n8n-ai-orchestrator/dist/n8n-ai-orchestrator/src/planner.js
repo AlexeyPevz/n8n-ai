@@ -1,10 +1,31 @@
 import { generateOperationsFromPattern } from './workflow-patterns.js';
 import { patternMatcher } from './pattern-matcher.js';
+import { metrics } from './metrics.js';
+import { AIPlanner } from './ai/ai-planner.js';
+import { getAIConfig } from './ai/config.js';
 export class SimplePlanner {
+    aiPlanner;
+    constructor() {
+        const config = getAIConfig();
+        if (config.providers.primary.apiKey) {
+            this.aiPlanner = new AIPlanner(config);
+        }
+    }
     /**
      * Анализирует промпт и создает план операций
      */
     async plan(context) {
+        // Try AI planner first if available
+        if (this.aiPlanner) {
+            try {
+                return await this.aiPlanner.plan(context);
+            }
+            catch (error) {
+                // AI planner failed, fall back to pattern matching
+                metrics.ai_errors.labels({ model: 'unknown', error: 'planning_failed' }).inc();
+            }
+        }
+        // Fallback to pattern-based planning
         const { prompt } = context;
         const promptLower = prompt.toLowerCase();
         // Приоритет: если пользователь явно просит HTTP/API — генерируем простой HTTP workflow
@@ -48,8 +69,8 @@ export class SimplePlanner {
         const matchResults = patternMatcher.findMatchingPatterns(prompt);
         if (matchResults.length > 0) {
             const bestMatch = matchResults[0];
-            console.log(`Found matching pattern: ${bestMatch.pattern.name} (score: ${bestMatch.score})`);
-            console.log(`Matched keywords: ${bestMatch.matchedKeywords.join(', ')}`);
+            // Track pattern match in metrics
+            metrics.pattern_matches.labels({ pattern: bestMatch.pattern.name }).inc();
             const operations = generateOperationsFromPattern(bestMatch.pattern);
             // Если запрос про "insert after" — добавим соединение к целевой ноде, если она есть
             if (promptLower.includes('insert after') || promptLower.includes('после')) {

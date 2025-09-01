@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { IntrospectAPI } from '../introspect-api';
+import { IntrospectAPI } from './introspect-api';
 
 describe('IntrospectAPI', () => {
   let api: IntrospectAPI;

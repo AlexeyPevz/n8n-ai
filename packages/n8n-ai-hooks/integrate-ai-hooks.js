@@ -21,8 +21,8 @@ if (!fs.existsSync(serverPath)) {
 const patchContent = `
 // n8n-ai hooks integration
 try {
-  const { createAIRoutes } = require('/opt/n8n-ai-hooks/dist/ai-routes.js');
-  const { introspectAPI } = require('/opt/n8n-ai-hooks/dist/introspect-api.js');
+  const { createAIRoutes } = require('/opt/n8n-ai-hooks/dist/src/ai-routes.js');
+  const { introspectAPI } = require('/opt/n8n-ai-hooks/dist/src/introspect-api.js');
   
   // Добавляем middleware для регистрации AI routes
   const originalListen = this.app.listen;
