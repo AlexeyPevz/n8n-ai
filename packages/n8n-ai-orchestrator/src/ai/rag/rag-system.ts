@@ -156,18 +156,8 @@ export class RAGSystem {
       }
       items = unique.slice(0, 2);
     }
-    const header: string[] = [];
-    if (context.workflowContext) {
-      const wc = context.workflowContext;
-      const nodeCount = Array.isArray(wc.nodes) ? wc.nodes.length : 0;
-      header.push(`Current workflow has ${nodeCount} nodes`);
-    }
-    const sections = items.map((it, index) => [
-      `[${index + 1}] relevance: ${(it.score * 100).toFixed(1)}%`,
-      it.content,
-      '',
-    ].join('\n'));
-    let out = ['Relevant n8n documentation:', '---', ...header, ...sections, '---'].join('\n');
+    const sections = items.slice(0, 2).map((it) => it.content);
+    let out = sections.join('\n\n');
     if (context.maxTokens && out.length >= context.maxTokens * 3) out = out.slice(0, context.maxTokens * 3 - 1);
     return out;
   }
