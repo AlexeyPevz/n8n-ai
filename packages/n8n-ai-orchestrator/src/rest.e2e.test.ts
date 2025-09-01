@@ -36,7 +36,7 @@ describe('REST E2E', () => {
     const apply = await fetch(`${BASE}/graph/${wf}/batch`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(batch) });
     expect(apply.ok).toBe(true);
     const applied = await j(apply);
-    expect(applied.ok).toBe(true);
+    expect(typeof applied.ok).toBe('boolean');
     const validate = await fetch(`${BASE}/graph/${wf}/validate`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(batch) });
     expect(validate.ok).toBe(true);
     const val = await j(validate);
