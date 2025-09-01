@@ -528,9 +528,7 @@ type AuditEntry = {
 };
 const auditLogs: AuditEntry[] = [];
 
-server.get('/workflow-map', async () => {
-  return { ok: true, edges: workflowMapIndex.edges, updatedAt: workflowMapIndex.updatedAt };
-});
+// Deprecated: basic workflow map snapshot is handled by workflow-map routes plugin
 
 server.get('/workflow-map/live', async (_req, reply) => {
   reply.raw.writeHead(200, {
@@ -587,26 +585,7 @@ server.get('/events', async (req, reply) => {
 
 
 // Prometheus metrics endpoint
-server.get('/metrics', async () => {
-  const snapshot = metrics.getMetrics();
-  const lines: string[] = [];
-  for (const [k, v] of Object.entries(snapshot.counters)) {
-    lines.push(`# TYPE ${k.replace(/\{.*\}$/,'')} counter`);
-    lines.push(`${k} ${v}`);
-  }
-  for (const [k, h] of Object.entries(snapshot.histograms)) {
-    const base = k.replace(/\{.*\}$/,'');
-    lines.push(`# TYPE ${base}_count gauge`);
-    lines.push(`${k}_count ${h.count}`);
-    lines.push(`# TYPE ${base}_p50 gauge`);
-    lines.push(`${k}_p50 ${h.p50}`);
-    lines.push(`# TYPE ${base}_p95 gauge`);
-    lines.push(`${k}_p95 ${h.p95}`);
-    lines.push(`# TYPE ${base}_p99 gauge`);
-    lines.push(`${k}_p99 ${h.p99}`);
-  }
-  return lines.join('\n') + '\n';
-});
+// Prometheus metrics endpoint is provided by registerMetricsRoutes
 
 async function start() {
   let port = Number(process.env.PORT ?? 3000);
