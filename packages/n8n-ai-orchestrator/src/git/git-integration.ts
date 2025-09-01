@@ -317,7 +317,7 @@ export class GitIntegration {
   private generateDiffUrl(branch: string, commitHash: string): string {
     // This would vary by provider
     if (this.config.pullRequest?.provider === 'github') {
-      const { stdout: remoteUrl } = execSync(
+      const remoteUrl = execSync(
         `git config --get remote.${this.config.remote}.url`
       ).toString();
       

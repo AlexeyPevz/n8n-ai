@@ -219,7 +219,7 @@ Performance tips:
         category: guide.category,
       });
       
-      await this.ragSystem.vectorStore.upsert([doc]);
+      await this.ragSystem.upsertDocuments([doc]);
     }
     
     console.log('Documentation guides indexed successfully');

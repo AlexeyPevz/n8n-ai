@@ -59,7 +59,9 @@ export const OperationTypeSchema = z.enum([
   'batch',
 ]);
 
-export const OperationSchema = z.discriminatedUnion('op', [
+// Declare first, assign after with lazy to break cyclic type
+export let OperationSchema: z.ZodType<any> = z.any();
+OperationSchema = z.discriminatedUnion('op', [
   z.object({
     op: z.literal('add_node'),
     name: NodeIdSchema,

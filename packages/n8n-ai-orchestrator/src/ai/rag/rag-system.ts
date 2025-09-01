@@ -1,4 +1,4 @@
-import type { VectorStore, SearchResult } from './vector-store.js';
+import type { VectorStore, SearchResult, VectorDocument } from './vector-store.js';
 import { QdrantVectorStore } from './qdrant-store.js';
 import { DocumentProcessor } from './document-processor.js';
 import type { AIProvider } from '../providers/base.js';
@@ -160,6 +160,14 @@ export class RAGSystem {
       ...sections,
       '---',
     ].join('\n');
+  }
+
+  /**
+   * Public helper to upsert documents without exposing the underlying store
+   */
+  async upsertDocuments(documents: VectorDocument[]): Promise<void> {
+    await this.initialize();
+    await this.vectorStore.upsert(documents);
   }
 
   /**

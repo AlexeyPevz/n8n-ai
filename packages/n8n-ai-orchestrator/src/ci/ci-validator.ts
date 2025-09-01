@@ -312,7 +312,7 @@ export class CIValidator {
     
     for (const op of batch.ops) {
       if (op.op === 'set_params' || op.op === 'add_node') {
-        const params = op.op === 'set_params' ? op.params : op.node.parameters;
+        const params = op.op === 'set_params' ? (op as any).parameters || (op as any).params : op.node.parameters;
         
         // Check for empty required parameters
         if (params) {
@@ -323,7 +323,7 @@ export class CIValidator {
                 severity: 'warning',
                 message: `Empty parameter: ${key}`,
                 location: { 
-                  nodeId: op.op === 'set_params' ? op.nodeId : op.node.id,
+                  nodeId: op.op === 'set_params' ? ((op as any).nodeId || (op as any).name) : op.node.id,
                   parameter: key,
                 },
                 suggestion: 'Provide a value or remove the parameter',
@@ -379,7 +379,7 @@ export class CIValidator {
     
     for (const op of batch.ops) {
       if (op.op === 'set_params' || op.op === 'add_node') {
-        const params = op.op === 'set_params' ? op.params : op.node.parameters;
+        const params = op.op === 'set_params' ? (op as any).parameters || (op as any).params : op.node.parameters;
         
         if (params) {
           const paramStr = JSON.stringify(params);
@@ -391,7 +391,7 @@ export class CIValidator {
               severity: 'error',
               message: 'Possible hardcoded credentials detected',
               location: { 
-                nodeId: op.op === 'set_params' ? op.nodeId : op.node.id,
+                nodeId: op.op === 'set_params' ? ((op as any).nodeId || (op as any).name) : op.node.id,
               },
               suggestion: 'Use n8n credentials instead of hardcoding sensitive data',
             });
@@ -433,7 +433,10 @@ export class CIValidator {
           workflow.nodes.push(op.node);
           break;
         case 'delete':
-          workflow.nodes = workflow.nodes.filter((n: any) => n.id !== op.nodeId);
+          {
+            const id = (op as any).nodeId || (op as any).name;
+            workflow.nodes = workflow.nodes.filter((n: any) => n.id !== id);
+          }
           break;
         // Handle other operations
       }

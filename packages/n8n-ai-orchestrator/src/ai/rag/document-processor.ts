@@ -175,7 +175,7 @@ export class DocumentProcessor {
         sections.push(`- ${prop.displayName}${required}: ${type} - ${prop.description || 'No description'}`);
         
         if (prop.options && prop.options.length > 0) {
-          const optionsList = prop.options.map(opt => 
+          const optionsList = prop.options.map((opt: any) => 
             typeof opt === 'object' ? opt.name : opt
           ).join(', ');
           sections.push(`  Options: ${optionsList}`);

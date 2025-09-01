@@ -31,7 +31,7 @@ export interface SecurityConfig {
 // Rate limiter store
 class RateLimitStore {
   private requests = new Map<string, { count: number; resetAt: number }>();
-  private cleanupInterval: NodeJS.Timer;
+  private cleanupInterval: NodeJS.Timeout;
 
   constructor() {
     // Cleanup old entries every minute
@@ -66,7 +66,7 @@ class RateLimitStore {
   }
 
   destroy(): void {
-    clearInterval(this.cleanupInterval);
+    clearInterval(this.cleanupInterval as unknown as number);
     this.requests.clear();
   }
 }

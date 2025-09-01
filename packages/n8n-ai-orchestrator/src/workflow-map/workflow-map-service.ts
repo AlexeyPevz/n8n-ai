@@ -221,7 +221,7 @@ export class WorkflowMapService {
    */
   async refreshIndex(workflowIds?: string[]): Promise<{ indexedWorkflows: number }> {
     // Get workflows from n8n
-    const workflows = await this.fetchWorkflows(workflowIds);
+    const workflows = await this.fetchWorkflows(workflowIds) as any[];
     
     // Build dependency map
     const depMap = this.indexer.buildDependencyMap(workflows);
