@@ -62,7 +62,7 @@ export class SchemaCache {
     if (age > this.ttl) {
       this.delete(key);
       this.stats.misses++;
-      return null;
+      return undefined as any;
     }
     
     // Update access order (LRU)
@@ -132,6 +132,9 @@ export class SchemaCache {
     this.accessOrder = [];
     this.stats.size = 0;
     this.stats.lastReset = new Date();
+    this.stats.hits = 0;
+    this.stats.misses = 0;
+    this.stats.evictions = 0;
   }
   
   /**
@@ -166,7 +169,8 @@ export class SchemaCache {
       try {
         const desc = await introspect(t);
         if (desc) {
-          this.set(t, (desc as any).version ?? undefined, desc);
+          const fullType = desc.type ?? `n8n-nodes-base.${t}`;
+          this.set(fullType, (desc as any).typeVersion ?? (desc as any).version ?? undefined, desc);
         }
       } catch {
         // ignore single-node errors during pre-warm
