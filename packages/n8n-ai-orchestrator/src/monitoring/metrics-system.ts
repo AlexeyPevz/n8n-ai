@@ -43,17 +43,19 @@ export class Metric {
 
   constructor(private options: MetricOptions) {}
 
-  // Counter methods
-  inc(labels?: Record<string, string>, value: number = 1): void {
-    if (this.options.type !== 'counter') {
-      throw new Error(`inc() can only be used with counter metrics`);
+  // Counter/Gauge increment
+  inc(labelsOrValue?: Record<string, string> | number, maybeValue?: number): void {
+    const isGauge = this.options.type === 'gauge';
+    const isCounter = this.options.type === 'counter';
+    if (!isGauge && !isCounter) {
+      throw new Error(`inc() can only be used with counter or gauge metrics`);
     }
-    
+    const labels = typeof labelsOrValue === 'object' ? labelsOrValue : undefined;
+    const value = typeof labelsOrValue === 'number' ? labelsOrValue : (maybeValue ?? 1);
     const key = this.getLabelKey(labels);
     const current = this.values.get(key) || { value: 0, labels };
     current.value += value;
     current.timestamp = Date.now();
-    
     this.values.set(key, current);
     this.history.push({ ...current });
     this.eventEmitter.emit('update', current);
@@ -87,13 +89,14 @@ export class Metric {
   }
 
   // Timer helper
-  startTimer(labels?: Record<string, string>): () => void {
+  startTimer(labels?: Record<string, string>): () => number {
     const start = process.hrtime.bigint();
     
     return () => {
       const end = process.hrtime.bigint();
-      const duration = Number(end - start) / 1e6; // Convert to milliseconds
+      const duration = Number(end - start) / 1e9; // seconds
       this.observe(duration, labels);
+      return duration;
     };
   }
 
@@ -175,12 +178,10 @@ export class Metric {
   private calculatePercentiles(sorted: number[]): Record<string, number> {
     const percentiles = this.options.percentiles || [0.5, 0.9, 0.95, 0.99];
     const result: Record<string, number> = {};
-    
     for (const p of percentiles) {
       const index = Math.floor(sorted.length * p);
       result[`p${p * 100}`] = sorted[index] || 0;
     }
-    
     return result;
   }
 
@@ -195,23 +196,59 @@ export class Metric {
     return 0;
   }
 
-  valuesList(): number[] {
-    return this.history.map((h) => h.value);
+  values(): Map<string, number> {
+    const out = new Map<string, number>();
+    for (const [k, v] of this.values.entries()) out.set(k, v.value);
+    return out;
   }
 
-  buckets(): number[] | undefined {
-    return this.options.buckets;
+  buckets(): Record<number, number> | undefined {
+    if (!this.options.buckets) return undefined;
+    const counts: Record<number, number> = {};
+    for (const b of this.options.buckets) counts[b] = 0;
+    for (const v of this.history) {
+      for (const b of this.options.buckets) {
+        if (v.value <= b) counts[b]++;
+      }
+    }
+    return counts;
   }
 
-  percentiles(): Record<string, number> | undefined {
-    const snap = this.getSnapshot();
-    return snap.metadata?.percentiles;
+  percentiles(pcts?: number[]): Record<number, number> {
+    const sorted = this.history.map(h => h.value).sort((a, b) => a - b);
+    const res: Record<number, number> = {};
+    const list = pcts && pcts.length ? pcts : (this.options.percentiles || [0.5, 0.9, 0.95, 0.99]);
+    for (const p of list) {
+      const idx = Math.floor(sorted.length * p);
+      res[p] = sorted[idx] ?? 0;
+    }
+    return res;
   }
 
   sum(): number {
     if (this.options.type === 'histogram' || this.options.type === 'summary') {
       const snap = this.getSnapshot();
       return snap.metadata?.sum ?? 0;
+    }
+    return this.value();
+  }
+
+  count(): number {
+    if (this.options.type === 'histogram' || this.options.type === 'summary') {
+      const snap = this.getSnapshot();
+      return snap.metadata?.count ?? 0;
+    }
+    let total = 0;
+    for (const v of this.values.values()) total += v.value;
+    return total;
+  }
+
+  mean(): number {
+    if (this.options.type === 'histogram' || this.options.type === 'summary') {
+      const snap = this.getSnapshot();
+      const c = snap.metadata?.count ?? 0;
+      if (!c) return 0;
+      return (snap.metadata?.sum ?? 0) / c;
     }
     return this.value();
   }
@@ -226,17 +263,17 @@ export class MetricsRegistry {
     this.defaultLabels = { ...labels };
   }
 
-  on(event: 'update', listener: (name: string, value: MetricValue) => void): void {
-    this.emitter.on(event, listener);
+  on(event: 'update', listener: (payload: { name: string; type: MetricType; value: number; labels?: Record<string, string>; timestamp?: number }) => void): void {
+    this.emitter.on(event, listener as any);
   }
 
   register(options: MetricOptions): Metric {
     if (this.metrics.has(options.name)) {
-      throw new Error(`Metric ${options.name} is already registered`);
+      throw new Error(`Metric ${options.name} already exists`);
     }
     const metric = new Metric(options);
     // Forward metric updates
-    metric.on('update', (v) => this.emitter.emit('update', options.name, v));
+    metric.on('update', (v) => this.emitter.emit('update', { name: options.name, type: options.type, value: v.value, labels: v.labels, timestamp: v.timestamp }));
     this.metrics.set(options.name, metric);
     return metric;
   }
@@ -355,12 +392,19 @@ export class MetricsRegistry {
     return lines.join('\n');
   }
 
-  collect(): MetricSnapshot[] {
-    return this.getAllMetrics();
+  collect(): { metrics: Array<{ name: string; type: string; help: string; value: number; labels: Record<string, string> }>; timestamp: string } {
+    const metrics: Array<{ name: string; type: string; help: string; value: number; labels: Record<string, string> }> = [];
+    for (const metric of this.metrics.values()) {
+      const snap = metric.getSnapshot();
+      for (const v of snap.values) {
+        metrics.push({ name: snap.name, type: snap.type, help: snap.help, value: v.value, labels: v.labels });
+      }
+    }
+    return { metrics, timestamp: new Date().toISOString() };
   }
 
-  toJSON(): MetricSnapshot[] {
-    return this.getAllMetrics();
+  toJSON(): string {
+    return JSON.stringify(this.collect());
   }
 
   getMetricNames(): string[] {

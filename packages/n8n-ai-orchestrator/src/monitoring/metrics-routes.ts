@@ -11,11 +11,13 @@ export async function registerMetricsRoutes(server: FastifyInstance) {
 
   // JSON metrics endpoint
   server.get('/metrics/json', async (request, reply) => {
-    return metricsRegistry.getAllMetrics();
+    reply.type('application/json');
+    return metricsRegistry.collect();
   });
 
   // Dashboard metrics endpoint
   server.get('/metrics/dashboard', async (request, reply) => {
+    reply.type('application/json');
     return metricsDashboard.getCurrentMetrics();
   });
 
@@ -45,15 +47,13 @@ export async function registerMetricsRoutes(server: FastifyInstance) {
   server.get('/metrics/health', async (request, reply) => {
     const metrics = metricsDashboard.getCurrentMetrics();
     
-    const health = {
+    const health: any = {
       status: 'healthy',
       uptime: metrics.overview.uptime,
+      timestamp: new Date().toISOString(),
       metrics: {
-        requests: metrics.overview.totalRequests,
-        errorRate: metrics.overview.errorRate,
-        avgResponseTime: metrics.overview.avgResponseTime,
-        memoryUsage: metrics.performance.memoryUsage,
-        cpuUsage: metrics.performance.cpuUsage,
+        collected: metrics.overview.totalRequests,
+        errors: Math.round(metrics.overview.totalRequests * (metrics.overview.errorRate / 100)),
       },
       checks: {
         errorRate: metrics.overview.errorRate < 5, // Less than 5% error rate
