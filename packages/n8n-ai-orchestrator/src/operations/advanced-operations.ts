@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import type { GraphOp } from '@n8n-ai/schemas';
+// Не используется напрямую; опишем собственные op-типы ниже
 
 // Replace node operation
 export const ReplaceNodeOpSchema = z.object({

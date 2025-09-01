@@ -276,26 +276,28 @@ export class CIValidator {
       if (op.op === 'add_node') {
         nodeIds.add(op.node.id);
       } else if (op.op === 'delete') {
-        nodeIds.delete(op.nodeId);
+        nodeIds.delete((op as any).nodeId || (op as any).name);
       }
     }
     
     // Validate connections
     for (const op of batch.ops) {
       if (op.op === 'connect') {
-        if (!nodeIds.has(op.from.nodeId)) {
+        const fromId = (op as any).from?.nodeId || (op as any).from || (op as any).fromId;
+        const toId = (op as any).to?.nodeId || (op as any).to || (op as any).toId;
+        if (!nodeIds.has(fromId)) {
           errors.push({
             type: 'invalid_connection',
             severity: 'error',
-            message: `Connection from non-existent node: ${op.from.nodeId}`,
+            message: `Connection from non-existent node: ${fromId}`,
             location: { operation: op },
           });
         }
-        if (!nodeIds.has(op.to.nodeId)) {
+        if (!nodeIds.has(toId)) {
           errors.push({
             type: 'invalid_connection',
             severity: 'error',
-            message: `Connection to non-existent node: ${op.to.nodeId}`,
+            message: `Connection to non-existent node: ${toId}`,
             location: { operation: op },
           });
         }

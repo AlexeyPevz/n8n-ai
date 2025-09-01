@@ -8,6 +8,8 @@ export interface VectorDocument {
     title?: string;
     url?: string;
     lastUpdated?: Date;
+    originalId?: string;
+    chunkIndex?: number;
   };
   embedding?: number[];
 }
