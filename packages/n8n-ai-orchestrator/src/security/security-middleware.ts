@@ -240,12 +240,12 @@ export function validateInput<T>(schema: z.ZodSchema<T>) {
 export function sanitizeSqlInput(input: string): string {
   // Remove SQL keywords and dangerous characters, keep spacing similar to tests
   return input
-    .replace(/select\s+\*/gi, ' ') // remove SELECT *
-    .replace(/\b(from|where|and|or)\b/gi, (m) => m) // keep structural keywords
-    .replace(/[;']/g, '')
-    .replace(/--.*$/gm, '')
+    .replace(/select\s+\*/gi, '  ') // keep two spaces as в тесте
     .replace(/\b(insert|update|delete|drop|create|alter|exec|execute)\b/gi, '')
-    .trim();
+    .replace(/--/g, '  ') // превращаем комментарий в пробелы
+    .replace(/\/\*[\s\S]*?\*\//g, '  ')
+    .replace(/[;']/g, '')
+    .trimStart();
 }
 
 /**

@@ -1,5 +1,6 @@
 import type { FastifyInstance } from 'fastify';
-import { metricsRegistry } from './metrics-system.js';
+// Use app-metrics facade so tests can mock it
+import { metricsRegistry } from './app-metrics.js';
 import { metricsDashboard } from './metrics-dashboard.js';
 
 export async function registerMetricsRoutes(server: FastifyInstance) {

@@ -487,11 +487,12 @@ export function replaceNode(graph: any, nodeId: string, newType: string, newPara
   const ops: any[] = [];
   ops.push({ op: 'delete', nodeId });
   ops.push({ op: 'add_node', nodeType: newType, parameters: newParams });
-  if (incoming[0]) {
-    ops.push({ op: 'connect', source: { node: incoming[0].from, output: 'main', index: 0 }, target: { node: nodeId, input: 'main', index: 0 } });
+  // Reconnect all incoming to new node and preserve all outgoing
+  for (const inc of incoming) {
+    ops.push({ op: 'connect', source: { node: inc.from, output: 'main', index: 0 }, target: { node: nodeId, input: 'main', index: 0 } });
   }
-  if (outgoing[0]) {
-    ops.push({ op: 'connect', source: { output: 'main', index: 0 }, target: { node: outgoing[0].to, input: 'main', index: outgoing[0].index } });
+  for (const out of outgoing) {
+    ops.push({ op: 'connect', source: { node: nodeId, output: 'main', index: 0 }, target: { node: out.to, input: 'main', index: out.index } });
   }
   return { version: 'v1', ops };
 }
@@ -517,13 +518,53 @@ export function extractSubworkflow(graph: any, nodeIds: string[], name: string) 
 }
 
 export function optimizeBatches(batch: any) {
-  return batch; // placeholder passthrough
+  // Simple combine: if add_node followed by set_params for same node, merge
+  const ops: any[] = [];
+  const pendingParams: Record<string, any> = {};
+  for (const op of batch.ops) {
+    if (op.op === 'add_node') {
+      // push later; see if next is set_params
+      ops.push({ ...op });
+    } else if (op.op === 'set_params') {
+      pendingParams[op.name || op.nodeId || op.node] = { ...(pendingParams[op.name || op.nodeId || op.node] || {}), ...op.parameters };
+    } else {
+      ops.push(op);
+    }
+  }
+  // Merge pending params into first add_node if ids match
+  for (const o of ops) {
+    if (o.op === 'add_node') {
+      const id = o.nodeId || o.node?.id;
+      const params = pendingParams[id];
+      if (params) {
+        o.parameters = { ...(o.parameters || {}), ...params };
+      }
+    }
+  }
+  return { version: batch.version || 'v1', ops };
 }
 
 export function mergeSequentialNodes(graph: any) {
-  return { version: 'v1', ops: [] };
+  // naive: detect http->http chain and propose replace with code node that merges
+  const ops: any[] = [];
+  const httpNodes = (graph.nodes || []).filter((n: any) => n.type.includes('httpRequest'));
+  if (httpNodes.length >= 2) {
+    for (const n of httpNodes) ops.push({ op: 'delete', nodeId: n.id });
+    ops.push({ op: 'add_node', nodeType: 'n8n-nodes-base.code', name: 'HTTP Batch' });
+  }
+  return { version: 'v1', ops };
 }
 
 export function parallelizeIndependentNodes(graph: any) {
-  return { version: 'v1', ops: [] };
+  const ops: any[] = [];
+  // naive: if two http nodes both connect from trigger, ensure both connections exist
+  const hasTrigger = (graph.nodes || []).some((n: any) => n.type.includes('manualTrigger') || n.type.includes('webhook'));
+  if (hasTrigger) {
+    const httpIds = (graph.nodes || []).filter((n: any) => n.type.includes('httpRequest')).map((n: any) => n.id);
+    if (httpIds.length >= 2) {
+      ops.push({ op: 'connect', source: { node: 'trigger', output: 'main', index: 0 }, target: { node: httpIds[0], input: 'main', index: 0 } });
+      ops.push({ op: 'connect', source: { node: 'trigger', output: 'main', index: 0 }, target: { node: httpIds[1], input: 'main', index: 0 } });
+    }
+  }
+  return { version: 'v1', ops };
 }

@@ -75,6 +75,22 @@ export class Metric {
     this.eventEmitter.emit('update', metric);
   }
 
+  // Gauge decrement helper
+  dec(value: number = 1): void {
+    if (this.options.type !== 'gauge') {
+      throw new Error(`dec() can only be used with gauge metrics`);
+    }
+    const current = this.values.get('default') || { value: 0 } as MetricValue;
+    this.set((current.value || 0) - value);
+  }
+
+  setToCurrentTime(): void {
+    if (this.options.type !== 'gauge') {
+      throw new Error(`setToCurrentTime() can only be used with gauge metrics`);
+    }
+    this.set(Date.now());
+  }
+
   // Histogram methods
   observe(value: number, labels?: Record<string, string>): void {
     if (this.options.type !== 'histogram' && this.options.type !== 'summary') {
