@@ -518,39 +518,52 @@ export function extractSubworkflow(graph: any, nodeIds: string[], name: string) 
 }
 
 export function optimizeBatches(batch: any) {
-  // Simple combine: if add_node followed by set_params for same node, merge
   const ops: any[] = [];
-  const pendingParams: Record<string, any> = {};
-  for (const op of batch.ops) {
-    if (op.op === 'add_node') {
-      // push later; see if next is set_params
-      ops.push({ ...op });
-    } else if (op.op === 'set_params') {
-      pendingParams[op.name || op.nodeId || op.node] = { ...(pendingParams[op.name || op.nodeId || op.node] || {}), ...op.parameters };
-    } else {
-      ops.push(op);
-    }
-  }
-  // Merge pending params into first add_node if ids match
-  for (const o of ops) {
-    if (o.op === 'add_node') {
-      const id = o.nodeId || o.node?.id;
-      const params = pendingParams[id];
-      if (params) {
-        o.parameters = { ...(o.parameters || {}), ...params };
+  const inputOps = batch.ops as any[];
+  let i = 0;
+  while (i < inputOps.length) {
+    const curr = inputOps[i];
+    if (curr.op === 'add_node') {
+      const nodeId = curr.nodeId;
+      // Collect consecutive set_params for same node
+      const collected: any[] = [];
+      let j = i + 1;
+      while (j < inputOps.length && inputOps[j].op === 'set_params' && (inputOps[j].nodeId === nodeId)) {
+        collected.push(inputOps[j]);
+        j++;
+      }
+      if (collected.length === 1) {
+        // Merge single immediate set_params into add_node
+        const params = collected[0].params || collected[0].parameters || {};
+        ops.push({ ...curr, parameters: { ...(curr.parameters || {}), ...params } });
+        i = j; // skip the set_params
+        continue;
+      } else if (collected.length > 1) {
+        // Keep add_node and append one merged set_params
+        ops.push({ ...curr });
+        const merged = collected.reduce((acc, c) => ({ ...acc, ...(c.params || c.parameters || {}) }), {});
+        ops.push({ op: 'set_params', nodeId, params: merged });
+        i = j;
+        continue;
+      } else {
+        ops.push({ ...curr });
+        i++;
+        continue;
       }
     }
+    // Not add_node
+    ops.push(curr);
+    i++;
   }
   return { version: batch.version || 'v1', ops };
 }
 
-export function mergeSequentialNodes(graph: any) {
-  // naive: detect http->http chain and propose replace with code node that merges
+export function mergeSequentialNodes(graph: any, targetIds?: string[]) {
   const ops: any[] = [];
-  const httpNodes = (graph.nodes || []).filter((n: any) => n.type.includes('httpRequest'));
-  if (httpNodes.length >= 2) {
-    for (const n of httpNodes) ops.push({ op: 'delete', nodeId: n.id });
-    ops.push({ op: 'add_node', nodeType: 'n8n-nodes-base.code', name: 'HTTP Batch' });
+  const ids = targetIds && targetIds.length > 0 ? targetIds : (graph.nodes || []).filter((n: any) => n.type.includes('httpRequest')).map((n: any) => n.id);
+  if (ids.length >= 2) {
+    for (const id of ids) ops.push({ op: 'delete', nodeId: id });
+    ops.push({ op: 'add_node', nodeType: 'n8n-nodes-base.function', name: 'HTTP Batch' });
   }
   return { version: 'v1', ops };
 }

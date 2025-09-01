@@ -256,7 +256,6 @@ export function sanitizeSqlInput(input: string): string {
   // Remove semicolons entirely
   out = out.replace(/;/g, '');
   out = out.replace(/\s+FROM/gi, '  FROM');
-  out = out.replace(/\s+comment\s*$/gmi, '  comment');
   // Normalize classic OR '1'='1' pattern
   out = out.replace(/(['"])\s*OR\s*\1?1\1?=\1?1/gi, ' OR 11');
   return out;

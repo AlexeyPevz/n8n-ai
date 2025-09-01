@@ -75,18 +75,54 @@ export class SecurityAuditor {
     // If looks like code (contains newline or forbidden tokens), run pattern checks on string
     if (codeOrPath.includes('const') || codeOrPath.includes('\n')) {
       const findings: SecurityFinding[] = [];
-      if (/eval\s*\(/.test(codeOrPath) || /child_process/.test(codeOrPath)) {
+      const code = codeOrPath;
+      // Dangerous imports / functions
+      if (/\beval\s*\(/.test(code) || /child_process/.test(code)) {
         findings.push({ type: 'DANGEROUS_IMPORT', severity: 'high', message: 'Use of eval/child_process detected' });
       }
-      const secrets = [/sk-[A-Za-z0-9]/, /password\s*=\s*['"][^'"]+['"]/i, /ghp_[A-Za-z0-9]{20,}/, /AKIA[0-9A-Z]{16}/];
-      let secretCount = 0;
-      for (const s of secrets) secretCount += s.test(codeOrPath) ? 1 : 0;
-      for (let i = 0; i < secretCount; i++) {
-        findings.push({ type: 'HARDCODED_SECRET', severity: 'critical', message: 'API key/secret detected' });
+      // Hardcoded secrets
+      const secrets = [/sk-[A-Za-z0-9]/g, /password\s*=\s*['"][^'"]+['"]/gi, /ghp_[A-Za-z0-9]{20,}/g, /AKIA[0-9A-Z]{16}/g];
+      for (const s of secrets) {
+        const matches = code.match(s) || [];
+        for (let i = 0; i < matches.length; i++) {
+          findings.push({ type: 'HARDCODED_SECRET', severity: 'critical', message: 'API key/secret detected' });
+        }
       }
-      if (/SELECT\s+.*\+\s*userInput/i.test(codeOrPath) || /DROP\s+TABLE/i.test(codeOrPath)) {
-        findings.push({ type: 'SQL_INJECTION', severity: 'critical', message: 'Possible SQL injection' });
+      // SQL injection patterns (concatenation into queries)
+      const sqlPatterns = [
+        /SELECT\s+\*?\s+FROM[\s\S]*\+\s*\w+/gi,
+        /DELETE\s+FROM[\s\S]*\+\s*\w+/gi,
+        /"\s*\+\s*\w+\s*\+\s*"/g,
+        /`[^`]*\$\{[^}]+\}[^`]*`/g, // template literal interpolation
+      ];
+      let sqlCount = 0;
+      for (const p of sqlPatterns) sqlCount += (code.match(p) || []).length;
+      for (let i = 0; i < sqlCount; i++) findings.push({ type: 'SQL_INJECTION', severity: 'critical', message: 'Possible SQL injection' });
+      // Command injection patterns: count unique lines that contain risky execution
+      const cmdLineRegexes = [
+        /\bexec\s*\(/,
+        /\bexecSync\s*\(/,
+        /shell\.exec\s*\(/,
+      ];
+      const lines = code.split(/\r?\n/);
+      let cmdCount = 0;
+      for (const line of lines) {
+        if (cmdLineRegexes.some(r => r.test(line))) {
+          cmdCount++;
+        }
       }
+      for (let i = 0; i < cmdCount; i++) {
+        findings.push({ type: 'COMMAND_INJECTION', severity: 'critical', message: 'Possible command injection' });
+      }
+      // Path traversal
+      if (/\.\.\//.test(code)) {
+        findings.push({ type: 'PATH_TRAVERSAL', severity: 'high', message: 'Possible path traversal' });
+      }
+      // Weak crypto
+      const weakCryptoCount = (code.match(/crypto\.createHash\(['"]md5['"]\)/gi) || []).length
+        + (code.match(/createCipher\(['"]des['"]/gi) || []).length
+        + (code.match(/sha1\s*\(/gi) || []).length;
+      for (let i = 0; i < weakCryptoCount; i++) findings.push({ type: 'WEAK_CRYPTO', severity: i === 0 ? 'medium' : 'medium', message: 'weak cryptography detected' });
       return findings;
     }
     // Fallback to repo audit
@@ -97,12 +133,49 @@ export class SecurityAuditor {
   async auditWorkflow(workflow: any): Promise<SecurityFinding[]> {
     const findings: SecurityFinding[] = [];
     for (const node of workflow.nodes || []) {
-      if (node.type === 'n8n-nodes-base.httpRequest' && typeof node.parameters?.url === 'string' && node.parameters.url.startsWith('http://')) {
-        findings.push({ nodeId: node.id, type: 'SSRF', severity: 'high', message: 'Server-Side Request Forgery risk: http without TLS' });
+      if (node.type === 'n8n-nodes-base.httpRequest') {
+        const url = String(node.parameters?.url ?? '');
+        if (url.startsWith('http://')) {
+          findings.push({ nodeId: node.id, type: 'SSRF', severity: 'high', message: 'Server-Side Request Forgery risk: http without TLS' });
+        }
+        if (/\{\{\$json\.[^}]+\}\}/.test(url)) {
+          findings.push({ nodeId: node.id, type: 'SSRF', severity: 'high', message: 'Server-Side Request Forgery: user-controlled URL' });
+        }
+        const headers = (node.parameters as any)?.headerParameters?.parameters as any[] | undefined;
+        if (Array.isArray(headers)) {
+          for (const h of headers) {
+            const val = String(h.value ?? '');
+            if (/sk-[A-Za-z0-9]/.test(val) || /Bearer\s+[A-Za-z0-9._-]+/.test(val)) {
+              findings.push({ nodeId: node.id, type: 'HARDCODED_CREDENTIAL', severity: 'high', message: 'Hardcoded credential in HTTP headers' });
+            }
+          }
+        }
+        // Basic auth inline credentials
+        const authMode = (node.parameters as any)?.authentication;
+        const genericAuthType = (node.parameters as any)?.genericAuthType;
+        const httpBasic = (node.parameters as any)?.httpBasicAuth;
+        if (authMode && genericAuthType === 'httpBasicAuth' && httpBasic && (httpBasic.user || httpBasic.password)) {
+          findings.push({ nodeId: node.id, type: 'HARDCODED_CREDENTIAL', severity: 'high', message: 'Hardcoded basic auth credentials' });
+        }
       }
       if (node.type === 'n8n-nodes-base.webhook') {
         const auth = (node.parameters as any)?.authentication;
         if (!auth) findings.push({ nodeId: node.id, type: 'MISSING_AUTHENTICATION', severity: 'medium', message: 'Webhook without authentication' });
+      }
+      if (node.type === 'n8n-nodes-base.executeCommand') {
+        const cmd = String((node.parameters as any)?.command ?? '');
+        if (/(\+|\$\{|\{\{\$json\.)/.test(cmd)) {
+          findings.push({ nodeId: node.id, type: 'COMMAND_INJECTION', severity: 'critical', message: 'Potential command injection' });
+        }
+      }
+      if (node.type === 'n8n-nodes-base.function') {
+        const code = String((node.parameters as any)?.functionCode ?? '');
+        if (/eval\s*\(/.test(code)) {
+          findings.push({ nodeId: node.id, type: 'DANGEROUS_FUNCTION', severity: 'critical', message: 'Use of eval in Function node' });
+        }
+        if (/sk-[A-Za-z0-9]/.test(code)) {
+          findings.push({ nodeId: node.id, type: 'HARDCODED_SECRET', severity: 'critical', message: 'Hardcoded secret in Function node' });
+        }
       }
     }
     return findings;
