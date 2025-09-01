@@ -12,6 +12,7 @@
     "e2e:install": "playwright install --with-deps"
   },
   "dependencies": {
+    "axios": "^1.11.0",
     "vue": "^3.4.37"
   },
   "devDependencies": {

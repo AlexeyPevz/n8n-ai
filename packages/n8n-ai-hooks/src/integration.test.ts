@@ -1,9 +1,9 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import express from 'express';
 import type { Express } from 'express';
-import { createAIRoutes } from '../ai-routes';
-import { introspectAPI } from '../introspect-api';
-import { loadBuiltinNodes } from '../load-builtin-nodes';
+import { createAIRoutes } from './ai-routes';
+import { introspectAPI } from './introspect-api';
+import { loadBuiltinNodes } from './load-builtin-nodes';
 
 describe('n8n-ai-hooks Integration', () => {
   let app: Express;

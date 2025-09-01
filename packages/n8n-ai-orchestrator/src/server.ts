@@ -8,7 +8,7 @@ import { graphManager } from './graph-manager.js';
 import { metrics, METRICS } from './metrics.js';
 import { buildWorkflowMap, type WorkflowMapIndex } from './workflow-map.js';
 import { handleError, errorToResponse, ValidationError, ValidationFailedError, NotFoundError, AmbiguousPromptError } from './error-handler.js';
-import { getDiffPolicies } from './config.js';
+import { getDiffPolicies, validateEnv } from './config.js';
 import { randomUUID } from 'node:crypto';
 import { metricsPlugin } from './monitoring/metrics-middleware.js';
 import { registerMetricsRoutes, registerDashboardRoute } from './monitoring/metrics-routes.js';
@@ -21,6 +21,7 @@ import { WorkflowMapWebSocketHandler } from './workflow-map/websocket-handler.js
 import { WorkflowMapService } from './workflow-map/workflow-map-service.js';
 import { registerWorkflowMapRoutes } from './workflow-map/workflow-map-routes.js';
 
+validateEnv();
 const server = Fastify({ logger: true });
 
 // --- SSE clients registry ---

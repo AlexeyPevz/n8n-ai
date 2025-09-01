@@ -1,5 +1,5 @@
 import express from 'express';
-import { createAIRoutes } from './ai-routes.js';
+import { createAIRoutes } from './src/ai-routes';
 
 const app = express();
 app.use(express.json());

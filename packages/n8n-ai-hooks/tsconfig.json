@@ -8,13 +8,19 @@
     "declarationMap": true
   },
   "include": [
-    "*.ts"
+    "src/**/*.ts",
+    "ai-routes.ts",
+    "introspect-api.ts",
+    "load-builtin-nodes.ts",
+    "metrics.ts",
+    "dev-server.ts"
   ],
   "exclude": [
     "dist",
     "node_modules",
     "n8n-upstream",
-    "packages/n8n-ai-hooks-src"
+    "packages/n8n-ai-hooks-src",
+    "src/**/*.test.ts"
   ],
   "references": [
     { "path": "../n8n-ai-schemas" }
