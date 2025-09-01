@@ -65,16 +65,7 @@
         @dismiss="lastError = null"
         @action="onErrorAction"
       />
-      <div
-        v-if="progress >= 0"
-        class="progress"
-      >
-        <div
-          class="bar"
-          :style="{ width: progress + '%' }"
-        />
-        <span class="pct">{{ progress }}%</span>
-      </div>
+      <ProgressBar :value="progress" v-if="progress >= 0" />
     </section>
 
     <section v-if="planItems.length">
@@ -100,16 +91,15 @@
           <strong>{{ wf.name }}</strong> — {{ wf.status }} · $ {{ (wf.estimatedCostCents/100).toFixed(2) }}
         </span>
       </div>
-      <div
+      <ChangesSummary
         v-if="summary.total"
-        class="changes"
-      >
-        <span class="chg add">+ {{ summary.add_node }}</span>
-        <span class="chg connect">→ {{ summary.connect }}</span>
-        <span class="chg set">⋯ {{ summary.set_params }}</span>
-        <span class="chg annotate">✎ {{ summary.annotate }}</span>
-        <span class="chg del">− {{ summary.delete }}</span>
-      </div>
+        :add_node="summary.add_node"
+        :connect="summary.connect"
+        :set_params="summary.set_params"
+        :annotate="summary.annotate"
+        :del="summary.delete"
+        :total="summary.total"
+      />
       
       <!-- Canvas visualization -->
       <div
@@ -219,6 +209,8 @@ import { ref, computed, onMounted, onBeforeUnmount } from 'vue';
 import WorkflowCanvas from './components/WorkflowCanvas.vue';
 import WorkflowMap from './components/WorkflowMap.vue';
 import ErrorCard from './components/ErrorCard.vue';
+import ProgressBar from './components/ProgressBar.vue';
+import ChangesSummary from './components/ChangesSummary.vue';
 
 const activeTab = ref('ai');
 const prompt = ref('');

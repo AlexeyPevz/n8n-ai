@@ -45,6 +45,22 @@ describe('n8n-ai-hooks Integration', () => {
     });
   });
 
+  describe('Fallback behaviour', () => {
+    it('falls back to in-memory when orchestrator is unreachable', async () => {
+      process.env.N8N_AI_ORCHESTRATOR_URL = 'http://127.0.0.1:39999';
+      const response = await fetch(`${baseUrl}/graph/demo/batch`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ version: 'v1', ops: [{ op: 'annotate', name: 'Manual Trigger', text: 'x' }] }),
+      });
+      expect(response.ok).toBe(true);
+      const json = await response.json();
+      expect(json.ok).toBe(true);
+      expect(json.workflowId).toBe('demo');
+      expect(json.note).toBe('fallback_in_memory');
+    });
+  });
+
   describe('Introspect API', () => {
     it('should list all available nodes', async () => {
       const response = await fetch(`${baseUrl}/introspect/nodes`);
