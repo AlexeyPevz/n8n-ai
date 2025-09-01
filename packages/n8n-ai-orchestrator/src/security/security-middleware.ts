@@ -247,7 +247,7 @@ export function sanitizeSqlInput(input: string): string {
     .replace(/\bDROP\b/gi, '  ');
   // Remove comments leaving double spaces
   out = out.replace(/--\s*(.*)$/gm, '  $1');
-  out = out.replace(/\/\*\s*([\s\S]*?)\s*\*\//g, '  $1');
+  out = out.replace(/\/\*\s*([\s\S]*?)\s*\*\//g, '  $1 ');
   // Clean up triple spaces to match tests expecting two spaces
   out = out.replace(/\s{3,}/g, '  ');
   // Specific expectations in tests
