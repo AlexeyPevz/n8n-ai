@@ -1,28 +1,3 @@
-export function getSecurityPreset() {
-    const preset = process.env.SECURITY_PRESET || 'development';
-    const common = {
-        cors: {
-            origins: process.env.CORS_ORIGINS?.split(',') || ['http://localhost:3001'],
-            credentials: true,
-        },
-        rateLimit: {
-            global: {
-                max: parseInt(process.env.SECURITY_RATE_LIMIT || '100'),
-                timeWindow: parseInt(process.env.SECURITY_RATE_WINDOW || '60000'),
-            },
-        },
-        auth: {
-            apiKeys: process.env.SECURITY_API_KEYS?.split(',').filter(Boolean) || [],
-            jwtSecret: process.env.JWT_SECRET,
-        },
-        maxBodySize: parseInt(process.env.MAX_BODY_SIZE || '5242880'),
-        trustedProxies: process.env.SECURITY_TRUSTED_PROXIES?.split(',').filter(Boolean) || [],
-    };
-    if (preset === 'production') {
-        common.cors = { origins: [process.env.APP_URL || 'https://app.n8n.io'], credentials: true };
-    }
-    return common;
-}
 import { CSPBuilder } from './security-middleware.js';
 /**
  * Get security configuration from environment

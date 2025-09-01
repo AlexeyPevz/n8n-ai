@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import crypto from 'crypto';
 import type { OperationBatch } from '@n8n-ai/schemas';
+import { EventEmitter } from 'node:events';
 
 // Audit log entry schema
 export const AuditLogEntrySchema = z.object({
@@ -300,4 +301,187 @@ export function extractCostFromAIResponse(response: any): {
   // Add other provider formats as needed
   
   return {};
+}
+
+export type AuditEvent = {
+  id?: string;
+  timestamp: Date;
+  type: 'workflow_execution' | 'ai_prompt' | 'policy_violation' | 'git_operation';
+  userId?: string;
+  workflowId?: string;
+  workflowName?: string;
+  action?: string;
+  status?: 'success' | 'failed' | 'rejected';
+  metadata?: Record<string, unknown>;
+  // ai details
+  prompt?: string;
+  promptHash?: string;
+  model?: string;
+  aiCost?: {
+    promptTokens?: number;
+    completionTokens?: number;
+    totalCost?: number;
+  };
+  // policy details
+  policyViolations?: Array<{ policy: string; violation: string; details?: any }>;
+  // git details
+  gitDetails?: {
+    commitHash?: string;
+    branch?: string;
+    message?: string;
+  };
+};
+
+export type AuditQuery = {
+  userId?: string;
+  workflowId?: string;
+  type?: AuditEvent['type'];
+  status?: AuditEvent['status'];
+  startDate?: Date;
+  endDate?: Date;
+  limit?: number;
+  offset?: number;
+};
+
+export interface AuditStorage {
+  save(event: AuditEvent): Promise<boolean>;
+  query(filters: AuditQuery): Promise<AuditEvent[]>;
+  count(filters: AuditQuery): Promise<number>;
+  getStats?(filters: { startDate?: Date; endDate?: Date }): Promise<any>;
+  deleteOlderThan?(date: Date): Promise<number>;
+}
+
+export class AuditLogger extends EventEmitter {
+  private storage: AuditStorage;
+  private enableConsole: boolean;
+  private enableMetrics: boolean;
+  private retentionDays?: number;
+
+  constructor(opts: { storage: AuditStorage; enableConsole?: boolean; enableMetrics?: boolean; retentionDays?: number }) {
+    super();
+    this.storage = opts.storage;
+    this.enableConsole = !!opts.enableConsole;
+    this.enableMetrics = !!opts.enableMetrics;
+    this.retentionDays = opts.retentionDays;
+  }
+
+  async log(event: AuditEvent): Promise<void> {
+    const enriched: AuditEvent = { id: crypto.randomUUID(), ...event };
+    // Emit immediately for real-time listeners
+    this.emit('audit:logged', enriched);
+    this.emit('log', enriched);
+    await this.storage.save(enriched);
+    if (this.enableConsole) {
+      // minimal console log
+      // eslint-disable-next-line no-console
+      console.info('[audit]', enriched.type, enriched.status ?? '', enriched.userId ?? '', enriched.workflowId ?? '');
+    }
+  }
+
+  async logAIPrompt(input: { userId?: string; workflowId?: string; prompt: string; model?: string; provider?: string; operations: OperationBatch; promptTokens?: number; completionTokens?: number; totalCost?: number; }): Promise<void> {
+    const promptHash = crypto.createHash('sha256').update(input.prompt).digest('hex');
+    await this.log({
+      timestamp: new Date(),
+      type: 'ai_prompt',
+      userId: input.userId,
+      workflowId: input.workflowId,
+      prompt: input.prompt,
+      promptHash,
+      model: input.model,
+      metadata: { provider: input.provider, operations: input.operations },
+      aiCost: { promptTokens: input.promptTokens, completionTokens: input.completionTokens, totalCost: input.totalCost },
+      status: 'success',
+    });
+  }
+
+  async logPolicyViolation(input: { userId?: string; workflowId?: string; policyName: string; violation: string; details?: any; }): Promise<void> {
+    await this.log({
+      timestamp: new Date(),
+      type: 'policy_violation',
+      userId: input.userId,
+      workflowId: input.workflowId,
+      action: 'policy_check',
+      status: 'failed',
+      policyViolations: [{ policy: input.policyName, violation: input.violation, details: input.details }],
+    });
+  }
+
+  async logGitOperation(input: { userId?: string; workflowId?: string; workflowName?: string; operation: 'commit' | 'pr' | 'branch' | string; commitHash?: string; branch?: string; message?: string; }): Promise<void> {
+    await this.log({
+      timestamp: new Date(),
+      type: 'git_operation',
+      userId: input.userId,
+      workflowId: input.workflowId,
+      workflowName: input.workflowName,
+      action: input.operation,
+      status: 'success',
+      gitDetails: { commitHash: input.commitHash, branch: input.branch, message: input.message },
+    });
+  }
+
+  async query(q: AuditQuery): Promise<AuditEvent[]> {
+    return this.storage.query(q);
+  }
+
+  async getAIUsageStats(p: { startDate?: Date; endDate?: Date }): Promise<any> {
+    if (this.storage.getStats) return this.storage.getStats(p);
+    // Fallback: compute from queried events
+    const events = await this.storage.query({ startDate: p.startDate, endDate: p.endDate, type: 'ai_prompt' });
+    const byModel: Record<string, { count: number; tokens: number; cost: number }> = {};
+    let totalPrompts = 0;
+    let totalTokens = 0;
+    let totalCost = 0;
+    for (const e of events) {
+      totalPrompts++;
+      const model = (e.model as string) || 'unknown';
+      const tokens = (e.aiCost?.promptTokens ?? 0) + (e.aiCost?.completionTokens ?? 0);
+      const cost = e.aiCost?.totalCost ?? 0;
+      totalTokens += tokens;
+      totalCost += cost;
+      byModel[model] = byModel[model] || { count: 0, tokens: 0, cost: 0 };
+      byModel[model].count++;
+      byModel[model].tokens += tokens;
+      byModel[model].cost += cost;
+    }
+    return { totalPrompts, totalTokens, totalCost, byModel };
+  }
+
+  async getPolicyViolationSummary(p: { startDate?: Date; endDate?: Date }): Promise<Record<string, number>> {
+    const events = await this.storage.query({ startDate: p.startDate, endDate: p.endDate, type: 'policy_violation' });
+    const summary: Record<string, number> = {};
+    for (const e of events) {
+      for (const v of e.policyViolations ?? []) {
+        summary[v.policy] = (summary[v.policy] || 0) + 1;
+      }
+    }
+    return summary;
+  }
+
+  async generateComplianceReport(p: { startDate?: Date; endDate?: Date }): Promise<{ period: { start: Date; end: Date }; summary: { totalEvents: number; successRate: number; policyViolations: number } }> {
+    const logs = await this.storage.query({ startDate: p.startDate, endDate: p.endDate });
+    const totalEvents = logs.length;
+    const successes = logs.filter(l => l.type === 'workflow_execution' && l.status === 'success').length;
+    const policyViolations = logs.filter(l => l.type === 'policy_violation').length;
+    const successRate = totalEvents ? successes / totalEvents : 0;
+    return {
+      period: { start: p.startDate ?? new Date(0), end: p.endDate ?? new Date() },
+      summary: { totalEvents, successRate, policyViolations },
+    };
+  }
+
+  async exportLogs(p: { format: 'csv' | 'json'; startDate?: Date; endDate?: Date }): Promise<string> {
+    const logs = await this.storage.query({ startDate: p.startDate, endDate: p.endDate });
+    if (p.format === 'json') return JSON.stringify(logs);
+    // csv
+    const header = 'id,timestamp,type,userId,action,status';
+    const rows = logs.map(l => [l.id, l.timestamp.toISOString?.() ?? String(l.timestamp), l.type, l.userId ?? '', l.action ?? '', l.status ?? ''].join(','));
+    return [header, ...rows].join('\n');
+  }
+
+  async cleanupOldLogs(): Promise<void> {
+    if (!this.retentionDays || !this.storage.deleteOlderThan) return;
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - this.retentionDays);
+    await this.storage.deleteOlderThan(cutoff);
+  }
 }

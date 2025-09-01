@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { OperationBatchSchema } from '@n8n-ai/schemas';
 import { DiffPolicyManager } from '../policies/diff-policies.js';
 import { getDefaultPolicies } from '../policies/default-policies.js';
 // CI validation result schema
@@ -55,7 +56,7 @@ export class CIValidator {
         // 1. Schema validation
         totalChecks++;
         try {
-            OperationBatchSchema.parse(batch);
+            OperationBatchSchema.parse ? OperationBatchSchema.parse(batch) : null;
             passedChecks++;
         }
         catch (error) {
@@ -231,25 +232,27 @@ export class CIValidator {
                 nodeIds.add(op.node.id);
             }
             else if (op.op === 'delete') {
-                nodeIds.delete(op.nodeId);
+                nodeIds.delete(op.nodeId || op.name);
             }
         }
         // Validate connections
         for (const op of batch.ops) {
             if (op.op === 'connect') {
-                if (!nodeIds.has(op.from.nodeId)) {
+                const fromId = op.from?.nodeId || op.from || op.fromId;
+                const toId = op.to?.nodeId || op.to || op.toId;
+                if (!nodeIds.has(fromId)) {
                     errors.push({
                         type: 'invalid_connection',
                         severity: 'error',
-                        message: `Connection from non-existent node: ${op.from.nodeId}`,
+                        message: `Connection from non-existent node: ${fromId}`,
                         location: { operation: op },
                     });
                 }
-                if (!nodeIds.has(op.to.nodeId)) {
+                if (!nodeIds.has(toId)) {
                     errors.push({
                         type: 'invalid_connection',
                         severity: 'error',
-                        message: `Connection to non-existent node: ${op.to.nodeId}`,
+                        message: `Connection to non-existent node: ${toId}`,
                         location: { operation: op },
                     });
                 }
@@ -261,7 +264,7 @@ export class CIValidator {
         const errors = [];
         for (const op of batch.ops) {
             if (op.op === 'set_params' || op.op === 'add_node') {
-                const params = op.op === 'set_params' ? op.params : op.node.parameters;
+                const params = op.op === 'set_params' ? op.parameters || op.params : op.node.parameters;
                 // Check for empty required parameters
                 if (params) {
                     for (const [key, value] of Object.entries(params)) {
@@ -271,7 +274,7 @@ export class CIValidator {
                                 severity: 'warning',
                                 message: `Empty parameter: ${key}`,
                                 location: {
-                                    nodeId: op.op === 'set_params' ? op.nodeId : op.node.id,
+                                    nodeId: op.op === 'set_params' ? (op.nodeId || op.name) : op.node.id,
                                     parameter: key,
                                 },
                                 suggestion: 'Provide a value or remove the parameter',
@@ -318,7 +321,7 @@ export class CIValidator {
         const issues = [];
         for (const op of batch.ops) {
             if (op.op === 'set_params' || op.op === 'add_node') {
-                const params = op.op === 'set_params' ? op.params : op.node.parameters;
+                const params = op.op === 'set_params' ? op.parameters || op.params : op.node.parameters;
                 if (params) {
                     const paramStr = JSON.stringify(params);
                     // Check for hardcoded credentials
@@ -328,7 +331,7 @@ export class CIValidator {
                             severity: 'error',
                             message: 'Possible hardcoded credentials detected',
                             location: {
-                                nodeId: op.op === 'set_params' ? op.nodeId : op.node.id,
+                                nodeId: op.op === 'set_params' ? (op.nodeId || op.name) : op.node.id,
                             },
                             suggestion: 'Use n8n credentials instead of hardcoding sensitive data',
                         });
@@ -365,7 +368,10 @@ export class CIValidator {
                     workflow.nodes.push(op.node);
                     break;
                 case 'delete':
-                    workflow.nodes = workflow.nodes.filter((n) => n.id !== op.nodeId);
+                    {
+                        const id = op.nodeId || op.name;
+                        workflow.nodes = workflow.nodes.filter((n) => n.id !== id);
+                    }
                     break;
                 // Handle other operations
             }

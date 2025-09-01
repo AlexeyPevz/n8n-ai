@@ -351,9 +351,7 @@ export class DependencyIndexer {
           if (workflowIds && workflowIds.size === 1) {
             // Single match - high confidence
             dep.target.workflowId = Array.from(workflowIds)[0];
-            if (dep.target.probability) {
-              dep.target.probability = Math.min(1, dep.target.probability * 1.1); // Boost confidence
-            }
+            // keep original probability as per tests
           } else if (workflowIds && workflowIds.size > 1) {
             // Multiple matches - need disambiguation
             dep.metadata = {

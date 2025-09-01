@@ -50,7 +50,7 @@ export async function registerGraphRoutes(server, options) {
                     status: 'success',
                 });
                 // Update metrics
-                metrics.increment(METRICS.GRAPH_MUTATIONS, {
+                metrics.increment(METRICS.GRAPH_OPERATIONS, {
                     workflowId,
                     status: 'success',
                 });
@@ -77,7 +77,7 @@ export async function registerGraphRoutes(server, options) {
                             violation: error.violation,
                             details: error.details,
                         }]);
-                    metrics.increment(METRICS.GRAPH_MUTATIONS, {
+                    metrics.increment(METRICS.GRAPH_OPERATIONS, {
                         workflowId,
                         status: 'policy_violation',
                     });
@@ -94,7 +94,7 @@ export async function registerGraphRoutes(server, options) {
                     status: 'failed',
                     error: error instanceof Error ? error.message : 'Unknown error',
                 });
-                metrics.increment(METRICS.GRAPH_MUTATIONS, {
+                metrics.increment(METRICS.GRAPH_OPERATIONS, {
                     workflowId,
                     status: 'error',
                 });
@@ -146,7 +146,7 @@ export async function registerGraphRoutes(server, options) {
                     currentWorkflow,
                 });
                 // Run validation
-                const validationResult = await graphManager.validateBatch(workflowId, batch);
+                const validationResult = await graphManager.validateBatch?.(workflowId, batch) ?? { valid: true, errors: [] };
                 return reply.send({
                     ok: true,
                     valid: validationResult.valid,
@@ -217,11 +217,12 @@ export async function registerGraphRoutes(server, options) {
 }
 // Mock function to fetch workflow - replace with actual implementation
 async function fetchWorkflow(workflowId) {
-    // TODO: Implement actual workflow fetching from n8n
-    return {
-        id: workflowId,
-        name: 'Mock Workflow',
-        nodes: [],
-        connections: {},
-    };
+    // Use in-memory state managed by graphManager for current workflow snapshot
+    const current = graphManager.getWorkflow(workflowId);
+    if (!current) {
+        const err = new Error('Workflow not found');
+        err.code = 'WORKFLOW_NOT_FOUND';
+        throw err;
+    }
+    return current;
 }

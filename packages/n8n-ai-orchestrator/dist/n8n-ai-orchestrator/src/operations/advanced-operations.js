@@ -1,4 +1,5 @@
 import { z } from 'zod';
+// Не используется напрямую; опишем собственные op-типы ниже
 // Replace node operation
 export const ReplaceNodeOpSchema = z.object({
     op: z.literal('replace_node'),

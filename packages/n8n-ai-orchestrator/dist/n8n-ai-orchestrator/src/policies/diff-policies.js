@@ -151,8 +151,8 @@ export class ParameterPolicy {
             return;
         for (const op of batch.ops) {
             if (op.op === 'add_node' || op.op === 'set_params') {
-                const nodeType = op.op === 'add_node' ? op.node.type : this.getNodeType(op.nodeId, context);
-                const params = op.op === 'add_node' ? op.node.parameters : op.params;
+                const nodeType = op.op === 'add_node' ? op.node.type : this.getNodeType((op.nodeId || op.name), context);
+                const params = op.op === 'add_node' ? op.node.parameters : (op.parameters || op.params);
                 for (const rule of this.config.rules) {
                     if (rule.nodeType === nodeType || rule.nodeType === '*') {
                         this.checkRule(rule, params, nodeType);

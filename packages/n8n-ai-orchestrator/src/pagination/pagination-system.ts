@@ -227,26 +227,35 @@ export class ArrayPaginator<T> {
       prevCursor = result.prevCursor;
     } else {
       // Apply offset-based pagination
-      const offset = PaginationHelper.calculateOffset(normalized.page, normalized.limit);
-      paginated = sorted.slice(offset, offset + normalized.limit);
+      let offset = PaginationHelper.calculateOffset(normalized.page, normalized.limit);
+      const totalPages = Math.ceil(sorted.length / normalized.limit) || 1;
+      if (normalized.page > totalPages) {
+        offset = PaginationHelper.calculateOffset(totalPages, normalized.limit);
+      }
+      const end = Math.min(sorted.length, offset + normalized.limit);
+      paginated = sorted.slice(offset, end);
       
       // Generate cursors for next/prev if applicable
       if (offset + normalized.limit < sorted.length) {
         const nextItem = sorted[offset + normalized.limit];
-        nextCursor = PaginationHelper.encodeCursor({
-          id: this.getKey(nextItem),
-          timestamp: Date.now(),
-          sortValue: this.getSortValue(nextItem),
-        });
+        if (nextItem !== undefined) {
+          nextCursor = PaginationHelper.encodeCursor({
+            id: this.getKey(nextItem),
+            timestamp: Date.now(),
+            sortValue: this.getSortValue(nextItem),
+          });
+        }
       }
       
       if (offset > 0) {
         const prevItem = sorted[Math.max(0, offset - 1)];
-        prevCursor = PaginationHelper.encodeCursor({
-          id: this.getKey(prevItem),
-          timestamp: Date.now(),
-          sortValue: this.getSortValue(prevItem),
-        });
+        if (prevItem !== undefined) {
+          prevCursor = PaginationHelper.encodeCursor({
+            id: this.getKey(prevItem),
+            timestamp: Date.now(),
+            sortValue: this.getSortValue(prevItem),
+          });
+        }
       }
     }
 

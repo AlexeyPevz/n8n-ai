@@ -43,6 +43,37 @@ const rateLimitStore = new RateLimitStore();
  * Security plugin for Fastify
  */
 export async function securityPlugin(fastify, config) {
+    // CORS from env whitelist (comma-separated)
+    try {
+        const originsEnv = process.env.CORS_ORIGINS;
+        if (originsEnv) {
+            const list = originsEnv.split(',').map(s => s.trim()).filter(Boolean);
+            config.cors = { origins: list, credentials: true };
+        }
+    }
+    catch { }
+    if (config.cors && config.cors.origins?.length) {
+        try {
+            const { origins, credentials } = config.cors;
+            const originSet = new Set(origins);
+            // Use preHandler to enforce CORS whitelist
+            fastify.addHook('onRequest', async (request, reply) => {
+                const origin = request.headers.origin;
+                if (origin && !originSet.has(origin)) {
+                    reply.code(403);
+                    return reply.send({ error: 'CORS forbidden' });
+                }
+                if (origin) {
+                    reply.header('Access-Control-Allow-Origin', origin);
+                    reply.header('Vary', 'Origin');
+                }
+                if (credentials) {
+                    reply.header('Access-Control-Allow-Credentials', 'true');
+                }
+            });
+        }
+        catch { }
+    }
     // Add security headers
     fastify.addHook('onSend', async (request, reply) => {
         // Security headers

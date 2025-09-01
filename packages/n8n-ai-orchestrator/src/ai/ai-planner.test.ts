@@ -39,7 +39,7 @@ describe('AIPlanner', () => {
     },
   };
 
-  beforeEach(() => {
+  beforeEach(async () => {
     vi.clearAllMocks();
     planner = new AIPlanner(mockConfig);
     

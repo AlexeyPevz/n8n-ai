@@ -1,4 +1,5 @@
-import { WebSocket } from 'ws';
+// ws module is shimmed in shims.d.ts
+import WebSocket from 'ws';
 import { z } from 'zod';
 // Message schemas
 const WorkflowStatusMessageSchema = z.object({
@@ -51,7 +52,7 @@ export class WorkflowMapWebSocketHandler {
      */
     async initialize() {
         // Register WebSocket route
-        await this.server.register(async function (fastify) {
+        await this.server.register(async (fastify) => {
             fastify.get('/live', { websocket: true }, (connection, req) => {
                 const { socket } = connection;
                 // Create client
@@ -242,13 +243,13 @@ export class WorkflowMapWebSocketHandler {
             for (const [ws, client] of this.clients) {
                 if (!client.isAlive) {
                     // Client didn't respond to last ping
-                    ws.terminate();
+                    ws.terminate?.();
                     this.handleDisconnect(ws);
                 }
                 else {
                     // Send ping
                     client.isAlive = false;
-                    ws.ping();
+                    ws.ping?.();
                 }
             }
         }, 30000); // 30 seconds
