@@ -40,6 +40,7 @@ function sendSse(event: string, data: unknown): void {
 
 // Import model selector for AI recommendations
 import { ModelSelector } from './ai/model-selector.js';
+import { registerPlannerRoutes } from './plugins/planner-routes.js';
 import { RAGSystem } from './ai/rag/rag-system.js';
 import { DocumentIndexer } from './ai/rag/indexer.js';
 
@@ -261,46 +262,8 @@ server.get('/introspect/nodes', async (req) => {
   ];
 });
 
-const planner = new SimplePlanner();
-
-server.post<{ Body: { prompt?: string } }>('/plan', async (req) => {
-  return metrics.measureAsync(METRICS.API_DURATION, async () => {
-    metrics.increment(METRICS.API_REQUESTS, { endpoint: 'plan' });
-    
-    const prompt = req.body?.prompt ?? '';
-    if (!prompt || prompt.trim().length < 3) {
-      throw new AmbiguousPromptError('Prompt is empty or too vague', {
-        suggestion: 'Уточните задачу: например, "Сделай HTTP GET на https://api.example.com и выведи JSON"',
-        nextActions: ['ask_clarifying_question']
-      });
-    }
-    
-    try {
-      const batch = await planner.plan({ prompt });
-      const parsed = OperationBatchSchema.safeParse(batch);
-      if (!parsed.success) {
-        server.log.error({ prompt, issues: parsed.error.format() }, 'Generated plan failed schema validation');
-        metrics.increment(METRICS.VALIDATION_ERRORS, { type: 'plan' });
-        const payload = {
-          lints: parsed.error.format(),
-          suggestion: 'Попробую авто‑исправить через Critic',
-          nextActions: ['critic_autofix']
-        } as const;
-        try { sendSse('plan_validation_failed', payload); } catch {}
-        throw new ValidationFailedError('invalid_generated_operation_batch', payload);
-      }
-      
-      metrics.increment(METRICS.PLAN_OPERATIONS, { count: String(parsed.data.ops.length) });
-      server.log.info({ prompt, operationsCount: parsed.data.ops.length }, 'Plan created');
-      return parsed.data;
-    } catch (error) {
-      if (error instanceof ValidationError) throw error;
-      
-      server.log.error({ error, prompt }, 'Planning failed');
-      throw error;
-    }
-  }, { endpoint: 'plan' });
-});
+// Planner & patterns routes
+await registerPlannerRoutes(server);
 
 // Тестовый endpoint: сбросить всё состояние
 server.post('/__test/reset', async () => {
@@ -556,21 +519,6 @@ server.get('/workflows', async () => {
   return { ok: true, total: list.length, items: list };
 });
 
-server.get('/patterns', async () => {
-  const categories = patternMatcher.getCategories();
-  return {
-    categories,
-    totalPatterns: patternMatcher['patterns'].length,
-    examples: categories.slice(0, 5).map(cat => ({
-      category: cat,
-      patterns: patternMatcher.suggestByCategory(cat).slice(0, 3).map(p => ({
-        name: p.name,
-        keywords: p.keywords,
-        nodeCount: p.nodes.length
-      }))
-    }))
-  };
-});
 
 // --- Workflow Map: in-memory index, refreshed on changes ---
 let workflowMapIndex: WorkflowMapIndex = { edges: [], updatedAt: Date.now() };
@@ -617,31 +565,6 @@ server.get('/workflow-map/live', async (_req, reply) => {
   return reply;
 });
 
-server.post<{ Body: { prompt: string, category?: string } }>('/suggest', async (req) => {
-  const { prompt, category } = req.body;
-  
-  if (category) {
-    const patterns = patternMatcher.suggestByCategory(category);
-    return {
-      category,
-      patterns: patterns.map(p => ({
-        name: p.name,
-        description: `Workflow with ${p.nodes.length} nodes: ${p.nodes.map(n => n.name).join(' → ')}`
-      }))
-    };
-  }
-  
-  const matches = patternMatcher.findMatchingPatterns(prompt);
-  return {
-    prompt,
-    suggestions: matches.slice(0, 5).map(m => ({
-      pattern: m.pattern.name,
-      score: m.score,
-      matchedKeywords: m.matchedKeywords,
-      preview: m.pattern.nodes.map(n => n.name).join(' → ')
-    }))
-  };
-});
 
 server.get('/events', async (req, reply) => {
   reply.raw.writeHead(200, {
@@ -667,23 +590,6 @@ server.get('/events', async (req, reply) => {
   return reply;
 });
 
-// AI Model recommendation endpoint
-server.post<{ Body: { prompt: string } }>('/ai/recommend-model', async (req) => {
-  const { prompt } = req.body;
-  if (!prompt) {
-    return { error: 'prompt is required' };
-  }
-  
-  // Используем статические методы/заглушки, чтобы избежать несоответствий типов
-  const recommendation = (ModelSelector as any).recommend ? (ModelSelector as any).recommend(prompt) : 'gpt-4o-mini';
-  const requirements = (ModelSelector as any).analyzePrompt ? (ModelSelector as any).analyzePrompt(prompt) : { latency: 'medium', context: 'short' };
-  
-  return {
-    recommendation,
-    requirements,
-    availableModels: Object.keys(((ModelSelector as any).MODEL_CAPABILITIES) || {}),
-  };
-});
 
 // Prometheus metrics endpoint
 server.get('/metrics', async () => {
