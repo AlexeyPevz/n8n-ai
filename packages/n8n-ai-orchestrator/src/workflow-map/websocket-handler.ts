@@ -1,4 +1,5 @@
 import type { FastifyInstance } from 'fastify';
+// ws module is shimmed in shims.d.ts
 import { WebSocket } from 'ws';
 import { z } from 'zod';
 

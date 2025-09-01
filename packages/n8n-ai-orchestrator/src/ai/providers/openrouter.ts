@@ -34,7 +34,7 @@ export class OpenRouterProvider extends AIProvider {
 
     const response = await fetch(`${this.baseUrl}/chat/completions`, {
       method: 'POST',
-      headers,
+      headers: headers as any,
       body: JSON.stringify({
         model: this.model,
         messages: request.messages,
@@ -76,8 +76,8 @@ export class OpenRouterProvider extends AIProvider {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${this.apiKey}`,
         'HTTP-Referer': this.siteUrl || 'http://localhost:3000',
-        'X-Title': this.siteName,
-      },
+        'X-Title': this.siteName || 'n8n-ai',
+      } as any,
       body: JSON.stringify({
         model: embeddingModel,
         input: request.texts,

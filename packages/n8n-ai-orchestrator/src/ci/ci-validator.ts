@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import type { OperationBatch } from '@n8n-ai/schemas';
+import { OperationBatchSchema } from '@n8n-ai/schemas';
 import { DiffPolicyManager } from '../policies/diff-policies.js';
 import { getDefaultPolicies } from '../policies/default-policies.js';
 
@@ -73,7 +74,7 @@ export class CIValidator {
     // 1. Schema validation
     totalChecks++;
     try {
-      OperationBatchSchema.parse(batch);
+      (OperationBatchSchema as any).parse ? (OperationBatchSchema as any).parse(batch) : null;
       passedChecks++;
     } catch (error) {
       errors.push({
