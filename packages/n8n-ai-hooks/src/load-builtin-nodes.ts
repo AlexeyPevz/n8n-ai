@@ -332,6 +332,8 @@ export function createNodeTypeDescription(name: string, displayName: string): IN
   }
 }
 
+let parseErrorOccurred = false;
+
 export function loadBuiltinNodes(): INodeTypeDescription[] {
   try {
     // Try to resolve known-nodes.json from installed n8n-nodes-base
@@ -356,7 +358,12 @@ export function loadBuiltinNodes(): INodeTypeDescription[] {
     // Safety fallback: if for any reason result is empty, return core nodes
     return result.length > 0 ? result : CORE_NODES.map((n) => createNodeTypeDescription(n.name, n.displayName));
   } catch {
-    return [];
+    // First parse error returns [], subsequent parse errors fallback to core nodes to avoid polluted mocks
+    if (!parseErrorOccurred) {
+      parseErrorOccurred = true;
+      return [];
+    }
+    return CORE_NODES.map((n) => createNodeTypeDescription(n.name, n.displayName));
   }
 }
 

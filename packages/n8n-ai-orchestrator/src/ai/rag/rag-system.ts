@@ -152,9 +152,8 @@ export class RAGSystem {
     if (context.deduplicate) {
       const unique: typeof items = [];
       for (const it of items) {
-        if (!unique.some(u => similarity(u.content, it.content) > 0.4)) unique.push(it);
+        if (!unique.some(u => similarity(u.content, it.content) > 0.3)) unique.push(it);
       }
-      // return only the top 2 entries to keep context concise
       items = unique.slice(0, 2);
     }
     const header: string[] = [];
