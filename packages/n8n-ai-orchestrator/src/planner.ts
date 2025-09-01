@@ -1,17 +1,41 @@
 import type { OperationBatch } from '@n8n-ai/schemas';
 import { generateOperationsFromPattern } from './workflow-patterns.js';
 import { patternMatcher } from './pattern-matcher.js';
+import { metrics } from './metrics.js';
+import { AIPlanner } from './ai/ai-planner.js';
+import { getAIConfig } from './ai/config.js';
 
 interface PlannerContext {
   prompt: string;
   availableNodes?: string[];
+  currentWorkflow?: any;
+  introspectAPI?: any;
 }
 
 export class SimplePlanner {
+  private aiPlanner?: AIPlanner;
+
+  constructor() {
+    const config = getAIConfig();
+    if (config.providers.primary.apiKey) {
+      this.aiPlanner = new AIPlanner(config);
+    }
+  }
   /**
    * Анализирует промпт и создает план операций
    */
   async plan(context: PlannerContext): Promise<OperationBatch> {
+        // Try AI planner first if available
+    if (this.aiPlanner) {
+      try {
+        return await this.aiPlanner.plan(context);
+      } catch (error) {
+        // AI planner failed, fall back to pattern matching
+        metrics.ai_errors.labels({ model: 'unknown', error: 'planning_failed' }).inc();
+      }
+    }
+
+    // Fallback to pattern-based planning
     const { prompt } = context;
     const promptLower = prompt.toLowerCase();
     
@@ -60,8 +84,8 @@ export class SimplePlanner {
     
     if (matchResults.length > 0) {
       const bestMatch = matchResults[0];
-      console.log(`Found matching pattern: ${bestMatch.pattern.name} (score: ${bestMatch.score})`);
-      console.log(`Matched keywords: ${bestMatch.matchedKeywords.join(', ')}`);
+      // Track pattern match in metrics
+      metrics.pattern_matches.labels({ pattern: bestMatch.pattern.name }).inc();
       
       const operations = generateOperationsFromPattern(bestMatch.pattern) as OperationBatch['ops'];
       // Если запрос про "insert after" — добавим соединение к целевой ноде, если она есть

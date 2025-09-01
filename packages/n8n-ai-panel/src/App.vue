@@ -1,6 +1,25 @@
 <template>
   <main>
-    <section>
+    <!-- Tab Navigation -->
+    <nav class="tab-nav">
+      <button 
+        class="tab-button"
+        :class="{ active: activeTab === 'ai' }"
+        @click="activeTab = 'ai'"
+      >
+        🤖 AI Assistant
+      </button>
+      <button 
+        class="tab-button"
+        :class="{ active: activeTab === 'map' }"
+        @click="activeTab = 'map'"
+      >
+        🗺️ Workflow Map
+      </button>
+    </nav>
+
+    <!-- AI Assistant Tab -->
+    <section v-if="activeTab === 'ai'">
       <h2>AI Panel</h2>
       <div class="prompt-wrap">
         <textarea
@@ -187,14 +206,21 @@
         </li>
       </ul>
     </section>
+
+    <!-- Workflow Map Tab -->
+    <section v-if="activeTab === 'map'" class="map-section">
+      <WorkflowMap />
+    </section>
   </main>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue';
 import WorkflowCanvas from './components/WorkflowCanvas.vue';
+import WorkflowMap from './components/WorkflowMap.vue';
 import ErrorCard from './components/ErrorCard.vue';
 
+const activeTab = ref('ai');
 const prompt = ref('');
 const promptEl = ref<HTMLTextAreaElement|null>(null);
 const planItems = ref<string[]>([]);
@@ -537,6 +563,40 @@ textarea {
   height: 400px;
   border: 1px solid #e0e0e0;
   border-radius: 8px;
+  overflow: hidden;
+}
+
+.tab-nav {
+  display: flex;
+  background: #f5f5f5;
+  border-bottom: 1px solid #ddd;
+  padding: 0;
+}
+
+.tab-button {
+  padding: 12px 24px;
+  border: none;
+  background: none;
+  color: #666;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  border-bottom: 3px solid transparent;
+  transition: all 0.2s;
+}
+
+.tab-button:hover {
+  background: rgba(0, 0, 0, 0.05);
+}
+
+.tab-button.active {
+  color: #ff6d5a;
+  border-bottom-color: #ff6d5a;
+  background: white;
+}
+
+.map-section {
+  height: calc(100vh - 48px);
   overflow: hidden;
 }
 </style>

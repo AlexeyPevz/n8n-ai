@@ -1,0 +1,49 @@
+{
+  "examples": [
+    {
+      "prompt": "Create a workflow that monitors a GitHub repository for new issues, analyzes them with AI to determine priority, and creates corresponding tasks in Jira with appropriate labels",
+      "expectedNodes": [
+        "n8n-nodes-base.githubTrigger",
+        "n8n-nodes-base.openAi",
+        "n8n-nodes-base.if",
+        "n8n-nodes-base.jira",
+        "n8n-nodes-base.set"
+      ],
+      "complexity": "high"
+    },
+    {
+      "prompt": "Build a data pipeline that extracts data from multiple PostgreSQL tables, transforms it using JavaScript, aggregates the results, and loads them into BigQuery. Run this every night at 2 AM",
+      "expectedNodes": [
+        "n8n-nodes-base.scheduleTrigger",
+        "n8n-nodes-base.postgres",
+        "n8n-nodes-base.code",
+        "n8n-nodes-base.merge",
+        "n8n-nodes-base.googleBigQuery"
+      ],
+      "complexity": "high"
+    },
+    {
+      "prompt": "Set up a customer feedback system: receive form submissions via webhook, sentiment analysis with AI, send positive feedback to Slack #kudos channel, negative to #support with urgency flag, and store all in Google Sheets",
+      "expectedNodes": [
+        "n8n-nodes-base.webhook",
+        "n8n-nodes-base.openAi",
+        "n8n-nodes-base.if",
+        "n8n-nodes-base.slack",
+        "n8n-nodes-base.googleSheets"
+      ],
+      "complexity": "medium"
+    },
+    {
+      "prompt": "Monitor RSS feeds from tech blogs, filter for articles about AI and automation, summarize them, and create a weekly digest email sent to subscribers",
+      "expectedNodes": [
+        "n8n-nodes-base.rssFeedRead",
+        "n8n-nodes-base.filter",
+        "n8n-nodes-base.openAi",
+        "n8n-nodes-base.aggregate",
+        "n8n-nodes-base.scheduleTrigger",
+        "n8n-nodes-base.gmail"
+      ],
+      "complexity": "medium"
+    }
+  ]
+}

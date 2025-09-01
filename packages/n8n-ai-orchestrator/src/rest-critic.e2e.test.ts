@@ -10,7 +10,14 @@ async function req(path: string, init?: RequestInit): Promise<any> {
 }
 
 describe('REST aliases Critic', () => {
-  beforeAll(async () => { await req('/patterns'); });
+  beforeAll(async () => {
+    try {
+      await req('/api/v1/ai/health');
+    } catch (error) {
+      console.error('Server not running. Use: pnpm test:rest:e2e');
+      throw error;
+    }
+  });
 
   it('critic runs via /rest/ai/graph/:id/critic', async () => {
     const plan = await req('/plan', { method: 'POST', body: JSON.stringify({ prompt: 'HTTP GET JSONPlaceholder' }) });

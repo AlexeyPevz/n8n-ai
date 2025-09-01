@@ -5,22 +5,29 @@
 
 import { server } from './server.js';
 
-const PORT = process.env.TEST_PORT || 3000;
+const PORT = process.env.TEST_PORT || process.env.PORT || 3000;
 
-async function start() {
+async function startTestServer() {
   try {
     await server.listen({ port: Number(PORT), host: '0.0.0.0' });
     console.log(`Test server running on port ${PORT}`);
     
-    // Graceful shutdown
-    process.on('SIGTERM', async () => {
-      await server.close();
-      process.exit(0);
-    });
-    
-    process.on('SIGINT', async () => {
-      await server.close();
-      process.exit(0);
+    // Keep the server running
+    await new Promise((resolve) => {
+      // Graceful shutdown
+      process.on('SIGTERM', async () => {
+        console.log('Shutting down test server...');
+        await server.close();
+        resolve(undefined);
+        process.exit(0);
+      });
+      
+      process.on('SIGINT', async () => {
+        console.log('Shutting down test server...');
+        await server.close();
+        resolve(undefined);
+        process.exit(0);
+      });
     });
   } catch (err) {
     console.error('Failed to start test server:', err);
@@ -28,4 +35,4 @@ async function start() {
   }
 }
 
-start();
+startTestServer();

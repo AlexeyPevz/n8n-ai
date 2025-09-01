@@ -34,10 +34,11 @@ describe('E2E: HTTP GET Workflow Creation', () => {
   beforeAll(async () => {
     // Проверяем, что сервер запущен
     try {
-      await apiRequest('/__test/reset', { method: 'POST' });
-      await apiRequest('/patterns');
+      // Try health check first
+      await apiRequest('/api/v1/ai/health');
     } catch (error) {
       console.error('Server not running. Start with: pnpm -C packages/n8n-ai-orchestrator dev');
+      console.error('Or run: pnpm -C packages/n8n-ai-orchestrator test:with-server');
       throw error;
     }
   });

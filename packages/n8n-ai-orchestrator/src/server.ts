@@ -1,5 +1,6 @@
 import Fastify from 'fastify';
 import cors from '@fastify/cors';
+import websocket from '@fastify/websocket';
 import { OperationBatchSchema } from '@n8n-ai/schemas';
 import { SimplePlanner } from './planner.js';
 import { patternMatcher } from './pattern-matcher.js';
@@ -9,6 +10,16 @@ import { buildWorkflowMap, type WorkflowMapIndex } from './workflow-map.js';
 import { handleError, errorToResponse, ValidationError, ValidationFailedError, NotFoundError, AmbiguousPromptError } from './error-handler.js';
 import { getDiffPolicies } from './config.js';
 import { randomUUID } from 'node:crypto';
+import { metricsPlugin } from './monitoring/metrics-middleware.js';
+import { registerMetricsRoutes, registerDashboardRoute } from './monitoring/metrics-routes.js';
+import { paginationPlugin } from './pagination/pagination-middleware.js';
+import { registerPaginationRoutes, registerPaginationExamples } from './pagination/pagination-routes.js';
+import { securityPlugin } from './security/security-middleware.js';
+import { getSecurityPreset } from './security/security-config.js';
+import { registerSecurityRoutes, registerSecurityUtilities } from './security/security-routes.js';
+import { WorkflowMapWebSocketHandler } from './workflow-map/websocket-handler.js';
+import { WorkflowMapService } from './workflow-map/workflow-map-service.js';
+import { registerWorkflowMapRoutes } from './workflow-map/workflow-map-routes.js';
 
 const server = Fastify({ logger: true });
 
@@ -25,6 +36,11 @@ function sendSse(event: string, data: unknown): void {
     }
   }
 }
+
+// Import model selector for AI recommendations
+import { ModelSelector } from './ai/model-selector.js';
+import { RAGSystem } from './ai/rag/rag-system.js';
+import { DocumentIndexer } from './ai/rag/indexer.js';
 
 // Simple fetch with timeout and retries for proxying to n8n hooks
 async function fetchWithRetry(url: string, init: any = {}): Promise<any> {
@@ -101,6 +117,49 @@ server.addContentTypeParser('application/json', { parseAs: 'string' }, (req, bod
 });
 
 await server.register(cors, { origin: true, credentials: true });
+await server.register(websocket);
+
+// Get security configuration
+const securityConfig = getSecurityPreset();
+
+// Register plugins
+await server.register(securityPlugin, securityConfig);
+await server.register(metricsPlugin);
+await server.register(paginationPlugin);
+
+// Register monitoring routes
+await registerMetricsRoutes(server);
+await registerDashboardRoute(server);
+
+// Register pagination routes
+await registerPaginationRoutes(server);
+await registerPaginationExamples(server);
+
+// Register security routes
+await registerSecurityRoutes(server);
+await registerSecurityUtilities(server);
+
+// Initialize Workflow Map
+// Initialize workflow map service with proper introspect API
+const introspectApi = {
+  getWorkflows: async () => {
+    // In production, this would connect to n8n API
+    return [];
+  },
+  getWorkflow: async (id: string) => {
+    // In production, this would connect to n8n API
+    return null;
+  },
+};
+const mapService = new WorkflowMapService(introspectApi);
+await registerWorkflowMapRoutes(server, { mapService });
+
+// Initialize WebSocket handler
+const wsHandler = new WorkflowMapWebSocketHandler(server);
+await wsHandler.initialize();
+
+// Make wsHandler available globally for emitting events
+(global as any).workflowMapWsHandler = wsHandler;
 
 // Global error handler
 server.setErrorHandler((error, request, reply) => {
@@ -607,6 +666,24 @@ server.get('/events', async (req, reply) => {
   return reply;
 });
 
+// AI Model recommendation endpoint
+server.post<{ Body: { prompt: string } }>('/ai/recommend-model', async (req) => {
+  const { prompt } = req.body;
+  if (!prompt) {
+    return { error: 'prompt is required' };
+  }
+  
+  const modelSelector = new ModelSelector();
+  const recommendation = modelSelector.recommend(prompt);
+  const requirements = ModelSelector.analyzePrompt(prompt);
+  
+  return {
+    recommendation,
+    requirements,
+    availableModels: Object.keys(ModelSelector.MODEL_CAPABILITIES || {}),
+  };
+});
+
 // Prometheus metrics endpoint
 server.get('/metrics', async () => {
   const snapshot = metrics.getMetrics();
@@ -718,8 +795,7 @@ server.get('/rest/ai/workflow-map', async (req, reply) => proxyTo('/workflow-map
 server.get('/rest/ai/workflow-map/live', async (_req, reply) => reply.redirect(307, '/workflow-map/live'));
 server.get('/rest/ai/events', async (_req, reply) => reply.redirect(307, '/events'));
 
-// Git integration stub
-server.post('/git/export', async () => ({ ok: true, message: 'Git export stub: create PR with diff and simulation report (todo)' }));
+// Git export endpoint - handled by git routes module
 server.post('/rest/ai/git/export', async (req, reply) => proxyTo('/git/export', 'POST', req, reply));
 
 // Audit logs endpoints

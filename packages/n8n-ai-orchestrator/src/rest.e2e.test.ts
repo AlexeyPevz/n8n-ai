@@ -15,7 +15,12 @@ async function req(path: string, init?: RequestInit): Promise<any> {
 describe('REST aliases e2e', () => {
   beforeAll(async () => {
     // ensure server up
-    await req('/patterns');
+    try {
+      await req('/api/v1/ai/health');
+    } catch (error) {
+      console.error('Server not running. Use: pnpm test:rest:e2e');
+      throw error;
+    }
   });
 
   it('plan → apply → validate → simulate via /rest/ai/*', async () => {
