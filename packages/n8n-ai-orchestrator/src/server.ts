@@ -20,6 +20,7 @@ import { registerSecurityRoutes, registerSecurityUtilities } from './security/se
 import { WorkflowMapWebSocketHandler } from './workflow-map/websocket-handler.js';
 import { WorkflowMapService } from './workflow-map/workflow-map-service.js';
 import { registerWorkflowMapRoutes } from './workflow-map/workflow-map-routes.js';
+import { registerRequestContext } from './monitoring/request-context.js';
 
 validateEnv();
 const server = Fastify({ logger: true });
@@ -76,14 +77,8 @@ async function fetchWithRetry(url: string, init: any = {}): Promise<any> {
   throw lastError instanceof Error ? lastError : new Error('Unknown fetch error');
 }
 
-// Корреляция запросов: request-id
-server.addHook('onRequest', (req, reply, done) => {
-  const headerId = req.headers['x-request-id'];
-  const reqId = (Array.isArray(headerId) ? headerId[0] : headerId) || randomUUID();
-  (req as unknown as { requestId?: string }).requestId = reqId;
-  reply.header('x-request-id', reqId);
-  done();
-});
+// Request context & child logger
+await registerRequestContext(server);
 
 // Метрики по каждому запросу
 server.addHook('onResponse', (req, reply, done) => {
