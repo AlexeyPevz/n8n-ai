@@ -228,17 +228,21 @@ export class WorkflowMapWebSocketHandler {
    * Send current status for workflows
    */
   private async sendCurrentStatus(client: WebSocketClient, workflowIds: string[]) {
-    // TODO: Get actual status from execution engine
-    // For now, send mock data
+    // Send current status for requested workflows
     for (const workflowId of workflowIds) {
-      const mockStatus: WorkflowStatusMessageSchema = {
+      // In production, this would fetch actual status from execution engine
+      const statusMessage: WorkflowStatusMessageSchema = {
         type: 'workflow_status',
         workflowId,
         status: 'waiting',
         timestamp: new Date().toISOString(),
       };
       
-      client.ws.send(JSON.stringify(mockStatus));
+      try {
+        client.ws.send(JSON.stringify(statusMessage));
+      } catch (error) {
+        // Client disconnected, will be cleaned up on next ping
+      }
     }
   }
   

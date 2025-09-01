@@ -14,7 +14,7 @@ describe('ExplainNode', () => {
     },
   };
 
-  let wrapper: any;
+  let wrapper: ReturnType<typeof mount>;
 
   beforeEach(() => {
     wrapper = mount(ExplainNode, {

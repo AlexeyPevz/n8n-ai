@@ -29,12 +29,10 @@ export class AIProviderFactory {
         });
       
       case 'anthropic':
-        // TODO: Implement Anthropic provider
-        throw new Error('Anthropic provider not yet implemented');
+        throw new Error('Anthropic provider not yet implemented. Please use OpenAI or OpenRouter.');
       
       case 'ollama':
-        // TODO: Implement Ollama provider
-        throw new Error('Ollama provider not yet implemented');
+        throw new Error('Ollama provider not yet implemented. Please use OpenAI or OpenRouter.');
       
       default:
         throw new Error(`Unknown AI provider: ${config.provider}`);

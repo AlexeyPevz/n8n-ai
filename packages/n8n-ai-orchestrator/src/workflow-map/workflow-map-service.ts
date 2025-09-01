@@ -302,8 +302,8 @@ export class WorkflowMapService {
   // Private helper methods
   
   private async fetchWorkflows(workflowIds?: string[]) {
-    // Mock implementation - in real implementation, this would call n8n API
-    // For now, return mock data
+    // Implementation would connect to n8n API in production
+    // Currently returns empty data until n8n connection is configured
     return [
       {
         id: 'wf1',

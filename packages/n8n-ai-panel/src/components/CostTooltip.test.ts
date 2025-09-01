@@ -21,7 +21,7 @@ describe('CostTooltip', () => {
     runs: 100,
   };
 
-  let wrapper: any;
+  let wrapper: ReturnType<typeof mount>;
 
   beforeEach(() => {
     wrapper = mount(CostTooltip, {

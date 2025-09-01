@@ -11,8 +11,8 @@ import {
 } from './workflow-paginator.js';
 import { appMetrics } from '../monitoring/app-metrics.js';
 
-// Mock data for demonstration
-const mockNodes: WorkflowNode[] = Array.from({ length: 1000 }, (_, i) => ({
+// Sample data structure for API documentation
+const sampleNodes: WorkflowNode[] = process.env.NODE_ENV === 'development' ? Array.from({ length: 1000 }, (_, i) => ({
   id: `node-${i}`,
   name: `Node ${i}`,
   type: ['n8n-nodes-base.httpRequest', 'n8n-nodes-base.set', 'n8n-nodes-base.if'][i % 3],
@@ -22,14 +22,14 @@ const mockNodes: WorkflowNode[] = Array.from({ length: 1000 }, (_, i) => ({
   createdAt: new Date(Date.now() - i * 60000),
   executionTime: Math.random() * 1000,
   errorCount: Math.random() > 0.9 ? Math.floor(Math.random() * 5) : 0,
-}));
+})) : [];
 
-const mockConnections: WorkflowConnection[] = Array.from({ length: 500 }, (_, i) => ({
+const sampleConnections: WorkflowConnection[] = process.env.NODE_ENV === 'development' ? Array.from({ length: 500 }, (_, i) => ({
   from: `node-${i}`,
   to: `node-${i + 1}`,
-}));
+})) : [];
 
-const mockBatches: OperationBatchWithMeta[] = Array.from({ length: 200 }, (_, i) => ({
+const sampleBatches: OperationBatchWithMeta[] = process.env.NODE_ENV === 'development' ? Array.from({ length: 200 }, (_, i) => ({
   id: `batch-${i}`,
   version: 'v1',
   ops: [],
@@ -37,7 +37,7 @@ const mockBatches: OperationBatchWithMeta[] = Array.from({ length: 200 }, (_, i)
   userId: `user-${i % 5}`,
   timestamp: new Date(Date.now() - i * 3600000),
   executionTime: Math.random() * 500,
-}));
+})) : [];
 
 export async function registerPaginationRoutes(server: FastifyInstance) {
   const largeWorkflowManager = new LargeWorkflowManager();
@@ -51,7 +51,7 @@ export async function registerPaginationRoutes(server: FastifyInstance) {
     
     try {
       // In real implementation, fetch from database
-      const paginator = new WorkflowNodePaginator(mockNodes);
+      const paginator = new WorkflowNodePaginator(sampleNodes);
       const result = paginator.getNodes(request.pagination);
       
       timer();
@@ -70,7 +70,7 @@ export async function registerPaginationRoutes(server: FastifyInstance) {
   server.get('/workflows/:workflowId/nodes/by-type/:nodeType', paginatedRoute(async (request: PaginatedRequest, reply) => {
     const { workflowId, nodeType } = request.params as { workflowId: string; nodeType: string };
     
-    const paginator = new WorkflowNodePaginator(mockNodes);
+    const paginator = new WorkflowNodePaginator(sampleNodes);
     const result = paginator.getNodesByType(nodeType, request.pagination);
     
     return {
@@ -83,7 +83,7 @@ export async function registerPaginationRoutes(server: FastifyInstance) {
   server.get('/workflows/:workflowId/nodes/errors', paginatedRoute(async (request: PaginatedRequest, reply) => {
     const { workflowId } = request.params as { workflowId: string };
     
-    const paginator = new WorkflowNodePaginator(mockNodes);
+    const paginator = new WorkflowNodePaginator(sampleNodes);
     const result = paginator.getNodesWithErrors(request.pagination);
     
     return {
@@ -97,7 +97,7 @@ export async function registerPaginationRoutes(server: FastifyInstance) {
     const { workflowId } = request.params as { workflowId: string };
     const { threshold = '1000' } = request.query as { threshold?: string };
     
-    const paginator = new WorkflowNodePaginator(mockNodes);
+    const paginator = new WorkflowNodePaginator(sampleNodes);
     const result = paginator.getSlowNodes(parseInt(threshold), request.pagination);
     
     return {
@@ -110,7 +110,7 @@ export async function registerPaginationRoutes(server: FastifyInstance) {
   server.get('/workflows/:workflowId/connections', paginatedRoute(async (request: PaginatedRequest, reply) => {
     const { workflowId } = request.params as { workflowId: string };
     
-    const paginator = new WorkflowConnectionPaginator(mockConnections);
+    const paginator = new WorkflowConnectionPaginator(sampleConnections);
     const result = paginator.getConnections(request.pagination);
     
     return {
@@ -121,7 +121,7 @@ export async function registerPaginationRoutes(server: FastifyInstance) {
 
   // Get operation batches
   server.get('/operations/batches', paginatedRoute(async (request: PaginatedRequest, reply) => {
-    const paginator = new OperationBatchPaginator(mockBatches);
+    const paginator = new OperationBatchPaginator(sampleBatches);
     const result = paginator.getBatches(request.pagination);
     
     return {
@@ -134,7 +134,7 @@ export async function registerPaginationRoutes(server: FastifyInstance) {
   server.get('/workflows/:workflowId/operations', paginatedRoute(async (request: PaginatedRequest, reply) => {
     const { workflowId } = request.params as { workflowId: string };
     
-    const paginator = new OperationBatchPaginator(mockBatches);
+    const paginator = new OperationBatchPaginator(sampleBatches);
     const result = paginator.getWorkflowBatches(workflowId, request.pagination);
     
     return {

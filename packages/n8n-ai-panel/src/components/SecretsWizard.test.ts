@@ -18,7 +18,7 @@ describe('SecretsWizard', () => {
     },
   ];
 
-  let wrapper: any;
+  let wrapper: ReturnType<typeof mount>;
 
   beforeEach(() => {
     wrapper = mount(SecretsWizard, {

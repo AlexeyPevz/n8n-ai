@@ -8,6 +8,7 @@ import { RAGSystem } from './rag/rag-system.js';
 import { PromptEngineer, SYSTEM_PROMPTS, PLANNER_TEMPLATES } from './prompts/prompt-templates.js';
 import { ChainOfThoughtPlanner } from './prompts/chain-of-thought.js';
 import { PromptOptimizer } from './prompts/prompt-optimizer.js';
+import { APP_METRICS as metrics } from '../monitoring/app-metrics.js';
 
 export interface AIPlannerContext {
   prompt: string;
@@ -104,15 +105,18 @@ export class AIPlanner {
       // Parse and validate response
       const operations = this.parseResponse(response.content);
       
-      // Log token usage for monitoring
-      if (response.usage) {
-        console.info('AI token usage:', response.usage);
-        console.info('Complexity:', complexity);
+      // Track token usage in metrics
+      if (response.usage && metrics) {
+        metrics.ai_tokens_used.inc(response.usage.totalTokens || 0);
+        metrics.ai_requests.labels({ model: this.config.providers.primary.model, complexity }).inc();
       }
       
       return operations;
     } catch (error) {
-      console.error('AI planning failed:', error);
+      // Log error to metrics
+      if (metrics) {
+        metrics.ai_errors.labels({ model: this.config.providers.primary.model, error: 'planning_failed' }).inc();
+      }
       
       // Fallback to pattern matching if AI fails
       if (this.config.providers.fallback) {

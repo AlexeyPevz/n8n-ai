@@ -40,7 +40,7 @@ describe('WorkflowMap', () => {
     },
   };
 
-  let wrapper: any;
+  let wrapper: ReturnType<typeof mount>;
 
   beforeEach(() => {
     vi.clearAllMocks();

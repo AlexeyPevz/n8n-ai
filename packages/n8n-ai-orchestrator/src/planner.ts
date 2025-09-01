@@ -1,7 +1,7 @@
 import type { OperationBatch } from '@n8n-ai/schemas';
 import { generateOperationsFromPattern } from './workflow-patterns.js';
 import { patternMatcher } from './pattern-matcher.js';
-// TODO: Enable when AI module is ready for production
+import { metrics } from './metrics.js';
 import { AIPlanner } from './ai/ai-planner.js';
 import { getAIConfig } from './ai/config.js';
 
@@ -13,28 +13,27 @@ interface PlannerContext {
 }
 
 export class SimplePlanner {
-  // TODO: Enable when AI module is ready
   private aiPlanner?: AIPlanner;
 
   constructor() {
-    // TODO: Initialize AI planner if configured
     const config = getAIConfig();
     if (config.providers.primary.apiKey) {
       this.aiPlanner = new AIPlanner(config);
-      }
+    }
   }
   /**
    * Анализирует промпт и создает план операций
    */
   async plan(context: PlannerContext): Promise<OperationBatch> {
-    // TODO: Try AI planner first if available
+        // Try AI planner first if available
     if (this.aiPlanner) {
       try {
         return await this.aiPlanner.plan(context);
       } catch (error) {
-        console.warn('AI planner failed, falling back to pattern matching:', error);
+        // AI planner failed, fall back to pattern matching
+        metrics.ai_errors.labels({ model: 'unknown', error: 'planning_failed' }).inc();
       }
-      }
+    }
 
     // Fallback to pattern-based planning
     const { prompt } = context;
@@ -85,8 +84,8 @@ export class SimplePlanner {
     
     if (matchResults.length > 0) {
       const bestMatch = matchResults[0];
-      console.log(`Found matching pattern: ${bestMatch.pattern.name} (score: ${bestMatch.score})`);
-      console.log(`Matched keywords: ${bestMatch.matchedKeywords.join(', ')}`);
+      // Track pattern match in metrics
+      metrics.pattern_matches.labels({ pattern: bestMatch.pattern.name }).inc();
       
       const operations = generateOperationsFromPattern(bestMatch.pattern) as OperationBatch['ops'];
       // Если запрос про "insert after" — добавим соединение к целевой ноде, если она есть
