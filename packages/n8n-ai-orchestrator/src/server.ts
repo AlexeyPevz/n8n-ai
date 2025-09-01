@@ -9,6 +9,10 @@ import { buildWorkflowMap, type WorkflowMapIndex } from './workflow-map.js';
 import { handleError, errorToResponse, ValidationError, ValidationFailedError, NotFoundError, AmbiguousPromptError } from './error-handler.js';
 import { getDiffPolicies } from './config.js';
 import { randomUUID } from 'node:crypto';
+import { metricsPlugin } from './monitoring/metrics-middleware.js';
+import { registerMetricsRoutes, registerDashboardRoute } from './monitoring/metrics-routes.js';
+import { paginationPlugin } from './pagination/pagination-middleware.js';
+import { registerPaginationRoutes, registerPaginationExamples } from './pagination/pagination-routes.js';
 
 const server = Fastify({ logger: true });
 
@@ -107,6 +111,18 @@ server.addContentTypeParser('application/json', { parseAs: 'string' }, (req, bod
 });
 
 await server.register(cors, { origin: true, credentials: true });
+
+// Register plugins
+await server.register(metricsPlugin);
+await server.register(paginationPlugin);
+
+// Register monitoring routes
+await registerMetricsRoutes(server);
+await registerDashboardRoute(server);
+
+// Register pagination routes
+await registerPaginationRoutes(server);
+await registerPaginationExamples(server);
 
 // Global error handler
 server.setErrorHandler((error, request, reply) => {
