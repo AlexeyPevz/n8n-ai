@@ -118,11 +118,11 @@ export class IntrospectAPI {
     
     // Обрабатываем inputs/outputs (могут быть сложными типами)
     const inputs = Array.isArray(nodeType.inputs) 
-      ? nodeType.inputs.map(input => typeof input === 'string' ? input : 'main')
+      ? nodeType.inputs.map((input: any) => typeof input === 'string' ? input : 'main')
       : ['main'];
     
     const outputs = Array.isArray(nodeType.outputs)
-      ? nodeType.outputs.map(output => typeof output === 'string' ? output : 'main') 
+      ? nodeType.outputs.map((output: any) => typeof output === 'string' ? output : 'main') 
       : ['main'];
     
     return {
@@ -134,7 +134,7 @@ export class IntrospectAPI {
       defaults: nodeType.defaults as Record<string, unknown>,
       inputs: inputs,
       outputs: outputs,
-      properties: nodeType.properties.map(prop => ({
+      properties: nodeType.properties.map((prop: any) => ({
         name: prop.name,
         displayName: prop.displayName,
         type: prop.type as string,

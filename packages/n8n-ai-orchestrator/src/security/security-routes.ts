@@ -1,19 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import { getSecurityPreset } from './security-config.js';
 
-export async function registerSecurityRoutes(server: FastifyInstance): Promise<void> {
-  server.get('/api/v1/ai/security', async () => {
-    const cfg = getSecurityPreset();
-    return {
-      features: {
-        rateLimit: !!cfg.rateLimit,
-        authentication: (cfg.auth?.apiKeys?.length || 0) > 0,
-        encryption: true,
-        audit: process.env.SECURITY_ENABLE_AUDIT === 'true',
-      },
-    };
-  });
-}
+// Упрощённая версия: основной набор маршрутов ниже
 
 export async function registerSecurityUtilities(_server: FastifyInstance): Promise<void> {
   // Placeholder for utilities (token mint, key mgmt, etc.)
