@@ -13,6 +13,9 @@ import { metricsPlugin } from './monitoring/metrics-middleware.js';
 import { registerMetricsRoutes, registerDashboardRoute } from './monitoring/metrics-routes.js';
 import { paginationPlugin } from './pagination/pagination-middleware.js';
 import { registerPaginationRoutes, registerPaginationExamples } from './pagination/pagination-routes.js';
+import { securityPlugin } from './security/security-middleware.js';
+import { getSecurityPreset } from './security/security-config.js';
+import { registerSecurityRoutes, registerSecurityUtilities } from './security/security-routes.js';
 
 const server = Fastify({ logger: true });
 
@@ -112,7 +115,11 @@ server.addContentTypeParser('application/json', { parseAs: 'string' }, (req, bod
 
 await server.register(cors, { origin: true, credentials: true });
 
+// Get security configuration
+const securityConfig = getSecurityPreset();
+
 // Register plugins
+await server.register(securityPlugin, securityConfig);
 await server.register(metricsPlugin);
 await server.register(paginationPlugin);
 
@@ -123,6 +130,10 @@ await registerDashboardRoute(server);
 // Register pagination routes
 await registerPaginationRoutes(server);
 await registerPaginationExamples(server);
+
+// Register security routes
+await registerSecurityRoutes(server);
+await registerSecurityUtilities(server);
 
 // Global error handler
 server.setErrorHandler((error, request, reply) => {
