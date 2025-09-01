@@ -5,6 +5,9 @@ import { AIProviderFactory } from './providers/factory.js';
 import { getAIConfig, type AIConfig } from './config.js';
 import type { IntrospectAPI } from '../../../n8n-ai-hooks/introspect-api.js';
 import { RAGSystem } from './rag/rag-system.js';
+import { PromptEngineer, SYSTEM_PROMPTS, PLANNER_TEMPLATES } from './prompts/prompt-templates.js';
+import { ChainOfThoughtPlanner } from './prompts/chain-of-thought.js';
+import { PromptOptimizer } from './prompts/prompt-optimizer.js';
 
 export interface AIPlannerContext {
   prompt: string;
@@ -40,12 +43,52 @@ export class AIPlanner {
 
   async plan(context: AIPlannerContext): Promise<OperationBatch> {
     try {
+      // Analyze complexity
+      const complexity = PromptEngineer.analyzeComplexity(context.prompt);
+      const useChainOfThought = complexity !== 'simple';
+      
       // Get node schemas if we have introspect API
       const nodeSchemas = await this.getRelevantNodeSchemas(context);
       
-      // Build the prompt
-      const systemPrompt = this.buildSystemPrompt(nodeSchemas);
-      const userPrompt = await this.buildUserPrompt(context);
+      // Select appropriate templates
+      const systemTemplate = PromptEngineer.selectTemplate(
+        { complexity, requestType: 'create' },
+        'system'
+      );
+      const plannerTemplate = PromptEngineer.selectTemplate(
+        { complexity, requestType: 'create' },
+        'planner'
+      );
+      
+      // Build prompts
+      const systemPrompt = this.buildSystemPrompt(nodeSchemas, systemTemplate);
+      let userPrompt = await this.buildUserPrompt(context, plannerTemplate);
+      
+      // Optimize prompt
+      userPrompt = PromptOptimizer.optimize(userPrompt, {
+        taskType: 'create',
+        expectedOutput: 'OperationBatch JSON',
+        constraints: [
+          'Use only available node types',
+          'Follow n8n connection rules',
+          'Include proper error handling',
+        ],
+        examples: PromptOptimizer.generateContextualExamples('create', context.availableNodes || []),
+      }, {
+        useChainOfThought,
+        includeConstraints: true,
+        formatOutput: true,
+        addExamples: complexity !== 'simple',
+      });
+      
+      // Use chain of thought for complex requests
+      if (useChainOfThought) {
+        const thoughtSteps = ChainOfThoughtPlanner.decomposeRequest(context.prompt);
+        const reasoning = ChainOfThoughtPlanner.generateReasoning(thoughtSteps);
+        
+        // Add reasoning to prompt
+        userPrompt = reasoning + '\n\n' + userPrompt;
+      }
       
       // Call AI
       const response = await this.provider.complete({
@@ -53,7 +96,7 @@ export class AIPlanner {
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt },
         ],
-        temperature: this.config.providers.primary.temperature,
+        temperature: complexity === 'simple' ? 0.3 : 0.5,
         maxTokens: this.config.providers.primary.maxTokens,
         responseFormat: 'json',
       });
@@ -64,6 +107,7 @@ export class AIPlanner {
       // Log token usage for monitoring
       if (response.usage) {
         console.info('AI token usage:', response.usage);
+        console.info('Complexity:', complexity);
       }
       
       return operations;
@@ -115,16 +159,18 @@ export class AIPlanner {
     return schemas;
   }
 
-  private buildSystemPrompt(nodeSchemas: any[]): string {
+  private buildSystemPrompt(nodeSchemas: any[], template?: string): string {
     const schemasStr = nodeSchemas.map(schema => 
       `- ${schema.name}: ${schema.description || 'No description'}`
     ).join('\n');
     
-    return this.config.prompts.systemPrompt.replace('{nodeSchemas}', schemasStr);
+    const promptTemplate = template || this.config.prompts.systemPrompt;
+    return promptTemplate.replace('{nodeSchemas}', schemasStr);
   }
 
-  private async buildUserPrompt(context: AIPlannerContext): Promise<string> {
-    let prompt = this.config.prompts.plannerTemplate
+  private async buildUserPrompt(context: AIPlannerContext, template?: string): Promise<string> {
+    const promptTemplate = template || this.config.prompts.plannerTemplate;
+    let prompt = promptTemplate
       .replace('{prompt}', context.prompt)
       .replace('{currentWorkflow}', JSON.stringify(context.currentWorkflow || {}, null, 2))
       .replace('{availableNodes}', (context.availableNodes || []).join(', '));
