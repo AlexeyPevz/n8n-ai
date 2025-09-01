@@ -228,7 +228,8 @@ export class ArrayPaginator<T> {
     } else {
       // Apply offset-based pagination
       const offset = PaginationHelper.calculateOffset(normalized.page, normalized.limit);
-      paginated = sorted.slice(offset, offset + normalized.limit);
+      const end = Math.min(sorted.length, offset + normalized.limit);
+      paginated = sorted.slice(offset, end);
       
       // Generate cursors for next/prev if applicable
       if (offset + normalized.limit < sorted.length) {
