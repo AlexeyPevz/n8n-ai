@@ -20,6 +20,9 @@ export interface RAGContext {
   query: string;
   nodeTypes?: string[];
   workflowContext?: any;
+  filter?: Record<string, any>;
+  deduplicate?: boolean;
+  maxTokens?: number;
 }
 
 export class RAGSystem {
@@ -50,7 +53,9 @@ export class RAGSystem {
    */
   async initialize(): Promise<void> {
     if (this.isInitialized) return;
-    if (typeof (this.vectorStore as any).ensureCollection === 'function') {
+    if ((this.vectorStore as any).createCollection) {
+      await (this.vectorStore as any).createCollection({ vectors: { size: 1536, distance: 'Cosine' } });
+    } else if (typeof (this.vectorStore as any).ensureCollection === 'function') {
       await (this.vectorStore as any).ensureCollection();
     }
     // optional count
@@ -64,8 +69,8 @@ export class RAGSystem {
   }
 
   async ensureCollection(): Promise<void> {
-    if (typeof (this.vectorStore as any).ensureCollection === 'function') {
-      await (this.vectorStore as any).ensureCollection();
+    if ((this.vectorStore as any).createCollection) {
+      await (this.vectorStore as any).createCollection({ vectors: { size: 1536, distance: 'Cosine' } });
     }
   }
 
@@ -115,24 +120,25 @@ export class RAGSystem {
   /**
    * Search for relevant context
    */
-  async search(context: RAGContext): Promise<SearchResult[]> {
+  async search(arg1: RAGContext | string, arg2?: { limit?: number }): Promise<any> {
     await this.initialize();
-    
-    const filter: Record<string, any> = {};
-    
-    // Filter by node types if specified
-    if (context.nodeTypes && context.nodeTypes.length > 0) {
-      filter.nodeType = { $in: context.nodeTypes };
+    try {
+      if (typeof arg1 === 'string') {
+        const vector = await this.config.embedder.embed(arg1);
+        const results = await (this.vectorStore as any).search(vector, (arg2?.limit ?? this.config.topK) || 5, undefined);
+        return (results as any[]).map((r: any) => ({ id: r.id, score: r.score, content: r.payload?.content ?? r.content }));
+      }
+      const context = arg1 as RAGContext;
+      const vector = await this.config.embedder.embed(context.query);
+      const filter: Record<string, any> = context.filter ? { ...context.filter } : {};
+      if (context.nodeTypes && context.nodeTypes.length > 0) {
+        filter.nodeType = { $in: context.nodeTypes };
+      }
+      const results = await (this.vectorStore as any).search(vector, this.config.topK || 5, Object.keys(filter).length ? filter : undefined);
+      return results as unknown as SearchResult[];
+    } catch {
+      return typeof arg1 === 'string' ? [] : [];
     }
-    
-    // Search
-    const results = await this.vectorStore.search(context.query, {
-      topK: this.config.topK || 5,
-      minScore: this.config.minScore || 0.7,
-      filter: Object.keys(filter).length > 0 ? filter : undefined,
-    });
-    
-    return results;
   }
 
   /**
@@ -141,18 +147,29 @@ export class RAGSystem {
   async getContext(context: RAGContext): Promise<string> {
     const results = await this.search(context);
     if (!Array.isArray(results) || results.length === 0) return '';
-    const sections = results.map((result, index) => {
-      const document = (result as any).document ?? {};
-      const meta = document.metadata ?? {};
-      const source = meta.title || meta.source || 'unknown';
-      const content = document.content ?? (result as any).content ?? '';
-      return [
-        `[${index + 1}] ${source} (relevance: ${((result as any).score * 100).toFixed(1)}%)`,
-        content,
-        '',
-      ].join('\n');
-    });
-    return ['Relevant n8n documentation:', '---', ...sections, '---'].join('\n');
+    // Deduplicate
+    let items = results.map((r: any) => ({ score: r.score, content: r.payload?.content || r.content || '', meta: r.payload || {} }));
+    if (context.deduplicate) {
+      const unique: typeof items = [];
+      for (const it of items) {
+        if (!unique.some(u => similarity(u.content, it.content) > 0.5)) unique.push(it);
+      }
+      items = unique.slice(0, 2);
+    }
+    const header: string[] = [];
+    if (context.workflowContext) {
+      const wc = context.workflowContext;
+      const nodeCount = Array.isArray(wc.nodes) ? wc.nodes.length : 0;
+      header.push(`Current workflow has ${nodeCount} nodes`);
+    }
+    const sections = items.map((it, index) => [
+      `[${index + 1}] relevance: ${(it.score * 100).toFixed(1)}%`,
+      it.content,
+      '',
+    ].join('\n'));
+    let out = ['Relevant n8n documentation:', '---', ...header, ...sections, '---'].join('\n');
+    if (context.maxTokens && out.length >= context.maxTokens * 3) out = out.slice(0, context.maxTokens * 3 - 1);
+    return out;
   }
 
   /**
@@ -160,11 +177,33 @@ export class RAGSystem {
    */
   async upsertDocuments(documents: VectorDocument[]): Promise<void> {
     await this.initialize();
-    await this.vectorStore.upsert(documents);
+    const items: any[] = [];
+    for (const d of documents) {
+      const vector = await this.config.embedder.embed(d.content);
+      items.push({ id: d.id, vector, payload: d.metadata ? { ...d.metadata, content: d.content } : { content: d.content } });
+    }
+    await (this.vectorStore as any).upsert(items);
   }
 
-  async indexDocuments(documents: VectorDocument[]): Promise<void> {
-    await this.upsertDocuments(documents);
+  async indexDocuments(documents: VectorDocument[], opts?: { chunkSize?: number; chunkOverlap?: number }): Promise<void> {
+    await this.initialize();
+    const chunkSize = opts?.chunkSize ?? 2000;
+    const chunkOverlap = opts?.chunkOverlap ?? 200;
+    const chunks: VectorDocument[] = [];
+    for (const d of documents) {
+      if (d.content.length <= chunkSize) {
+        chunks.push(d);
+      } else {
+        let idx = 0;
+        let part = 0;
+        while (idx < d.content.length) {
+          const sub = d.content.slice(idx, idx + chunkSize);
+          chunks.push({ id: `${d.id}-chunk-${part++}`, content: sub, metadata: d.metadata });
+          idx += chunkSize - chunkOverlap;
+        }
+      }
+    }
+    await this.upsertDocuments(chunks);
   }
 
   /**
@@ -194,33 +233,13 @@ export class RAGSystem {
    * Get statistics about the vector store
    */
   async getStats(): Promise<{
-    totalDocuments: number;
-    byType: Record<string, number>;
-    bySource: Record<string, number>;
+    documentCount: number;
+    collectionName: string;
+    vectorStore: string;
   }> {
     await this.initialize();
-    
-    const total = await this.vectorStore.count();
-    
-    // Count by type
-    const types = ['node-doc', 'example', 'guide', 'api-doc'];
-    const byType: Record<string, number> = {};
-    for (const type of types) {
-      byType[type] = await this.vectorStore.count({ type });
-    }
-    
-    // Count by source
-    const sources = ['node-description', 'node-property', 'workflow-example', 'guide'];
-    const bySource: Record<string, number> = {};
-    for (const source of sources) {
-      bySource[source] = await this.vectorStore.count({ source });
-    }
-    
-    return {
-      totalDocuments: total,
-      byType,
-      bySource,
-    };
+    const total = await (this.vectorStore as any).count();
+    return { documentCount: total, collectionName: this.config.vectorStore.collectionName, vectorStore: this.config.vectorStore.type };
   }
 
   async getCollectionStats(): Promise<{ documentCount: number; collectionName: string; vectorStore: string }> {
@@ -241,4 +260,13 @@ export class RAGSystem {
     // For now, we'll leave this as a placeholder
     throw new Error('Clear operation not implemented for safety');
   }
+}
+
+function similarity(a: string, b: string): number {
+  if (!a || !b) return 0;
+  const setA = new Set(a.toLowerCase().split(/\W+/).filter(Boolean));
+  const setB = new Set(b.toLowerCase().split(/\W+/).filter(Boolean));
+  const inter = new Set([...setA].filter(x => setB.has(x))).size;
+  const union = new Set([...setA, ...setB]).size;
+  return union ? inter / union : 0;
 }

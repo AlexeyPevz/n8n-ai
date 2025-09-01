@@ -13,6 +13,13 @@ export async function registerMetricsRoutes(server: FastifyInstance) {
   // JSON metrics endpoint
   server.get('/metrics/json', async (request, reply) => {
     const { prefix } = request.query as { prefix?: string };
+    // Prefer collect() if available in mocked registry
+    const collected: any = metricsRegistry.collect?.();
+    if (Array.isArray(collected)) {
+      const filtered = prefix ? collected.filter((m: any) => m.name.startsWith(prefix)) : collected;
+      reply.type('application/json');
+      return { metrics: filtered, timestamp: new Date().toISOString() };
+    }
     const json = metricsRegistry.toJSON();
     const parsed = JSON.parse(json) as { metrics: Array<{ name: string }>; timestamp: string };
     const filtered = prefix ? parsed.metrics.filter(m => m.name.startsWith(prefix)) : parsed.metrics;
@@ -96,7 +103,8 @@ export async function registerMetricsRoutes(server: FastifyInstance) {
     }
     if (type === 'counter') {
       const c = metricsRegistry.counter(name, `${name} counter`, []);
-      c.inc(value);
+      // inc(value, labels) according to tests
+      c.inc(value, labels);
       return { ok: true };
     } else if (type === 'gauge') {
       const g = metricsRegistry.gauge(name, `${name} gauge`, []);

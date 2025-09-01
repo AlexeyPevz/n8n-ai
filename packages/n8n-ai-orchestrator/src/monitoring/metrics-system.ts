@@ -9,6 +9,8 @@ export interface MetricOptions {
   labelNames?: string[];
   buckets?: number[]; // For histograms
   percentiles?: number[]; // For summaries
+  // Summary windowing options (age-based)
+  summaryWindow?: { maxAge: number; ageBuckets: number };
 }
 
 export interface MetricValue {
@@ -37,7 +39,7 @@ export interface MetricSnapshot {
 }
 
 export class Metric {
-  private values: Map<string, MetricValue> = new Map();
+  private series: Map<string, MetricValue> = new Map();
   private history: MetricValue[] = [];
   private eventEmitter = new EventEmitter();
 
@@ -53,12 +55,12 @@ export class Metric {
     const labels = typeof labelsOrValue === 'object' ? labelsOrValue : undefined;
     const value = typeof labelsOrValue === 'number' ? labelsOrValue : (maybeValue ?? 1);
     const key = this.getLabelKey(labels);
-    const current = this.values.get(key) || { value: 0, labels };
+    const current = this.series.get(key) || { value: 0, labels };
     current.value += value;
     current.timestamp = Date.now();
-    this.values.set(key, current);
+    this.series.set(key, current);
     this.history.push({ ...current });
-    this.eventEmitter.emit('update', current);
+    this.eventEmitter.emit('metric:update', { ...current, labels: current.labels || {} });
   }
 
   // Gauge methods
@@ -70,9 +72,9 @@ export class Metric {
     const key = this.getLabelKey(labels);
     const metric = { value, labels, timestamp: Date.now() };
     
-    this.values.set(key, metric);
+    this.series.set(key, metric);
     this.history.push({ ...metric });
-    this.eventEmitter.emit('update', metric);
+    this.eventEmitter.emit('metric:update', { ...metric, labels: metric.labels || {} });
   }
 
   // Gauge decrement helper
@@ -80,7 +82,7 @@ export class Metric {
     if (this.options.type !== 'gauge') {
       throw new Error(`dec() can only be used with gauge metrics`);
     }
-    const current = this.values.get('default') || { value: 0 } as MetricValue;
+    const current = this.series.get('default') || { value: 0 } as MetricValue;
     this.set((current.value || 0) - value);
   }
 
@@ -88,7 +90,7 @@ export class Metric {
     if (this.options.type !== 'gauge') {
       throw new Error(`setToCurrentTime() can only be used with gauge metrics`);
     }
-    this.set(Date.now());
+    this.set(Date.now() / 1000);
   }
 
   // Histogram methods
@@ -101,7 +103,7 @@ export class Metric {
     const metric = { value, labels, timestamp: Date.now() };
     
     this.history.push({ ...metric });
-    this.eventEmitter.emit('update', metric);
+    this.eventEmitter.emit('metric:update', { ...metric, labels: metric.labels || {} });
   }
 
   // Timer helper
@@ -126,7 +128,7 @@ export class Metric {
     };
 
     if (this.options.type === 'counter' || this.options.type === 'gauge') {
-      snapshot.values = Array.from(this.values.values()).map(v => ({
+      snapshot.values = Array.from(this.series.values()).map(v => ({
         value: v.value,
         labels: v.labels || {},
         timestamp: v.timestamp || Date.now(),
@@ -170,13 +172,13 @@ export class Metric {
   }
 
   // Subscribe to updates
-  on(event: 'update', listener: (value: MetricValue) => void): void {
+  on(event: 'metric:update', listener: (value: MetricValue) => void): void {
     this.eventEmitter.on(event, listener);
   }
 
   // Reset metric
   reset(): void {
-    this.values.clear();
+    this.series.clear();
     this.history = [];
   }
 
@@ -195,7 +197,8 @@ export class Metric {
     const percentiles = this.options.percentiles || [0.5, 0.9, 0.95, 0.99];
     const result: Record<string, number> = {};
     for (const p of percentiles) {
-      const index = Math.floor(sorted.length * p);
+      if (sorted.length === 0) { result[`p${p * 100}`] = 0; continue; }
+      const index = Math.max(0, Math.min(sorted.length - 1, Math.ceil(sorted.length * p) - 1));
       result[`p${p * 100}`] = sorted[index] || 0;
     }
     return result;
@@ -203,7 +206,7 @@ export class Metric {
 
   value(labels?: Record<string, string>): number {
     const key = this.getLabelKey(labels);
-    const current = this.values.get(key);
+    const current = this.series.get(key);
     if (current) return current.value;
     if (this.options.type === 'histogram' || this.options.type === 'summary') {
       const snap = this.getSnapshot();
@@ -212,21 +215,29 @@ export class Metric {
     return 0;
   }
 
-  values(): Map<string, number> {
-    const out = new Map<string, number>();
-    for (const [k, v] of this.values.entries()) out.set(k, v.value);
-    return out;
+  values(): any {
+    if (this.options.type === 'counter' || this.options.type === 'gauge') {
+      const out = new Map<string, number>();
+      for (const [k, v] of this.series.entries()) out.set(k, v.value);
+      return out;
+    }
+    // For summary/histogram return list of values (optionally windowed)
+    const now = Date.now();
+    let list = this.history;
+    if (this.options.type === 'summary' && this.options.summaryWindow) {
+      const maxAge = this.options.summaryWindow.maxAge;
+      list = this.history.filter(h => (now - (h.timestamp || now)) <= maxAge);
+    }
+    return list.map(h => h.value);
   }
 
-  buckets(): Record<number, number> | undefined {
+  buckets(): Record<string, number> | undefined {
     if (!this.options.buckets) return undefined;
-    const counts: Record<number, number> = {};
-    for (const b of this.options.buckets) counts[b] = 0;
-    for (const v of this.history) {
-      for (const b of this.options.buckets) {
-        if (v.value <= b) counts[b]++;
-      }
-    }
+    const edges = [...this.options.buckets].sort((a, b) => a - b);
+    const counts: Record<string, number> = {};
+    const values = this.history.map(h => h.value);
+    for (const b of edges) counts[b] = values.filter(v => v <= b).length;
+    counts['+Inf'] = values.length;
     return counts;
   }
 
@@ -235,10 +246,15 @@ export class Metric {
     const res: Record<number, number> = {};
     const list = pcts && pcts.length ? pcts : (this.options.percentiles || [0.5, 0.9, 0.95, 0.99]);
     for (const p of list) {
-      const idx = Math.floor(sorted.length * p);
+      const idx = Math.max(0, Math.min(sorted.length - 1, Math.ceil(sorted.length * p) - 1));
       res[p] = sorted[idx] ?? 0;
     }
     return res;
+  }
+
+  // Alias for summaries
+  quantiles(pcts?: number[]): Record<number, number> {
+    return this.percentiles(pcts);
   }
 
   sum(): number {
@@ -255,7 +271,7 @@ export class Metric {
       return snap.metadata?.count ?? 0;
     }
     let total = 0;
-    for (const v of this.values.values()) total += v.value;
+    for (const v of this.series.values()) total += v.value;
     return total;
   }
 
@@ -279,7 +295,7 @@ export class MetricsRegistry {
     this.defaultLabels = { ...labels };
   }
 
-  on(event: 'update', listener: (payload: { name: string; type: MetricType; value: number; labels?: Record<string, string>; timestamp?: number }) => void): void {
+  on(event: 'metric:update', listener: (payload: { name: string; type: MetricType; value: number; labels?: Record<string, string>; timestamp?: number }) => void): void {
     this.emitter.on(event, listener as any);
   }
 
@@ -289,7 +305,7 @@ export class MetricsRegistry {
     }
     const metric = new Metric(options);
     // Forward metric updates
-    metric.on('update', (v) => this.emitter.emit('update', { name: options.name, type: options.type, value: v.value, labels: v.labels, timestamp: v.timestamp }));
+    metric.on('metric:update', (v) => this.emitter.emit('metric:update', { name: options.name, type: options.type, value: v.value, labels: v.labels, timestamp: v.timestamp }));
     this.metrics.set(options.name, metric);
     return metric;
   }
@@ -326,14 +342,18 @@ export class MetricsRegistry {
     });
   }
 
-  summary(name: string, help: string, labelNames?: string[], percentiles?: number[]): Metric {
-    return this.register({
+  summary(name: string, help: string, labelNames?: string[], percentilesOrWindow?: number[] | { maxAge: number; ageBuckets: number }): Metric {
+    const opts: MetricOptions = {
       name,
       help,
       type: 'summary',
       labelNames,
-      percentiles: percentiles || [0.5, 0.9, 0.95, 0.99],
-    });
+      percentiles: Array.isArray(percentilesOrWindow) ? percentilesOrWindow : [0.5, 0.9, 0.95, 0.99],
+    };
+    if (percentilesOrWindow && !Array.isArray(percentilesOrWindow)) {
+      opts.summaryWindow = { maxAge: percentilesOrWindow.maxAge, ageBuckets: percentilesOrWindow.ageBuckets };
+    }
+    return this.register(opts);
   }
 
   getAllMetrics(): MetricSnapshot[] {
@@ -408,19 +428,36 @@ export class MetricsRegistry {
     return lines.join('\n');
   }
 
-  collect(): { metrics: Array<{ name: string; type: string; help: string; value: number; labels: Record<string, string> }>; timestamp: string } {
-    const metrics: Array<{ name: string; type: string; help: string; value: number; labels: Record<string, string> }> = [];
+  collect(): Array<{ name: string; type: MetricType; help: string; values: Map<string, number>; sum?: number; count?: number; mean?: number; buckets?: Record<string, number> }> {
+    const metrics: Array<{ name: string; type: MetricType; help: string; values: Map<string, number>; sum?: number; count?: number; mean?: number; buckets?: Record<string, number> }> = [];
     for (const metric of this.metrics.values()) {
       const snap = metric.getSnapshot();
-      for (const v of snap.values) {
-        metrics.push({ name: snap.name, type: snap.type, help: snap.help, value: v.value, labels: v.labels });
+      const entry: any = {
+        name: snap.name,
+        type: snap.type,
+        help: snap.help,
+        values: metric.values(),
+      };
+      if (snap.type === 'histogram' || snap.type === 'summary') {
+        entry.sum = metric.sum();
+        entry.count = metric.count();
+        entry.mean = metric.mean();
+        if (snap.type === 'histogram') entry.buckets = metric.buckets();
       }
+      metrics.push(entry);
     }
-    return { metrics, timestamp: new Date().toISOString() };
+    return metrics;
   }
 
   toJSON(): string {
-    return JSON.stringify(this.collect());
+    const list: any[] = [];
+    for (const metric of this.metrics.values()) {
+      const snap = metric.getSnapshot();
+      for (const v of snap.values) {
+        list.push({ name: snap.name, type: snap.type, help: snap.help, value: v.value, labels: v.labels });
+      }
+    }
+    return JSON.stringify({ metrics: list, timestamp: new Date().toISOString() });
   }
 
   getMetricNames(): string[] {
