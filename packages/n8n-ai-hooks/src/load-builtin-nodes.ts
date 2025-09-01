@@ -342,7 +342,8 @@ export function loadBuiltinNodes(): INodeTypeDescription[] {
     const knownNodesPath = path.join(path.dirname(nodesBasePath), 'known-nodes.json');
 
     if (!existsSync(knownNodesPath)) {
-      return [];
+      // When file is missing, still return core nodes so essential types exist
+      return CORE_NODES.map((n) => createNodeTypeDescription(n.name, n.displayName));
     }
 
     const raw = readFileSync(knownNodesPath, 'utf-8');
