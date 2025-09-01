@@ -332,9 +332,6 @@ export function createNodeTypeDescription(name: string, displayName: string): IN
   }
 }
 
-let returnedEmptyOnce = false;
-let parseErrorReturnedOnce = false;
-
 export function loadBuiltinNodes(): INodeTypeDescription[] {
   try {
     // Try to resolve known-nodes.json from installed n8n-nodes-base
@@ -343,11 +340,7 @@ export function loadBuiltinNodes(): INodeTypeDescription[] {
     const knownNodesPath = path.join(path.dirname(nodesBasePath), 'known-nodes.json');
 
     if (!existsSync(knownNodesPath)) {
-      if (!returnedEmptyOnce) {
-        returnedEmptyOnce = true;
-        return [];
-      }
-      return CORE_NODES.map((n) => createNodeTypeDescription(n.name, n.displayName));
+      return [];
     }
 
     const raw = readFileSync(knownNodesPath, 'utf-8');
@@ -363,11 +356,7 @@ export function loadBuiltinNodes(): INodeTypeDescription[] {
     // Safety fallback: if for any reason result is empty, return core nodes
     return result.length > 0 ? result : CORE_NODES.map((n) => createNodeTypeDescription(n.name, n.displayName));
   } catch {
-    if (!parseErrorReturnedOnce) {
-      parseErrorReturnedOnce = true;
-      return [];
-    }
-    return CORE_NODES.map((n) => createNodeTypeDescription(n.name, n.displayName));
+    return [];
   }
 }
 
