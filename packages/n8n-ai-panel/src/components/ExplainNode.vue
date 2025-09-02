@@ -42,7 +42,7 @@
           </div>
           
           <!-- Error state -->
-          <div v-else-if="error" class="error-state">
+          <div v-if="error" class="error-state">
             <IconAlert />
             <p>{{ error }}</p>
             <button @click="fetchExplanation" class="retry-btn">
