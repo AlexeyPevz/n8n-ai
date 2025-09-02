@@ -100,9 +100,9 @@
               <button
                 v-if="allCredentialsConfigured"
                 @click="proceedToApply"
-                class="btn-primary"
+                class="btn-primary btn-success"
               >
-                Apply Workflow
+                Execute Workflow
               </button>
             </div>
           </div>
@@ -193,12 +193,11 @@
                   :disabled="isSaving"
                   class="btn-primary"
                 >
-                  <span v-if="!isSaving">Save</span>
+                  <span v-if="!isSaving">Save & Next</span>
                   <span v-else>
                     <IconLoader class="spinning" /> Saving...
                   </span>
                 </button>
-                <button type="button" class="btn-primary" @click="saveCredential">Save & Next</button>
               </div>
             </form>
             <div v-else class="oauth-section">
@@ -248,21 +247,23 @@
       </div>
     </div>
   </transition>
-</template>
+ </template>
+
+<script lang="ts">
+export default {
+  data() {
+    return {
+      currentStep: 'select',
+      configuredCredentials: new Set() as Set<string>,
+      testStatus: 'idle',
+      testError: '',
+    };
+  },
+};
+</script>
 
 <script setup lang="ts">
 import { ref, computed, watch, getCurrentInstance, toRef } from 'vue';
-// Provide Options API data for test utils setData
-defineOptions({
-  data() {
-    return {
-      configuredCredentials: new Set() as any,
-      testStatus: 'idle' as any,
-      currentStep: 'select' as any,
-      testError: '' as any,
-    };
-  },
-});
 import axios from 'axios';
 import IconStubs from './icons/IconStubs.vue';
 const IconKey = IconStubs as any;
@@ -309,12 +310,13 @@ const emit = defineEmits<{
   close: [];
   configured: [credentials: Record<string, any>];
   apply: [];
+  execute: [];
   save: [payload: any];
 }>();
 
 // State
-const instance = getCurrentInstance();
-const dataObj = (instance?.proxy as any)?.$data as any;
+const vm = getCurrentInstance()?.proxy as any;
+const dataObj = vm?.$data as any;
 const currentStep = dataObj ? (toRef(dataObj, 'currentStep') as any) : ref<'select' | 'configure' | 'test' | 'summary'>('select');
 const selectedCredential = ref<RequiredCredential | null>(null);
 const credentialData = ref<Record<string, any>>({});
@@ -322,13 +324,12 @@ const passwordVisible = ref<Record<string, boolean>>({});
 const testingCredential = ref<string | null>(null);
 const isSaving = ref(false);
 const configureError = ref('');
-const testStatus = dataObj ? toRef(dataObj, 'testStatus') as any : ref<'idle' | 'testing' | 'success' | 'error'>('idle');
+const testStatus = dataObj ? (toRef(dataObj, 'testStatus') as any) : ref<'idle' | 'testing' | 'success' | 'error'>('idle');
 const testMessage = ref('');
 const testDetails = ref('');
-const testError = dataObj ? toRef(dataObj, 'testError') as any : ref('');
+const testError = dataObj ? (toRef(dataObj, 'testError') as any) : ref('');
 const isTesting = ref(false);
-const configuredCredentialsRef = ref<Set<string>>(new Set());
-const configuredCredentialsData = dataObj ? toRef(dataObj, 'configuredCredentials') as any : ref(new Set());
+const configuredCredentials = dataObj ? (toRef(dataObj, 'configuredCredentials') as any) : ref<Set<string>>(new Set());
 
 // Mock credential fields based on type
 const credentialFields = computed((): CredentialField[] => {
@@ -416,9 +417,11 @@ const credentialFields = computed((): CredentialField[] => {
 const isOAuth = computed(() => selectedCredential.value?.type?.toLowerCase().includes('oauth'));
 
 // Computed
-const allCredentialsConfigured = computed(() => 
-  props.requiredCredentials.every(c => isConfigured(c))
-);
+const allCredentialsConfigured = computed(() => {
+  const set: Set<string> = (configuredCredentials as any).value || new Set();
+  const configuredCount = props.requiredCredentials.filter(c => c.configured || set.has(c.type)).length;
+  return configuredCount === props.requiredCredentials.length && props.requiredCredentials.length > 0;
+});
 
 // Expose data for Vue Test Utils setData compatibility by defining reactive properties on proxy
 const instance2 = getCurrentInstance();
@@ -453,9 +456,8 @@ function selectCredential(credential: RequiredCredential) {
 }
 
 function isConfigured(cred: RequiredCredential) {
-  const setFromData: Set<string> = (configuredCredentialsData as any).value || new Set();
-  const setFromRef: Set<string> = configuredCredentialsRef.value;
-  return cred.configured || setFromData.has(cred.type) || setFromRef.has(cred.type);
+  const set: Set<string> = (configuredCredentials as any).value || new Set();
+  return cred.configured || set.has(cred.type);
 }
 
 function configureCredential(credential: RequiredCredential) {
