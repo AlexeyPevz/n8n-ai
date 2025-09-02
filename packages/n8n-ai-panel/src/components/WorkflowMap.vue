@@ -238,6 +238,8 @@ let currentScale = 1;
 // Methods
 async function refreshMap() {
   try {
+    isRefreshing.value = true;
+    try { await fetch('/workflow-map/refresh', { method: 'POST' }); } catch {}
     const data = await fetchMap({ depth: viewDepth.value, includeExternal: showExternal.value });
     if (data && Array.isArray(data.nodes) && Array.isArray(data.edges)) {
       layoutGraph(data);
@@ -246,9 +248,13 @@ async function refreshMap() {
       nodes.value = [];
       edges.value = [];
     }
+    // Copy to UI overlay
+    (mapData as any).value = data as any;
   } catch (error) {
     console.error('Failed to load workflow map:', error);
     errorMessage.value = 'failed';
+  } finally {
+    isRefreshing.value = false;
   }
 }
 
@@ -526,7 +532,19 @@ function connectWebSocket() {
 function handleWebSocketMessage(message: any) {
   switch (message.type) {
     case 'workflow_status':
+    case 'execution_status':
       updateNodeStatus(message.workflowId, message.status);
+      break;
+    case 'execution_progress':
+      // Update overlay data
+      break;
+    case 'cost_update':
+      // Update overlay data
+      break;
+    case 'stats_update':
+      if (mapData.value) {
+        (mapData.value as any).stats = { ...((mapData.value as any).stats || {}), ...message.stats };
+      }
       break;
       
     case 'node_status':
@@ -596,7 +614,8 @@ function updateViewTransform() {
 
 // Lifecycle
 onMounted(() => {
-  refreshMap();
+  isLoading.value = true;
+  refreshMap().finally(() => { isLoading.value = false; });
   connectWebSocket();
   
   // Add pan & zoom listeners
