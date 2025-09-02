@@ -1,24 +1,28 @@
 import { EventEmitter } from 'events';
 export class Metric {
     options;
-    values = new Map();
+    series = new Map();
     history = [];
     eventEmitter = new EventEmitter();
     constructor(options) {
         this.options = options;
     }
-    // Counter methods
-    inc(labels, value = 1) {
-        if (this.options.type !== 'counter') {
-            throw new Error(`inc() can only be used with counter metrics`);
+    // Counter/Gauge increment
+    inc(labelsOrValue, maybeValue) {
+        const isGauge = this.options.type === 'gauge';
+        const isCounter = this.options.type === 'counter';
+        if (!isGauge && !isCounter) {
+            throw new Error(`inc() can only be used with counter or gauge metrics`);
         }
+        const labels = typeof labelsOrValue === 'object' ? labelsOrValue : undefined;
+        const value = typeof labelsOrValue === 'number' ? labelsOrValue : (maybeValue ?? 1);
         const key = this.getLabelKey(labels);
-        const current = this.values.get(key) || { value: 0, labels };
+        const current = this.series.get(key) || { value: 0, labels };
         current.value += value;
         current.timestamp = Date.now();
-        this.values.set(key, current);
+        this.series.set(key, current);
         this.history.push({ ...current });
-        this.eventEmitter.emit('update', current);
+        this.eventEmitter.emit('metric:update', { ...current, labels: current.labels || {} });
     }
     // Gauge methods
     set(value, labels) {
@@ -27,9 +31,23 @@ export class Metric {
         }
         const key = this.getLabelKey(labels);
         const metric = { value, labels, timestamp: Date.now() };
-        this.values.set(key, metric);
+        this.series.set(key, metric);
         this.history.push({ ...metric });
-        this.eventEmitter.emit('update', metric);
+        this.eventEmitter.emit('metric:update', { ...metric, labels: metric.labels || {} });
+    }
+    // Gauge decrement helper
+    dec(value = 1) {
+        if (this.options.type !== 'gauge') {
+            throw new Error(`dec() can only be used with gauge metrics`);
+        }
+        const current = this.series.get('default') || { value: 0 };
+        this.set((current.value || 0) - value);
+    }
+    setToCurrentTime() {
+        if (this.options.type !== 'gauge') {
+            throw new Error(`setToCurrentTime() can only be used with gauge metrics`);
+        }
+        this.set(Date.now() / 1000);
     }
     // Histogram methods
     observe(value, labels) {
@@ -39,15 +57,16 @@ export class Metric {
         const key = this.getLabelKey(labels);
         const metric = { value, labels, timestamp: Date.now() };
         this.history.push({ ...metric });
-        this.eventEmitter.emit('update', metric);
+        this.eventEmitter.emit('metric:update', { ...metric, labels: metric.labels || {} });
     }
     // Timer helper
     startTimer(labels) {
         const start = process.hrtime.bigint();
         return () => {
             const end = process.hrtime.bigint();
-            const duration = Number(end - start) / 1e6; // Convert to milliseconds
+            const duration = Number(end - start) / 1e9; // seconds
             this.observe(duration, labels);
+            return duration;
         };
     }
     // Get current values
@@ -59,7 +78,7 @@ export class Metric {
             values: [],
         };
         if (this.options.type === 'counter' || this.options.type === 'gauge') {
-            snapshot.values = Array.from(this.values.values()).map(v => ({
+            snapshot.values = Array.from(this.series.values()).map(v => ({
                 value: v.value,
                 labels: v.labels || {},
                 timestamp: v.timestamp || Date.now(),
@@ -103,7 +122,7 @@ export class Metric {
     }
     // Reset metric
     reset() {
-        this.values.clear();
+        this.series.clear();
         this.history = [];
     }
     getLabelKey(labels) {
@@ -119,23 +138,112 @@ export class Metric {
         const percentiles = this.options.percentiles || [0.5, 0.9, 0.95, 0.99];
         const result = {};
         for (const p of percentiles) {
-            const index = Math.floor(sorted.length * p);
+            if (sorted.length === 0) {
+                result[`p${p * 100}`] = 0;
+                continue;
+            }
+            const index = Math.max(0, Math.min(sorted.length - 1, Math.ceil(sorted.length * p) - 1));
             result[`p${p * 100}`] = sorted[index] || 0;
         }
         return result;
+    }
+    value(labels) {
+        const key = this.getLabelKey(labels);
+        const current = this.series.get(key);
+        if (current)
+            return current.value;
+        if (this.options.type === 'histogram' || this.options.type === 'summary') {
+            const snap = this.getSnapshot();
+            return snap.metadata?.sum ?? 0;
+        }
+        return 0;
+    }
+    values() {
+        if (this.options.type === 'counter' || this.options.type === 'gauge') {
+            const out = new Map();
+            for (const [k, v] of this.series.entries())
+                out.set(k, v.value);
+            return out;
+        }
+        // For summary/histogram return list of values (optionally windowed)
+        const now = Date.now();
+        let list = this.history;
+        if (this.options.type === 'summary' && this.options.summaryWindow) {
+            const maxAge = this.options.summaryWindow.maxAge;
+            list = this.history.filter(h => (now - (h.timestamp || now)) <= maxAge);
+        }
+        return list.map(h => h.value);
+    }
+    buckets() {
+        if (!this.options.buckets)
+            return undefined;
+        const edges = [...this.options.buckets].sort((a, b) => a - b);
+        const counts = {};
+        const values = this.history.map(h => h.value);
+        for (const b of edges)
+            counts[b] = values.filter(v => v <= b).length;
+        counts['+Inf'] = values.length;
+        return counts;
+    }
+    percentiles(pcts) {
+        const sorted = this.history.map(h => h.value).sort((a, b) => a - b);
+        const res = {};
+        const list = pcts && pcts.length ? pcts : (this.options.percentiles || [0.5, 0.9, 0.95, 0.99]);
+        for (const p of list) {
+            const idx = Math.max(0, Math.min(sorted.length - 1, Math.ceil(sorted.length * p) - 1));
+            res[p] = sorted[idx] ?? 0;
+        }
+        return res;
+    }
+    // Alias for summaries
+    quantiles(pcts) {
+        return this.percentiles(pcts);
+    }
+    sum() {
+        if (this.options.type === 'histogram' || this.options.type === 'summary') {
+            const snap = this.getSnapshot();
+            return snap.metadata?.sum ?? 0;
+        }
+        return this.value();
+    }
+    count() {
+        if (this.options.type === 'histogram' || this.options.type === 'summary') {
+            const snap = this.getSnapshot();
+            return snap.metadata?.count ?? 0;
+        }
+        let total = 0;
+        for (const v of this.series.values())
+            total += v.value;
+        return total;
+    }
+    mean() {
+        if (this.options.type === 'histogram' || this.options.type === 'summary') {
+            const snap = this.getSnapshot();
+            const c = snap.metadata?.count ?? 0;
+            if (!c)
+                return 0;
+            return (snap.metadata?.sum ?? 0) / c;
+        }
+        return this.value();
     }
 }
 export class MetricsRegistry {
     metrics = new Map();
     defaultLabels = {};
+    emitter = new EventEmitter();
     setDefaultLabels(labels) {
         this.defaultLabels = { ...labels };
     }
+    on(event, listener) {
+        this.emitter.on(event, listener);
+    }
     register(options) {
         if (this.metrics.has(options.name)) {
-            throw new Error(`Metric ${options.name} is already registered`);
+            throw new Error(`Metric ${options.name} already exists`);
         }
         const metric = new Metric(options);
+        // Forward metric updates
+        metric.on('metric:update', (v) => this.emitter.emit('metric:update', { name: options.name, type: options.type, value: v.value, labels: v.labels, timestamp: v.timestamp }));
         this.metrics.set(options.name, metric);
         return metric;
     }
@@ -167,14 +275,18 @@ export class MetricsRegistry {
             buckets: buckets || [0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10],
         });
     }
-    summary(name, help, labelNames, percentiles) {
-        return this.register({
+    summary(name, help, labelNames, percentilesOrWindow) {
+        const opts = {
             name,
             help,
             type: 'summary',
             labelNames,
-            percentiles: percentiles || [0.5, 0.9, 0.95, 0.99],
-        });
+            percentiles: Array.isArray(percentilesOrWindow) ? percentilesOrWindow : [0.5, 0.9, 0.95, 0.99],
+        };
+        if (percentilesOrWindow && !Array.isArray(percentilesOrWindow)) {
+            opts.summaryWindow = { maxAge: percentilesOrWindow.maxAge, ageBuckets: percentilesOrWindow.ageBuckets };
+        }
+        return this.register(opts);
     }
     getAllMetrics() {
         const snapshots = [];
@@ -231,6 +343,43 @@ export class MetricsRegistry {
             lines.push(''); // Empty line between metrics
         }
         return lines.join('\n');
+    }
+    collect() {
+        const metrics = [];
+        for (const metric of this.metrics.values()) {
+            const snap = metric.getSnapshot();
+            const entry = {
+                name: snap.name,
+                type: snap.type,
+                help: snap.help,
+                values: metric.values(),
+            };
+            if (snap.type === 'histogram' || snap.type === 'summary') {
+                entry.sum = metric.sum();
+                entry.count = metric.count();
+                entry.mean = metric.mean();
+                if (snap.type === 'histogram')
+                    entry.buckets = metric.buckets();
+            }
+            metrics.push(entry);
+        }
+        return metrics;
+    }
+    toJSON() {
+        const list = [];
+        for (const metric of this.metrics.values()) {
+            const snap = metric.getSnapshot();
+            for (const v of snap.values) {
+                list.push({ name: snap.name, type: snap.type, help: snap.help, value: v.value, labels: v.labels });
+            }
+        }
+        return JSON.stringify({ metrics: list, timestamp: new Date().toISOString() });
+    }
+    getMetricNames() {
+        return Array.from(this.metrics.keys());
+    }
+    clear() {
+        this.metrics.clear();
     }
 }
 // Global registry

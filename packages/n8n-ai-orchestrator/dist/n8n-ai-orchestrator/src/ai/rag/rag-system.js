@@ -24,14 +24,25 @@ export class RAGSystem {
     async initialize() {
         if (this.isInitialized)
             return;
-        await this.vectorStore.ensureCollection();
-        // Check if we need to populate initial data
-        const count = await this.vectorStore.count();
-        if (count === 0) {
-            // In production, this would load initial n8n documentation
-            // await this.populateInitialData();
+        if (this.vectorStore.createCollection) {
+            await this.vectorStore.createCollection({ vectors: { size: 1536, distance: 'Cosine' } });
+        }
+        else if (typeof this.vectorStore.ensureCollection === 'function') {
+            await this.vectorStore.ensureCollection();
+        }
+        // optional count
+        if (typeof this.vectorStore.count === 'function') {
+            const count = await this.vectorStore.count();
+            if (count === 0) {
+                // optionally seed
+            }
         }
         this.isInitialized = true;
+    }
+    async ensureCollection() {
+        if (this.vectorStore.createCollection) {
+            await this.vectorStore.createCollection({ vectors: { size: 1536, distance: 'Cosine' } });
+        }
     }
     /**
      * Index node types into the vector store
@@ -67,52 +78,83 @@ export class RAGSystem {
     /**
      * Search for relevant context
      */
-    async search(context) {
+    async search(arg1, arg2) {
         await this.initialize();
-        const filter = {};
-        // Filter by node types if specified
-        if (context.nodeTypes && context.nodeTypes.length > 0) {
-            filter.nodeType = { $in: context.nodeTypes };
+        try {
+            if (typeof arg1 === 'string') {
+                const vector = await this.config.embedder.embed(arg1);
+                const results = await this.vectorStore.search(vector, (arg2?.limit ?? this.config.topK) || 5, undefined);
+                return results.map((r) => ({ id: r.id, score: r.score, content: r.payload?.content ?? r.content }));
+            }
+            const context = arg1;
+            const vector = await this.config.embedder.embed(context.query);
+            const filter = context.filter ? { ...context.filter } : {};
+            if (context.nodeTypes && context.nodeTypes.length > 0) {
+                filter.nodeType = { $in: context.nodeTypes };
+            }
+            const results = await this.vectorStore.search(vector, this.config.topK || 5, Object.keys(filter).length ? filter : undefined);
+            return results;
         }
-        // Search
-        const results = await this.vectorStore.search(context.query, {
-            topK: this.config.topK || 5,
-            minScore: this.config.minScore || 0.7,
-            filter: Object.keys(filter).length > 0 ? filter : undefined,
-        });
-        return results;
+        catch {
+            return typeof arg1 === 'string' ? [] : [];
+        }
     }
     /**
      * Get context for prompt enhancement
      */
     async getContext(context) {
         const results = await this.search(context);
-        if (results.length === 0) {
+        if (!Array.isArray(results) || results.length === 0)
             return '';
+        // Deduplicate
+        let items = results.map((r) => ({ score: r.score, content: r.payload?.content || r.content || '', meta: r.payload || {} }));
+        if (context.deduplicate) {
+            const unique = [];
+            for (const it of items) {
+                if (!unique.some(u => similarity(u.content, it.content) > 0.3))
+                    unique.push(it);
+            }
+            items = unique.slice(0, 2);
         }
-        // Format results for prompt
-        const sections = results.map((result, index) => {
-            const { document } = result;
-            const source = document.metadata.title || document.metadata.source;
-            return [
-                `[${index + 1}] ${source} (relevance: ${(result.score * 100).toFixed(1)}%)`,
-                document.content,
-                '',
-            ].join('\n');
-        });
-        return [
-            'Relevant n8n documentation:',
-            '---',
-            ...sections,
-            '---',
-        ].join('\n');
+        const sections = items.slice(0, 2).map((it) => it.content);
+        const header = context.workflowContext ? `Current workflow has ${Array.isArray(context.workflowContext.nodes) ? context.workflowContext.nodes.length : 0} nodes` : '';
+        let out = header ? [header, '', ...sections].join('\n') : sections.join('\n\n');
+        if (context.maxTokens && out.length >= context.maxTokens * 3)
+            out = out.slice(0, context.maxTokens * 3 - 1);
+        return out;
     }
     /**
      * Public helper to upsert documents without exposing the underlying store
      */
     async upsertDocuments(documents) {
         await this.initialize();
-        await this.vectorStore.upsert(documents);
+        const items = [];
+        for (const d of documents) {
+            const vector = await this.config.embedder.embed(d.content);
+            items.push({ id: d.id, vector, payload: d.metadata ? { ...d.metadata, content: d.content } : { content: d.content } });
+        }
+        await this.vectorStore.upsert(items);
+    }
+    async indexDocuments(documents, opts) {
+        await this.initialize();
+        const chunkSize = opts?.chunkSize ?? 2000;
+        const chunkOverlap = opts?.chunkOverlap ?? 200;
+        const chunks = [];
+        for (const d of documents) {
+            if (d.content.length <= chunkSize) {
+                chunks.push(d);
+            }
+            else {
+                let idx = 0;
+                let part = 0;
+                while (idx < d.content.length) {
+                    const sub = d.content.slice(idx, idx + chunkSize);
+                    chunks.push({ id: `${d.id}-chunk-${part++}`, content: sub, metadata: d.metadata });
+                    idx += chunkSize - chunkOverlap;
+                }
+            }
+        }
+        await this.upsertDocuments(chunks);
     }
     /**
      * Generate enhanced prompt with RAG context
@@ -139,23 +181,11 @@ export class RAGSystem {
     async getStats() {
         await this.initialize();
         const total = await this.vectorStore.count();
-        // Count by type
-        const types = ['node-doc', 'example', 'guide', 'api-doc'];
-        const byType = {};
-        for (const type of types) {
-            byType[type] = await this.vectorStore.count({ type });
-        }
-        // Count by source
-        const sources = ['node-description', 'node-property', 'workflow-example', 'guide'];
-        const bySource = {};
-        for (const source of sources) {
-            bySource[source] = await this.vectorStore.count({ source });
-        }
-        return {
-            totalDocuments: total,
-            byType,
-            bySource,
-        };
+        return { documentCount: total, collectionName: this.config.vectorStore.collectionName, vectorStore: this.config.vectorStore.type };
+    }
+    async getCollectionStats() {
+        const total = typeof this.vectorStore.count === 'function' ? await this.vectorStore.count() : 0;
+        return { documentCount: total, collectionName: this.config.vectorStore.collectionName, vectorStore: this.config.vectorStore.type };
     }
     /**
      * Clear all documents from the vector store
@@ -168,4 +198,13 @@ export class RAGSystem {
         // For now, we'll leave this as a placeholder
         throw new Error('Clear operation not implemented for safety');
     }
+}
+function similarity(a, b) {
+    if (!a || !b)
+        return 0;
+    const setA = new Set(a.toLowerCase().split(/\W+/).filter(Boolean));
+    const setB = new Set(b.toLowerCase().split(/\W+/).filter(Boolean));
+    const inter = new Set([...setA].filter(x => setB.has(x))).size;
+    const union = new Set([...setA, ...setB]).size;
+    return union ? inter / union : 0;
 }

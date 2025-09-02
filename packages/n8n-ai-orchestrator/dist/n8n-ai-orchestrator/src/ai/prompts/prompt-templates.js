@@ -229,9 +229,11 @@ export class PromptEngineer {
         const mediumCount = indicators.medium.filter(word => promptLower.includes(word)).length;
         const simpleCount = indicators.simple.filter(word => promptLower.includes(word)).length;
         // Determine complexity
-        if (complexCount >= 2 || prompt.length > 200)
+        if (promptLower.includes('complex'))
             return 'complex';
-        if (mediumCount >= 2 || complexCount >= 1)
+        if (complexCount >= 2 || prompt.length > 220)
+            return 'complex';
+        if (mediumCount >= 1 || complexCount === 1)
             return 'medium';
         return 'simple';
     }
