@@ -82,12 +82,12 @@ export class RAGSystem {
         await this.initialize();
         try {
             if (typeof arg1 === 'string') {
-                const vector = await this.config.embedder.embed(arg1);
+                const vector = await this.config.embedder.embed({ texts: [arg1] });
                 const results = await this.vectorStore.search(vector, (arg2?.limit ?? this.config.topK) || 5, undefined);
                 return results.map((r) => ({ id: r.id, score: r.score, content: r.payload?.content ?? r.content }));
             }
             const context = arg1;
-            const vector = await this.config.embedder.embed(context.query);
+            const vector = await this.config.embedder.embed({ texts: [context.query] });
             const filter = context.filter ? { ...context.filter } : {};
             if (context.nodeTypes && context.nodeTypes.length > 0) {
                 filter.nodeType = { $in: context.nodeTypes };
@@ -130,7 +130,7 @@ export class RAGSystem {
         await this.initialize();
         const items = [];
         for (const d of documents) {
-            const vector = await this.config.embedder.embed(d.content);
+            const vector = await this.config.embedder.embed({ texts: [d.content] });
             items.push({ id: d.id, vector, payload: d.metadata ? { ...d.metadata, content: d.content } : { content: d.content } });
         }
         await this.vectorStore.upsert(items);

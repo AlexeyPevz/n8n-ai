@@ -65,7 +65,11 @@ export class GitIntegration {
             });
         });
         // fake hash for tests
-        return { success: true, commitHash: Date.now().toString(16) };
+        return {
+            success: true,
+            commitHash: Date.now().toString(16),
+            branch: this.config.branch || 'main'
+        };
     }
     generateCommitMessage(workflowName, operations, prompt) {
         const lines = [];

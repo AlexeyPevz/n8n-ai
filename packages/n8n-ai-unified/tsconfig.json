@@ -7,7 +7,7 @@
     "lib": ["ES2022", "DOM"],
     "jsx": "preserve",
     "moduleResolution": "bundler",
-    "allowImportingTsExtensions": true,
+
     "resolveJsonModule": true,
     "allowSyntheticDefaultImports": true,
     "esModuleInterop": true,

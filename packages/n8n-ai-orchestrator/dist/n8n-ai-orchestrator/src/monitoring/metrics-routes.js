@@ -86,7 +86,7 @@ export async function registerMetricsRoutes(server) {
         if (type === 'counter') {
             const c = metricsRegistry.counter(name, `${name} counter`, []);
             // inc(value, labels) according to tests
-            c.inc(value, labels);
+            c.inc(labels || {}, value);
             return { ok: true };
         }
         else if (type === 'gauge') {

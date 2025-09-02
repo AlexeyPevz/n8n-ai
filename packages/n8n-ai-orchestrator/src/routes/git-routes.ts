@@ -56,13 +56,12 @@ export async function registerGitRoutes(
       
       try {
         // Create commit
-        const result = await gitIntegration.createCommit(
-          body.workflowId,
-          body.workflowName,
-          body.operationBatch,
+        const result = await gitIntegration.commitWorkflow(
+          { id: body.workflowId, name: body.workflowName },
+          body.message || 'AI-generated workflow update',
           {
             userId: request.headers['x-user-id'] as string,
-            prompt: body.prompt,
+            promptUsed: body.prompt,
             description: body.description,
           }
         );

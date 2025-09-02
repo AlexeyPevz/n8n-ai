@@ -1,4 +1,6 @@
 import { metricsRegistry } from './metrics-system.js';
+// Re-export metricsRegistry for other modules
+export { metricsRegistry };
 // HTTP metrics
 export const httpRequestsTotal = metricsRegistry.counter('n8n_ai_http_requests_total', 'Total number of HTTP requests', ['method', 'path', 'status']);
 export const httpRequestDuration = metricsRegistry.histogram('n8n_ai_http_request_duration_seconds', 'HTTP request duration in seconds', ['method', 'path', 'status'], [0.001, 0.005, 0.01, 0.05, 0.1, 0.5, 1, 5]);

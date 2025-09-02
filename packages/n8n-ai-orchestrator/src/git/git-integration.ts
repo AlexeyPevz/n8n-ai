@@ -42,6 +42,8 @@ export interface GitOperationResult {
 export type CommitOptions = {
   message?: string;
   promptUsed?: string;
+  userId?: string;
+  description?: string;
 };
 
 export class GitIntegration {
@@ -62,7 +64,7 @@ export class GitIntegration {
     });
   }
 
-  async commitWorkflow(workflow: { id: string; name: string }, message?: string, options?: CommitOptions): Promise<{ success: boolean; commitHash: string }> {
+  async commitWorkflow(workflow: { id: string; name: string }, message?: string, options?: CommitOptions): Promise<GitOperationResult> {
     const workflowFile = path.join(this.config.repoPath, 'workflows', `${workflow.id}.json`);
     await fs.mkdir(path.dirname(workflowFile), { recursive: true });
     await fs.writeFile(workflowFile, JSON.stringify(workflow, null, 2));
@@ -85,7 +87,11 @@ export class GitIntegration {
     });
 
     // fake hash for tests
-    return { success: true, commitHash: Date.now().toString(16) };
+    return { 
+      success: true, 
+      commitHash: Date.now().toString(16),
+      branch: this.config.branch || 'main'
+    };
   }
 
   generateCommitMessage(workflowName: string, operations: any, prompt?: string): string {
