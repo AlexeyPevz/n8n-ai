@@ -1,7 +1,7 @@
 /**
  * Улучшенный матчер паттернов с поддержкой fuzzy matching
  */
-import { getAllPatterns } from './extended-patterns';
+import { getAllPatterns } from './extended-patterns.js';
 export class PatternMatcher {
     patterns;
     constructor() {
