@@ -238,6 +238,24 @@
                 </button>
               </div>
             </div>
+            <div v-else-if="currentStep === 'summary'" class="step-summary">
+              <h3>Summary</h3>
+              <div class="summary-list">
+                <div
+                  v-for="cred in requiredCredentials"
+                  :key="cred.type"
+                  class="summary-item"
+                >
+                  <span class="cred-name">{{ cred.displayName || cred.name }}</span>
+                  <span class="status-badge success" v-if="isConfigured(cred)">Configured</span>
+                  <span class="status-badge error" v-else>Missing</span>
+                  <button class="btn-ghost" @click="configureCredential(cred)">Edit</button>
+                </div>
+              </div>
+              <div class="wizard-actions">
+                <button class="btn-success" :disabled="!allCredentialsConfigured" @click="$emit('execute')">Execute Workflow</button>
+              </div>
+            </div>
           </div>
           <div v-else-if="isOAuth" class="oauth-section">
             <p>Connect your account to proceed.</p>
@@ -521,11 +539,12 @@ async function saveCredential() {
     // Mark as configured
     if (selectedCredential.value) {
       selectedCredential.value.configured = true;
-      configuredCredentialsRef.value.add(selectedCredential.value.type);
-      if ((configuredCredentialsData as any).value) {
-        (configuredCredentialsData as any).value.add(selectedCredential.value.type);
-      }
+      const set: Set<string> = (configuredCredentials as any).value || new Set();
+      set.add(selectedCredential.value.type);
+      (configuredCredentials as any).value = set;
       emit('configured', { [selectedCredential.value.type]: credentialData.value });
+      emit('save', { type: selectedCredential.value.type, data: { ...credentialData.value } });
+      currentStep.value = 'summary' as any;
     }
     
   } catch (error: any) {
