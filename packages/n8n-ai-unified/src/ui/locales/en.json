@@ -1,0 +1,82 @@
+{
+  "aiFirstTool": {
+    "tooltip": "AI Workflow Assistant",
+    "tooltip.title": "AI-powered workflow creation",
+    "tooltip.description": "Create and modify workflows using natural language",
+    "info": "I can help you create workflows. Just describe what you want to do!",
+    "inputPlaceholder": "Describe what you want to automate...",
+    "send": "Send",
+    "help": "Help",
+    "quickActions": {
+      "http": "HTTP Request",
+      "webhook": "Webhook Trigger",
+      "schedule": "Scheduled Trigger",
+      "database": "Database Query"
+    }
+  },
+  "ai": {
+    "diffPreview": {
+      "title": "Review Workflow Changes",
+      "subtitle": "Preview changes before applying",
+      "helpText": "Review the changes that will be made to your workflow. You can skip individual changes if needed.",
+      "visualPreview": "Visual Preview",
+      "changesList": "Changes List",
+      "changes": "change | changes",
+      "addNode": "Add {type} node",
+      "updateNode": "Update {name}",
+      "connectNodes": "Connect {from} → {to}",
+      "deleteNode": "Delete {name}",
+      "addNote": "Add annotation",
+      "parametersCount": "{count} parameter | {count} parameters",
+      "skipChange": "Skip this change",
+      "aiNote": "AI Note",
+      "modify": "Modify",
+      "apply": "Apply Changes",
+      "autoApplyNext": "Always apply changes automatically"
+    },
+    "secretsWizard": {
+      "title": "Configure Credentials",
+      "detectionNotice": "Some nodes in your workflow require credentials to work properly.",
+      "requiredCredentials": "Required Credentials",
+      "requiredBy": "Required by {node}",
+      "existingCredentialsFound": "{count} credential already configured | {count} credentials already configured",
+      "selectCredential": "Select credential",
+      "testConnection": "Test",
+      "createInfo": "You'll be guided through creating new credentials on the next step.",
+      "documentation": "Documentation",
+      "summarySuccess": "All credentials have been configured successfully!",
+      "configuredCredentials": "Configured Credentials",
+      "newlyCreated": "Newly created",
+      "existing": "Using: {name}",
+      "nextSteps": "Your workflow is now ready to use. You can always update credentials later in the workflow settings.",
+      "back": "Back",
+      "skip": "Skip for now",
+      "next": "Next",
+      "complete": "Complete Setup",
+      "useExisting": "Use existing credential",
+      "createNew": "Create new credential",
+      "skipForNow": "Skip (configure later)",
+      "step": {
+        "detection": "Detection",
+        "selection": "Selection",
+        "creation": "Creation",
+        "summary": "Summary"
+      },
+      "title": {
+        "detection": "Credentials Required",
+        "selection": "Choose Credentials",
+        "creation": "Create Credentials",
+        "summary": "Setup Complete"
+      },
+      "subtitle": {
+        "detection": "{count} credential type needs configuration | {count} credential types need configuration",
+        "selection": "Select how to configure each credential",
+        "creation": "Enter details for {count} new credential | Enter details for {count} new credentials",
+        "summary": "Your workflow is ready to use"
+      }
+    }
+  },
+  "workflowMap": {
+    "title": "Workflow Map"
+  }
+}
