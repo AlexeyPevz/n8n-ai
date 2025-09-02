@@ -68,7 +68,7 @@ describe('RAGSystem', () => {
         nodeTypes: ['httpRequest', 'webhook'],
       });
 
-      expect(mockEmbedder.embed).toHaveBeenCalledWith('How to make HTTP requests?');
+      expect(mockEmbedder.embed).toHaveBeenCalledWith({ texts: ['How to make HTTP requests?'] });
       expect(mockVectorStore.search).toHaveBeenCalledWith(
         [0.1, 0.2, 0.3],
         5,
