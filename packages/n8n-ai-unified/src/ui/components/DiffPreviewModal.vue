@@ -179,9 +179,8 @@
 <script lang="ts">
 import { defineComponent, ref, computed } from 'vue';
 import type { OperationBatch } from '@n8n-ai/schemas';
-import WorkflowCanvas from './WorkflowCanvas.vue';
-import { useI18n } from '@/composables';
-import { MODAL_CONFIRM } from '@/constants';
+import { WorkflowCanvas } from './stubs';
+import type { I18n } from './types';
 
 export const DIFF_PREVIEW_MODAL_KEY = 'diffPreview';
 
@@ -210,7 +209,29 @@ export default defineComponent({
   },
   emits: ['apply', 'reject', 'modify'],
   setup(props, { emit }) {
-    const i18n = useI18n();
+    // В реальной интеграции i18n будет из n8n
+    const i18n: I18n = {
+      baseText: (key: string, options?: any) => {
+        // Простая заглушка для демо
+        const translations: Record<string, string> = {
+          'ai.diffPreview.title': 'Review Workflow Changes',
+          'ai.diffPreview.subtitle': 'Preview changes before applying',
+          'ai.diffPreview.addNode': 'Add {type} node',
+          'ai.diffPreview.updateNode': 'Update {name}',
+          'ai.diffPreview.connectNodes': 'Connect {from} → {to}',
+          'ai.diffPreview.deleteNode': 'Delete {name}',
+          'ai.diffPreview.parametersCount': '{count} parameters',
+          'generic.cancel': 'Cancel',
+        };
+        let text = translations[key] || key;
+        if (options?.interpolate) {
+          Object.entries(options.interpolate).forEach(([k, v]) => {
+            text = text.replace(`{${k}}`, String(v));
+          });
+        }
+        return text;
+      }
+    };
     const MODAL_KEY = DIFF_PREVIEW_MODAL_KEY;
     
     const showSideBySide = ref(false);

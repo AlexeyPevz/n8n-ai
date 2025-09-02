@@ -3,11 +3,9 @@
  */
 
 import { ref, computed } from 'vue';
-import { useModal } from '@/composables/useModal';
-import { useToast } from '@/composables/useToast';
-import { useWorkflowsStore } from '@/stores/workflows';
 import { useAIApi } from './useAIApi';
 import type { OperationBatch } from '@n8n-ai/schemas';
+import type { Modal, Toast } from '../components/types';
 import { DIFF_PREVIEW_MODAL_KEY } from '../components/DiffPreviewModal.vue';
 import { SECRETS_WIZARD_MODAL_KEY } from '../components/SecretsWizardModal.vue';
 
@@ -31,9 +29,33 @@ export interface AIWorkflowState {
 }
 
 export function useAIWorkflow() {
-  const modal = useModal();
-  const toast = useToast();
-  const workflowsStore = useWorkflowsStore();
+  // В реальной интеграции эти объекты будут из n8n
+  const modal: Modal = {
+    open: (name: string, data?: any) => {
+      console.log('Opening modal:', name, data);
+      // Здесь будет реальный вызов n8n modal
+    },
+    close: (name: string) => {
+      console.log('Closing modal:', name);
+    }
+  };
+  
+  const toast: Toast = {
+    showMessage: (opts) => console.log('Toast:', opts),
+    showError: (error, title) => console.error('Error:', title, error)
+  };
+  
+  // Заглушка для workflow store
+  const workflowsStore = {
+    getCurrentWorkflow: () => ({
+      nodes: [],
+      connections: []
+    }),
+    setWorkflow: (workflow: any) => {
+      console.log('Setting workflow:', workflow);
+    }
+  };
+  
   const { planWorkflow, applyOperations, validateWorkflow } = useAIApi();
   
   const state = ref<AIWorkflowState>({

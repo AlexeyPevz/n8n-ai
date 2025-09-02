@@ -315,10 +315,8 @@
 
 <script lang="ts">
 import { defineComponent, ref, computed } from 'vue';
-import { useCredentialsStore } from '@/stores/credentials';
-import { useI18n } from '@/composables';
-import CredentialIcon from './CredentialIcon.vue';
-import CredentialForm from './CredentialForm.vue';
+import { CredentialIcon, CredentialForm } from './stubs';
+import type { I18n } from './types';
 
 export const SECRETS_WIZARD_MODAL_KEY = 'secretsWizard';
 
@@ -346,8 +344,27 @@ export default defineComponent({
   },
   emits: ['complete', 'skip'],
   setup(props, { emit }) {
-    const i18n = useI18n();
-    const credentialsStore = useCredentialsStore();
+    // В реальной интеграции i18n будет из n8n
+    const i18n: I18n = {
+      baseText: (key: string, options?: any) => {
+        const translations: Record<string, string> = {
+          'ai.secretsWizard.title': 'Configure Credentials',
+          'ai.secretsWizard.step.detection': 'Detection',
+          'ai.secretsWizard.step.selection': 'Selection',
+          'ai.secretsWizard.step.creation': 'Creation',
+          'ai.secretsWizard.step.summary': 'Summary',
+          'ai.secretsWizard.next': 'Next',
+          'ai.secretsWizard.complete': 'Complete Setup',
+        };
+        let text = translations[key] || key;
+        if (options?.interpolate) {
+          Object.entries(options.interpolate).forEach(([k, v]) => {
+            text = text.replace(`{${k}}`, String(v));
+          });
+        }
+        return text;
+      }
+    };
     const MODAL_KEY = SECRETS_WIZARD_MODAL_KEY;
     
     const steps = [

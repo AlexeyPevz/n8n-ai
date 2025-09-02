@@ -178,20 +178,14 @@
 </template>
 
 <script lang="ts">
-import { defineComponent, ref, computed, onMounted } from 'vue';
-import { useI18n } from '@/composables/useI18n';
-import { useToast } from '@/composables/useToast';
-import { useAIAssistant } from './composables/useAIAssistant';
-import WorkflowDiff from './components/WorkflowDiff.vue';
-import PlanCard from './components/PlanCard.vue';
-import WorkflowMap from './components/WorkflowMap.vue';
+import { defineComponent, ref, computed, onMounted, nextTick } from 'vue';
+import { useAIWorkflow } from './composables/useAIWorkflow';
+import type { I18n, Toast } from './components/types';
 
 export default defineComponent({
   name: 'AIFirstTool',
   components: {
-    WorkflowDiff,
-    PlanCard,
-    WorkflowMap,
+    // В реальной интеграции здесь будут настоящие компоненты
   },
   props: {
     position: {
@@ -201,9 +195,15 @@ export default defineComponent({
     },
   },
   setup() {
-    const i18n = useI18n();
-    const toast = useToast();
-    const { messages, sendPrompt, applyBatch, isLoading } = useAIAssistant();
+    // Заглушки для демо
+    const i18n: I18n = {
+      baseText: (key: string) => key
+    };
+    const toast: Toast = {
+      showMessage: (opts) => console.log('Toast:', opts),
+      showError: (error, title) => console.error('Error:', title, error)
+    };
+    const { processPrompt, state } = useAIWorkflow();
     
     const isOpen = ref(false);
     const userInput = ref('');
@@ -245,14 +245,14 @@ export default defineComponent({
     };
     
     const sendMessage = async () => {
-      if (!userInput.value.trim() || isLoading.value) return;
+      if (!userInput.value.trim() || state.value.stage !== 'idle') return;
       
       const prompt = userInput.value;
       userInput.value = '';
       
       try {
-        await sendPrompt(prompt);
-      } catch (error) {
+        await processPrompt(prompt);
+      } catch (error: any) {
         toast.showError(error.message);
       }
     };
@@ -267,16 +267,63 @@ export default defineComponent({
       });
     });
     
+    // Фейковые сообщения для демо
+    const messages = ref([
+      {
+        id: '1',
+        role: 'assistant',
+        type: 'text',
+        content: 'Hello! I can help you create workflows. Try saying "Create an HTTP request to fetch weather data"'
+      }
+    ]);
+    
+    const showWorkflowMap = () => {
+      showMap.value = true;
+    };
+    
+    const showSettings = () => {
+      console.log('Show settings');
+    };
+    
+    const onQuickAction = (action: string) => {
+      console.log('Quick action:', action);
+    };
+    
+    const onWorkflowSelect = (workflow: any) => {
+      console.log('Selected workflow:', workflow);
+    };
+    
+    const renderMarkdown = (content: string) => content;
+    
+    const currentModel = 'GPT-4';
+    const tokensUsed = 0;
+    const loadingText = 'Processing...';
+    const workflows = ref([]);
+    
+    const showHelp = () => {
+      console.log('Show help');
+    };
+    
     return {
       isOpen,
       userInput,
       messages,
-      isLoading,
+      isLoading: computed(() => state.value.stage !== 'idle'),
       showMap,
       quickActions,
       openPanel,
       closePanel,
       sendMessage,
+      showWorkflowMap,
+      showSettings,
+      onQuickAction,
+      onWorkflowSelect,
+      renderMarkdown,
+      currentModel,
+      tokensUsed,
+      loadingText,
+      workflows,
+      showHelp,
     };
   },
 });

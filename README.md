@@ -91,12 +91,25 @@ State machine: `Idle → Clarifying → Planning → Review → Secrets → Buil
 ---
 
 ## 5. Getting Started
-### 5.1 Prerequisites
+
+### 5.1 Quick Start (Unified App) 🚀
+```bash
+# Clone and start unified n8n with AI
+git clone https://github.com/your-org/n8n-ai.git
+cd n8n-ai
+./scripts/start-unified.sh
+
+# Open http://localhost:5678
+# Press Cmd+K to open AI assistant
+```
+
+### 5.2 Development Setup
+#### Prerequisites
 * Node 20 + pnpm `>=8`
 * Docker & Docker-Compose
 * Make (optional for shortcuts)
 
-### 5.2 Clone & Bootstrap
+#### Clone & Bootstrap
 ```bash
 git clone https://github.com/your-org/n8n-ai.git
 cd n8n-ai

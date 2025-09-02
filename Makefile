@@ -87,3 +87,22 @@ curl-plan: ## Test plan API with sample prompt
 
 curl-health: ## Check orchestrator health
 	curl -s http://localhost:3000/api/v1/ai/health | python3 -m json.tool
+
+# Unified app commands
+unified-build: ## Build unified n8n with AI
+	pnpm -C packages/n8n-ai-unified build
+
+unified-start: ## Start unified n8n with AI
+	./scripts/start-unified.sh
+
+unified-docker-build: ## Build unified Docker image
+	docker build -f Dockerfile.unified -t n8n-ai-unified:latest .
+
+unified-docker-up: ## Start unified app with Docker
+	docker-compose -f docker-compose.unified.yml up -d
+
+unified-docker-down: ## Stop unified app
+	docker-compose -f docker-compose.unified.yml down
+
+unified-logs: ## Show unified app logs
+	docker-compose -f docker-compose.unified.yml logs -f
