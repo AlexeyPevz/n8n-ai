@@ -69,7 +69,7 @@ export class N8nAIPlugin {
     // Перехватываем рендеринг основной страницы
     app.use((req: any, res: any, next: any) => {
       const originalRender = res.render;
-      res.render = function(view: string, options: any) {
+      res.render = function(this: any, view: string, options: any) {
         if (view === 'App' || view === 'index') {
           // Добавляем наш AI UI в options
           options = options || {};
@@ -89,7 +89,7 @@ export class N8nAIPlugin {
           `;
         }
         return originalRender.call(this, view, options);
-      }.bind(res);
+      };
       next();
     });
   }

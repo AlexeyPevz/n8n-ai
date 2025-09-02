@@ -23,10 +23,10 @@ export async function startOrchestrator(options: OrchestratorOptions = {}) {
   server = await createServer({
     logger: !options.embedded,
     trustProxy: true,
-  });
+  }) as any;
 
   // Запускаем на указанном порту
-  await server.listen({ port, host: '127.0.0.1' });
+  await server!.listen({ port, host: '127.0.0.1' });
   
   const actualPort = (server!.server.address() as any).port;
   console.log(`🚀 Embedded orchestrator started on port ${actualPort}`);
@@ -107,5 +107,5 @@ async function createServer(opts: any): Promise<FastifyInstance> {
     return workflow;
   });
   
-  return server;
+  return server as any;
 }

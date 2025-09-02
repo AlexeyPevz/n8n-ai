@@ -6,8 +6,9 @@ import { ref, computed } from 'vue';
 import { useAIApi } from './useAIApi';
 import type { OperationBatch } from '@n8n-ai/schemas';
 import type { Modal, Toast } from '../components/types';
-import { DIFF_PREVIEW_MODAL_KEY } from '../components/DiffPreviewModal.vue';
-import { SECRETS_WIZARD_MODAL_KEY } from '../components/SecretsWizardModal.vue';
+// Modal keys
+export const DIFF_PREVIEW_MODAL_KEY = 'diffPreview';
+export const SECRETS_WIZARD_MODAL_KEY = 'secretsWizard';
 
 export interface AIWorkflowState {
   // Текущий процесс
@@ -76,7 +77,7 @@ export function useAIWorkflow() {
       // 1. Получаем план от AI
       const planResult = await planWorkflow(prompt);
       
-      if (!planResult.operations || planResult.operations.length === 0) {
+      if (!planResult.operations || planResult.operations.ops.length === 0) {
         toast.showMessage({
           type: 'info',
           title: 'No changes needed',
@@ -196,7 +197,7 @@ export function useAIWorkflow() {
         workflowsStore.setWorkflow(result.workflow);
         
         // Анимация на канвасе для новых нод
-        highlightNewNodes(result.addedNodeIds);
+        highlightNewNodes(result.addedNodeIds || []);
         
         state.value.stage = 'complete';
         state.value.pendingOperations = null;
