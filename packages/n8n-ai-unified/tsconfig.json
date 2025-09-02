@@ -12,10 +12,14 @@
     "esModuleInterop": true,
     "paths": {
       "@n8n-ai/schemas": ["../n8n-ai-schemas/src"],
-      "@n8n-ai/hooks": ["../n8n-ai-hooks/src"],
       "@n8n-ai/orchestrator/*": ["../n8n-ai-orchestrator/*"]
     }
   },
   "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist", "**/*.test.ts", "**/*.spec.ts"]
+  "exclude": ["node_modules", "dist", "**/*.test.ts", "**/*.spec.ts"],
+  "references": [
+    { "path": "../n8n-ai-schemas" },
+    { "path": "../n8n-ai-hooks" },
+    { "path": "../n8n-ai-orchestrator" }
+  ]
 }

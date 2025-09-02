@@ -3,7 +3,8 @@ import { OperationBatchSchema } from '@n8n-ai/schemas';
 import type { AIProvider } from './providers/base.js';
 import { AIProviderFactory } from './providers/factory.js';
 import { getAIConfig, type AIConfig } from './config.js';
-import type { IntrospectAPI } from '../../../n8n-ai-hooks/introspect-api.js';
+// Use minimal type to avoid cross-project TS coupling
+type IntrospectAPI = any;
 import { RAGSystem } from './rag/rag-system.js';
 import { PromptEngineer, SYSTEM_PROMPTS, PLANNER_TEMPLATES } from './prompts/prompt-templates.js';
 import { ChainOfThoughtPlanner } from './prompts/chain-of-thought.js';

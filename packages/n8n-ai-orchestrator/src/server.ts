@@ -196,14 +196,14 @@ if (process.env.RAG_ENABLED !== 'false' && process.env.QDRANT_URL) {
     (global as any).ragSystem = ragSystem;
     
     // Check if we need to populate
-    const docs = await ragSystem.search('n8n', 1);
+    const docs = await ragSystem.search('n8n', { limit: 1 });
     if (docs.length === 0) {
       server.log.warn('RAG system is empty. Run populate-rag.ts to add knowledge.');
     } else {
       server.log.info(`RAG system ready with knowledge base`);
     }
   } catch (error) {
-    server.log.error('Failed to initialize RAG system:', error);
+    server.log.error({ err: error }, 'Failed to initialize RAG system');
     server.log.warn('Continuing without RAG support');
   }
 }
@@ -224,7 +224,7 @@ server.get('/api/v1/ai/rag/status', async () => {
   
   try {
     // Test search to verify it's working
-    const results = await ragSystem.search('n8n', 1);
+    const results = await ragSystem.search('n8n', { limit: 1 });
     
     return {
       enabled: true,
@@ -270,7 +270,7 @@ server.post('/api/v1/ai/rag/search', async (req, reply) => {
       }))
     };
   } catch (error) {
-    server.log.error('RAG search error:', error);
+    server.log.error({ err: error }, 'RAG search error');
     return reply.status(500).send({
       error: 'Failed to search RAG system'
     });

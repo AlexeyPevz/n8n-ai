@@ -111,15 +111,16 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue';
-import IconDollar from './icons/IconDollar.vue';
-import IconCloud from './icons/IconCloud.vue';
-import IconCpu from './icons/IconCpu.vue';
-import IconDatabase from './icons/IconDatabase.vue';
-import IconBot from './icons/IconBot.vue';
-import IconLightbulb from './icons/IconLightbulb.vue';
-import IconInfo from './icons/IconInfo.vue';
-import IconTrendUp from './icons/IconTrendUp.vue';
-import IconTrendDown from './icons/IconTrendDown.vue';
+import IconStubs from './icons/IconStubs.vue';
+const IconDollar = IconStubs as any;
+const IconCloud = IconStubs as any;
+const IconCpu = IconStubs as any;
+const IconDatabase = IconStubs as any;
+const IconBot = IconStubs as any;
+const IconLightbulb = IconStubs as any;
+const IconInfo = IconStubs as any;
+const IconTrendUp = IconStubs as any;
+const IconTrendDown = IconStubs as any;
 
 // Types
 interface CostData {

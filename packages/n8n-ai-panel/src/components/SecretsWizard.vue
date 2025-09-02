@@ -226,16 +226,17 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue';
 import axios from 'axios';
-import IconKey from './icons/IconKey.vue';
-import IconX from './icons/IconX.vue';
-import IconCheck from './icons/IconCheck.vue';
-import IconAlert from './icons/IconAlert.vue';
-import IconLoader from './icons/IconLoader.vue';
-import IconArrowLeft from './icons/IconArrowLeft.vue';
-import IconEye from './icons/IconEye.vue';
-import IconEyeOff from './icons/IconEyeOff.vue';
-import IconCheckCircle from './icons/IconCheckCircle.vue';
-import IconXCircle from './icons/IconXCircle.vue';
+import IconStubs from './icons/IconStubs.vue';
+const IconKey = IconStubs as any;
+const IconX = IconStubs as any;
+const IconCheck = IconStubs as any;
+const IconAlert = IconStubs as any;
+const IconLoader = IconStubs as any;
+const IconArrowLeft = IconStubs as any;
+const IconEye = IconStubs as any;
+const IconEyeOff = IconStubs as any;
+const IconCheckCircle = IconStubs as any;
+const IconXCircle = IconStubs as any;
 
 // Types
 interface RequiredCredential {

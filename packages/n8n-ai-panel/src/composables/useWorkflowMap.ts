@@ -1,5 +1,5 @@
 import { ref } from 'vue';
-import axios from 'axios';
+// Use fetch to simplify mocking in unit tests
 import type { MapData, MapNode, MapEdge } from '../types/workflow-map';
 
 export function useWorkflowMap() {
@@ -11,11 +11,15 @@ export function useWorkflowMap() {
   async function fetchMap(params: { depth: number; includeExternal: boolean }) {
     isLoading.value = true;
     try {
-      const response = await axios.get('/api/v1/ai/workflow-map', {
-        params,
+      const url = new URL('/api/v1/ai/workflow-map', 'http://localhost');
+      url.searchParams.set('depth', String(params.depth));
+      url.searchParams.set('includeExternal', String(params.includeExternal));
+      const response = await fetch(url.pathname + url.search, {
+        headers: { Accept: 'application/json' },
       });
-      mapData.value = response.data;
-      return response.data as MapData;
+      const data = await response.json();
+      mapData.value = data as MapData;
+      return data as MapData;
     } finally {
       isLoading.value = false;
     }

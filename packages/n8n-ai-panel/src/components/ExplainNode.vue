@@ -198,13 +198,14 @@
 
 <script setup lang="ts">
 import { ref, watch, computed } from 'vue';
-import IconHelp from './icons/IconHelp.vue';
-import IconLoader from './icons/IconLoader.vue';
-import IconX from './icons/IconX.vue';
-import IconAlert from './icons/IconAlert.vue';
-import IconArrowRight from './icons/IconArrowRight.vue';
-import IconBook from './icons/IconBook.vue';
-import IconExternalLink from './icons/IconExternalLink.vue';
+import IconStubs from './icons/IconStubs.vue';
+const IconHelp = IconStubs as any;
+const IconLoader = IconStubs as any;
+const IconX = IconStubs as any;
+const IconAlert = IconStubs as any;
+const IconArrowRight = IconStubs as any;
+const IconBook = IconStubs as any;
+const IconExternalLink = IconStubs as any;
 
 // Types
 interface NodeInfo {
