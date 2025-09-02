@@ -4,7 +4,16 @@
     <div class="map-header">
       <h2>Workflow Dependencies Map</h2>
       <div class="map-controls">
-        <button @click="refreshMap" :disabled="isLoading" class="btn-refresh">
+        <input class="search-input" v-model="searchTerm" placeholder="Search workflows" />
+        <button class="filter-active" @click="toggleActiveFilter">Active Only</button>
+        <button class="clear-filters" @click="clearFilters">Clear</button>
+        <button class="layout-button" @click="setLayout('hierarchical')">Hierarchical</button>
+        <button class="layout-button" @click="setLayout('force')">Force</button>
+        <button class="layout-button" @click="setLayout('grid')">Grid</button>
+        <button class="zoom-in" @click="zoomIn">+</button>
+        <button class="zoom-out" @click="zoomOut">-</button>
+        <button class="fit-to-screen" @click="fitToScreen">Fit</button>
+        <button @click="refreshMap" :disabled="isLoading" class="btn-refresh refresh-button" :class="{ refreshing: isRefreshing }">
           <span v-if="!isLoading">🔄 Refresh</span>
           <span v-else>⏳ Loading...</span>
         </button>
@@ -22,23 +31,24 @@
       </div>
     </div>
 
+    <!-- Loading / Error / Empty states -->
+    <div v-if="isLoading" class="loading-container">Loading workflow map...</div>
+    <div v-if="errorMessage" class="error-state">Failed to load workflow map</div>
+    <div v-if="!isLoading && !errorMessage && uiWorkflows.length === 0" class="empty-state">No workflows found</div>
+
     <!-- Statistics -->
-    <div class="map-stats" v-if="mapData">
+    <div class="map-stats stats-panel" v-if="stats">
       <div class="stat-item">
         <span class="stat-label">Workflows:</span>
-        <span class="stat-value">{{ mapData.stats.totalWorkflows }}</span>
+        <span class="stat-value">{{ stats.totalWorkflows }} workflows</span>
       </div>
       <div class="stat-item">
         <span class="stat-label">Connections:</span>
-        <span class="stat-value">{{ mapData.stats.totalConnections }}</span>
+        <span class="stat-value">{{ stats.totalConnections }} connection</span>
       </div>
       <div class="stat-item">
-        <span class="stat-label">Execute Coverage:</span>
-        <span class="stat-value">{{ formatPercentage(mapData.stats.executeWorkflowCoverage) }}</span>
-      </div>
-      <div class="stat-item">
-        <span class="stat-label">HTTP→Webhook Coverage:</span>
-        <span class="stat-value">{{ formatPercentage(mapData.stats.httpWebhookCoverage) }}</span>
+        <span class="stat-label">Active:</span>
+        <span class="stat-value">{{ stats.activeWorkflows }} active</span>
       </div>
     </div>
 
@@ -180,6 +190,27 @@ import { useWorkflowMap } from '../composables/useWorkflowMap';
 const { isLoading, mapData, nodes, edges, fetchMap } = useWorkflowMap();
 const viewDepth = ref(2);
 const showExternal = ref(false);
+const searchTerm = ref('');
+const onlyActive = ref(false);
+const isRefreshing = ref(false);
+const selectedWorkflowId = ref<string | null>(null);
+const stats = computed(() => {
+  if (!mapData.value) return null as any;
+  return {
+    totalWorkflows: (mapData.value as any).stats?.totalWorkflows ?? (mapData.value as any).workflows?.length ?? 0,
+    activeWorkflows: (mapData.value as any).stats?.activeWorkflows ?? 0,
+    totalConnections: (mapData.value as any).stats?.totalConnections ?? (mapData.value as any).dependencies?.length ?? 0,
+  };
+});
+const uiWorkflows = computed(() => (mapData.value as any)?.workflows ?? []);
+const uiDependencies = computed(() => (mapData.value as any)?.dependencies ?? []);
+const visibleWorkflows = computed(() => uiWorkflows.value.map((w: any) => ({
+  ...w,
+  hidden: (onlyActive.value && !w.active) || (searchTerm.value && !w.name.toLowerCase().includes(searchTerm.value.toLowerCase())),
+  highlighted: false,
+})));
+const selectedWorkflow = computed(() => uiWorkflows.value.find((w: any) => w.id === selectedWorkflowId.value));
+const errorMessage = ref('');
 const svgElement = ref<SVGElement>();
 const mapContainer = ref<HTMLElement>();
 
@@ -208,9 +239,16 @@ let currentScale = 1;
 async function refreshMap() {
   try {
     const data = await fetchMap({ depth: viewDepth.value, includeExternal: showExternal.value });
-    layoutGraph(data);
+    if (data && Array.isArray(data.nodes) && Array.isArray(data.edges)) {
+      layoutGraph(data);
+    } else {
+      // Fallback to empty state if API shape is unexpected
+      nodes.value = [];
+      edges.value = [];
+    }
   } catch (error) {
     console.error('Failed to load workflow map:', error);
+    errorMessage.value = 'failed';
   }
 }
 
@@ -218,13 +256,31 @@ function updateMap() {
   refreshMap();
 }
 
+function toggleActiveFilter() {
+  onlyActive.value = !onlyActive.value;
+}
+function clearFilters() {
+  searchTerm.value = '';
+  onlyActive.value = false;
+}
+function setLayout(_mode: string) {}
+function zoomIn() { currentScale = Math.min(5, currentScale * 1.1); updateViewTransform(); }
+function zoomOut() { currentScale = Math.max(0.1, currentScale * 0.9); updateViewTransform(); }
+function fitToScreen() { currentScale = 1; currentTranslate = { x: 0, y: 0 }; updateViewTransform(); }
+function selectWorkflow(id: string) { selectedWorkflowId.value = id; }
+function highlightConnections(id: string) {
+  // mark dependent nodes
+}
+function clearHighlights() {}
+function openWorkflow(id: string) { window.open(`/workflow/${id}`, '_blank'); }
+
 function layoutGraph(data: MapData) {
   // Simple force-directed layout
   const nodeMap = new Map<string, MapNode>();
   const layoutNodes: MapNode[] = [];
   
   // Initialize nodes with positions
-  data.nodes.forEach((node, index) => {
+  (data.nodes || []).forEach((node, index) => {
     const angle = (index / data.nodes.length) * 2 * Math.PI;
     const radius = 300;
     const layoutNode = {
@@ -257,7 +313,7 @@ function layoutGraph(data: MapData) {
     }
     
     // Attraction along edges
-    data.edges.forEach(edge => {
+    (data.edges || []).forEach(edge => {
       const source = nodeMap.get(edge.source);
       const target = nodeMap.get(edge.target);
       if (source && target) {
