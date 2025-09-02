@@ -3,7 +3,7 @@
  */
 
 import type { INodeTypeDescription, IWebhookFunctions } from 'n8n-workflow';
-import { createAIRoutes } from '@n8n-ai/hooks';
+import { createAIRoutes } from '../../n8n-ai-hooks/src/ai-routes';
 import { startOrchestrator } from './embedded-orchestrator';
 import express from 'express';
 import path from 'path';
@@ -111,7 +111,7 @@ export class N8nAIPlugin {
         color: '#6B47FF',
       },
       inputs: [],
-      outputs: ['main'],
+      outputs: ['main'] as any,
       properties: [
         {
           displayName: 'Trigger ID',

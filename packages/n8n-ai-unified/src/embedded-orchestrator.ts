@@ -28,7 +28,7 @@ export async function startOrchestrator(options: OrchestratorOptions = {}) {
   // Запускаем на указанном порту
   await server.listen({ port, host: '127.0.0.1' });
   
-  const actualPort = (server.server.address() as any).port;
+  const actualPort = (server!.server.address() as any).port;
   console.log(`🚀 Embedded orchestrator started on port ${actualPort}`);
   
   return {
@@ -46,12 +46,12 @@ export async function startOrchestrator(options: OrchestratorOptions = {}) {
  * Создаем сервер orchestrator
  * Копируем основную логику из packages/n8n-ai-orchestrator/src/server.ts
  */
-async function createServer(opts: any) {
+async function createServer(opts: any): Promise<FastifyInstance> {
   const Fastify = (await import('fastify')).default;
   const cors = (await import('@fastify/cors')).default;
-  const { graphManager } = await import('@n8n-ai/orchestrator/src/graph-manager');
-  const { SimplePlanner } = await import('@n8n-ai/orchestrator/src/planner');
-  const { patternMatcher } = await import('@n8n-ai/orchestrator/src/pattern-matcher');
+  const { graphManager } = await import('../../n8n-ai-orchestrator/src/graph-manager');
+  const { SimplePlanner } = await import('../../n8n-ai-orchestrator/src/planner');
+  const { patternMatcher } = await import('../../n8n-ai-orchestrator/src/pattern-matcher');
   
   const server = Fastify(opts);
   
@@ -70,14 +70,8 @@ async function createServer(opts: any) {
   server.post('/api/v1/ai/plan', async (request) => {
     const { prompt } = request.body as any;
     
-    // Используем pattern matcher для быстрого ответа
-    const pattern = patternMatcher.findPattern(prompt);
-    if (pattern) {
-      return {
-        operations: pattern.operations,
-        explanation: `Using pattern: ${pattern.name}`,
-      };
-    }
+    // Pattern matcher еще не реализован полностью
+    // TODO: Implement pattern matching
     
     // Используем simple planner
     const planner = new SimplePlanner();
@@ -89,7 +83,7 @@ async function createServer(opts: any) {
   // Graph endpoints
   server.post('/graph/:id/batch', async (request) => {
     const { id } = request.params as any;
-    const batch = request.body;
+    const batch = request.body as any;
     
     const result = await graphManager.applyBatch(id, batch);
     return result;

@@ -3,7 +3,8 @@ import { DocumentProcessor } from './document-processor.js';
 import type { AIProvider } from '../providers/base.js';
 import { AIProviderFactory } from '../providers/factory.js';
 import { getAIConfig } from '../config.js';
-import { loadBuiltinNodes } from '../../../../n8n-ai-hooks/load-builtin-nodes.js';
+// @ts-ignore - workspace import
+import { loadBuiltinNodes } from '../../hooks-import';
 
 export class DocumentIndexer {
   private ragSystem: RAGSystem;
@@ -20,7 +21,7 @@ export class DocumentIndexer {
     const nodes = loadBuiltinNodes();
     
     
-    const nodeDescriptions = nodes.map(n => n.description).filter(Boolean);
+    const nodeDescriptions = nodes.map((n: any) => n.description).filter(Boolean);
     
     
     await this.ragSystem.indexNodeTypes(nodeDescriptions);
