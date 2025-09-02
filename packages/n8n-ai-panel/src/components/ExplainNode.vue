@@ -208,7 +208,7 @@ export default {
 </script>
 
 <script setup lang="ts">
-import { ref, watch, computed, getCurrentInstance } from 'vue';
+import { ref, watch, computed, getCurrentInstance, toRef, onMounted } from 'vue';
 import IconStubs from './icons/IconStubs.vue';
 const IconHelp = IconStubs as any;
 const IconLoader = IconStubs as any;
@@ -271,8 +271,16 @@ const emit = defineEmits<{
 
 // State
 const showExplanation = ref(false);
-const isLoading = ref(false);
-const error = ref('');
+// Bridge to Options API data() for setData compatibility
+let isLoading = ref(false);
+let error = ref('');
+onMounted(() => {
+  const vm = getCurrentInstance()?.proxy as any;
+  const data = vm?.$data as any;
+  if (!data) return;
+  if (Object.prototype.hasOwnProperty.call(data, 'isLoading')) isLoading = toRef(data, 'isLoading') as any;
+  if (Object.prototype.hasOwnProperty.call(data, 'error')) error = toRef(data, 'error') as any;
+});
 const explanation = ref<NodeExplanation | null>(null);
 const selectedExample = ref(0);
 
