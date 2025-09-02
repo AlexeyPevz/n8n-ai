@@ -239,7 +239,7 @@
                 </button>
               </div>
             </div>
-
+            
             <div v-else-if="currentStep === 'summary'" class="step-summary">
               <h3>Summary</h3>
               <div class="summary-list">
