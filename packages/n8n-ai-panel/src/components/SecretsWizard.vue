@@ -479,9 +479,7 @@ function toNormalizedSet(input: any): Set<string> {
 }
 
 const configuredSet = computed<Set<string>>(() => {
-  const vm = getCurrentInstance()?.proxy as any;
-  const source = vm?.$data?.configuredCredentials ?? (configuredCredentials as any).value;
-  return toNormalizedSet(source);
+  return toNormalizedSet((configuredCredentials as any).value);
 });
 
 function configuredHas(type: string): boolean {
