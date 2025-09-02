@@ -317,19 +317,27 @@ const emit = defineEmits<{
 // State
 const vm = getCurrentInstance()?.proxy as any;
 const dataObj = vm?.$data as any;
-const currentStep = dataObj ? (toRef(dataObj, 'currentStep') as any) : ref<'select' | 'configure' | 'test' | 'summary'>('select');
+const currentStep = dataObj && Object.prototype.hasOwnProperty.call(dataObj, 'currentStep')
+  ? (toRef(dataObj, 'currentStep') as any)
+  : ref<'select' | 'configure' | 'test' | 'summary'>('select');
 const selectedCredential = ref<RequiredCredential | null>(null);
 const credentialData = ref<Record<string, any>>({});
 const passwordVisible = ref<Record<string, boolean>>({});
 const testingCredential = ref<string | null>(null);
 const isSaving = ref(false);
 const configureError = ref('');
-const testStatus = dataObj ? (toRef(dataObj, 'testStatus') as any) : ref<'idle' | 'testing' | 'success' | 'error'>('idle');
+const testStatus = dataObj && Object.prototype.hasOwnProperty.call(dataObj, 'testStatus')
+  ? (toRef(dataObj, 'testStatus') as any)
+  : ref<'idle' | 'testing' | 'success' | 'error'>('idle');
 const testMessage = ref('');
 const testDetails = ref('');
-const testError = dataObj ? (toRef(dataObj, 'testError') as any) : ref('');
+const testError = dataObj && Object.prototype.hasOwnProperty.call(dataObj, 'testError')
+  ? (toRef(dataObj, 'testError') as any)
+  : ref('');
 const isTesting = ref(false);
-const configuredCredentials = dataObj ? (toRef(dataObj, 'configuredCredentials') as any) : ref<Set<string>>(new Set());
+const configuredCredentials = dataObj && Object.prototype.hasOwnProperty.call(dataObj, 'configuredCredentials')
+  ? (toRef(dataObj, 'configuredCredentials') as any)
+  : ref<Set<string>>(new Set());
 
 // Mock credential fields based on type
 const credentialFields = computed((): CredentialField[] => {
@@ -419,8 +427,9 @@ const isOAuth = computed(() => selectedCredential.value?.type?.toLowerCase().inc
 // Computed
 const allCredentialsConfigured = computed(() => {
   const set: Set<string> = (configuredCredentials as any).value || new Set();
+  const total = props.requiredCredentials.length;
   const configuredCount = props.requiredCredentials.filter(c => c.configured || set.has(c.type)).length;
-  return configuredCount === props.requiredCredentials.length && props.requiredCredentials.length > 0;
+  return total > 0 && configuredCount === total;
 });
 
 // Expose data for Vue Test Utils setData compatibility by defining reactive properties on proxy
@@ -441,7 +450,8 @@ if (instance2 && instance2.proxy) {
 }
 
 const progressPercentage = computed(() => {
-  const configured = props.requiredCredentials.filter(c => c.configured).length;
+  const set: Set<string> = (configuredCredentials as any).value || new Set();
+  const configured = props.requiredCredentials.filter(c => c.configured || set.has(c.type)).length;
   const total = props.requiredCredentials.length;
   return total > 0 ? (configured / total) * 100 : 0;
 });
