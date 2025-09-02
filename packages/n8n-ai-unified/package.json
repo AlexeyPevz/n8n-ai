@@ -1,0 +1,18 @@
+{
+  "name": "@n8n-ai/unified",
+  "version": "0.1.0",
+  "description": "Unified n8n with AI capabilities",
+  "private": true,
+  "scripts": {
+    "build": "pnpm run build:hooks && pnpm run build:ui && pnpm run bundle",
+    "build:hooks": "cd ../n8n-ai-hooks && pnpm build",
+    "build:ui": "cd ../n8n-ai-panel && pnpm build:lib",
+    "bundle": "node scripts/bundle.js",
+    "patch:n8n": "node scripts/patch-n8n.js"
+  },
+  "dependencies": {
+    "@n8n-ai/hooks": "workspace:*",
+    "@n8n-ai/orchestrator": "workspace:*",
+    "@n8n-ai/schemas": "workspace:*"
+  }
+}

@@ -1,0 +1,44 @@
+FROM n8nio/n8n:latest
+
+# Install build dependencies
+USER root
+RUN apk add --no-cache python3 make g++ git
+
+# Copy our AI components
+WORKDIR /opt/n8n-ai
+COPY . .
+
+# Install dependencies and build
+RUN npm install -g pnpm@8.15.0 && \
+    pnpm install --frozen-lockfile && \
+    pnpm build
+
+# Patch n8n to include AI features
+RUN N8N_PATH=/usr/local/lib/node_modules/n8n node packages/n8n-ai-unified/scripts/patch-n8n.js
+
+# Install AI dependencies in n8n
+WORKDIR /usr/local/lib/node_modules/n8n
+RUN pnpm add file:/opt/n8n-ai/packages/n8n-ai-unified
+
+# Clean up build dependencies
+RUN apk del python3 make g++ git
+
+# Switch back to node user
+USER node
+WORKDIR /home/node
+
+# Environment variables
+ENV N8N_AI_ENABLED=true \
+    N8N_AI_ORCHESTRATOR_MODE=embedded \
+    N8N_AI_UI_POSITION=bottom \
+    NODE_ENV=production
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s \
+    CMD wget -qO- http://localhost:5678/healthz || exit 1
+
+# Default n8n port
+EXPOSE 5678
+
+# Start n8n with AI features
+CMD ["n8n", "start"]
