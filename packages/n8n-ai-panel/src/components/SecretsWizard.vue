@@ -374,6 +374,7 @@ onMounted(() => {
     (configuredSnapshot as any).value = out;
   };
   watch(() => (vm as any).configuredCredentials, (v) => updateConfiguredSnapshot(v), { immediate: true });
+  watch(configuredCredentials, (v) => updateConfiguredSnapshot(v), { immediate: true });
 
   // Directly bind to data() to ensure setData updates propagate
   if (Object.prototype.hasOwnProperty.call(dataObj, 'currentStep')) currentStep = toRef(dataObj, 'currentStep') as any;
