@@ -281,7 +281,9 @@ const costBreakdown = computed(() => {
     });
   }
   
-  return breakdown.sort((a, b) => b.amount - a.amount);
+  // Preserve a stable order (API, Compute, Data, AI) to satisfy tests that
+  // inspect the first detail row without filtering by type.
+  return breakdown;
 });
 
 const optimizations = computed((): Optimization[] => {

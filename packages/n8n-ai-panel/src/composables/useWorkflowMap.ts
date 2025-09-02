@@ -3,7 +3,7 @@ import { ref } from 'vue';
 import type { MapData, MapNode, MapEdge } from '../types/workflow-map';
 
 export function useWorkflowMap() {
-  const isLoading = ref(false);
+  const isLoading = ref(true);
   const mapData = ref<MapData | null>(null);
   const nodes = ref<MapNode[]>([]);
   const edges = ref<MapEdge[]>([]);

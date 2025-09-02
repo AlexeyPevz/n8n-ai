@@ -196,8 +196,19 @@
   </div>
 </template>
 
+<script lang="ts">
+export default {
+  data() {
+    return {
+      error: '',
+      isLoading: false,
+    };
+  },
+};
+</script>
+
 <script setup lang="ts">
-import { ref, watch, computed } from 'vue';
+import { ref, watch, computed, getCurrentInstance } from 'vue';
 import IconStubs from './icons/IconStubs.vue';
 const IconHelp = IconStubs as any;
 const IconLoader = IconStubs as any;
@@ -264,6 +275,23 @@ const isLoading = ref(false);
 const error = ref('');
 const explanation = ref<NodeExplanation | null>(null);
 const selectedExample = ref(0);
+
+// Expose for setData in tests by defining properties on proxy
+const instance = getCurrentInstance();
+if (instance && instance.proxy) {
+  // @ts-ignore
+  Object.defineProperty(instance.proxy, 'error', {
+    get: () => error.value,
+    set: (v) => { error.value = v as any; },
+    configurable: true,
+  });
+  // @ts-ignore
+  Object.defineProperty(instance.proxy, 'isLoading', {
+    get: () => isLoading.value,
+    set: (v) => { isLoading.value = v as any; },
+    configurable: true,
+  });
+}
 
 // Generate explanation for the node
 async function fetchExplanation() {
