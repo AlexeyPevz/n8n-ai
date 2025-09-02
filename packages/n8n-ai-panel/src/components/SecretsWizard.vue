@@ -188,6 +188,7 @@
                 <button type="button" @click="currentStep = 'select'" class="btn-secondary">
                   Cancel
                 </button>
+                <button type="button" class="btn-primary" @click="emitSaveOnly">Save</button>
                 <button
                   type="submit"
                   :disabled="isSaving"
@@ -598,6 +599,15 @@ async function testConnection() {
 
 function handleIconError(event: Event) {
   (event.target as HTMLImageElement).src = '/node-icons/default.svg';
+}
+
+function emitSaveOnly() {
+  if (selectedCredential.value) {
+    emit('save', {
+      type: selectedCredential.value.type,
+      data: { ...credentialData.value },
+    });
+  }
 }
 
 // Reset when closed
