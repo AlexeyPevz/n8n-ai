@@ -1,5 +1,15 @@
 # n8n-ai: AI-first Workflow Builder for n8n
 
+## 🚀 Project Status: PRODUCTION READY
+
+- ✅ **All packages compile** without TypeScript errors
+- ✅ **API server runs** and responds to requests  
+- ✅ **Workflows can be created** via AI prompts
+- ✅ **Real n8n integration** (no stubs)
+- ✅ **Security hardened** (no unsafe exec() calls)
+
+**[View Current Status](./docs/CURRENT_STATUS.md)** | **[Quick Start](#getting-started)**
+
 ## 1. Vision
 Turn n8n into an **AI-first integration platform**: a user describes a goal in natural language and the assistant deterministically builds, refactors, validates and tests the workflow, then shows a visual diff before applying changes.
 
