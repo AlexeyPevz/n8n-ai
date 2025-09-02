@@ -262,24 +262,7 @@
             <p>Connect your account to proceed.</p>
             <button class="btn-primary">Connect with {{ selectedCredential?.displayName || selectedCredential?.name }}</button>
           </div>
-          <div v-else-if="currentStep === 'summary'" class="step-summary">
-            <h3>Summary</h3>
-            <div class="summary-list">
-              <div
-                v-for="cred in requiredCredentials"
-                :key="cred.type"
-                class="summary-item"
-              >
-                <span class="cred-name">{{ cred.displayName || cred.name }}</span>
-                <span class="status-badge success" v-if="isConfigured(cred)">Configured</span>
-                <span class="status-badge error" v-else>Missing</span>
-                <button class="btn-ghost" @click="configureCredential(cred)">Edit</button>
-              </div>
-            </div>
-            <div class="wizard-actions">
-              <button class="btn-success" :disabled="!allCredentialsConfigured" @click="$emit('execute')">Execute Workflow</button>
-            </div>
-          </div>
+          
         </div>
       </div>
     </div>
