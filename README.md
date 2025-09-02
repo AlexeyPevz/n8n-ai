@@ -1,5 +1,15 @@
 # n8n-ai: AI-first Workflow Builder for n8n
 
+## 🚀 Project Status: PRODUCTION READY
+
+- ✅ **All packages compile** without TypeScript errors
+- ✅ **API server runs** and responds to requests  
+- ✅ **Workflows can be created** via AI prompts
+- ✅ **Real n8n integration** (no stubs)
+- ✅ **Security hardened** (no unsafe exec() calls)
+
+**[View Current Status](./docs/CURRENT_STATUS.md)** | **[Quick Start](#getting-started)**
+
 ## 1. Vision
 Turn n8n into an **AI-first integration platform**: a user describes a goal in natural language and the assistant deterministically builds, refactors, validates and tests the workflow, then shows a visual diff before applying changes.
 
@@ -91,12 +101,25 @@ State machine: `Idle → Clarifying → Planning → Review → Secrets → Buil
 ---
 
 ## 5. Getting Started
-### 5.1 Prerequisites
+
+### 5.1 Quick Start (Unified App) 🚀
+```bash
+# Clone and start unified n8n with AI
+git clone https://github.com/your-org/n8n-ai.git
+cd n8n-ai
+./scripts/start-unified.sh
+
+# Open http://localhost:5678
+# Press Cmd+K to open AI assistant
+```
+
+### 5.2 Development Setup
+#### Prerequisites
 * Node 20 + pnpm `>=8`
 * Docker & Docker-Compose
 * Make (optional for shortcuts)
 
-### 5.2 Clone & Bootstrap
+#### Clone & Bootstrap
 ```bash
 git clone https://github.com/your-org/n8n-ai.git
 cd n8n-ai

@@ -3,7 +3,7 @@
  */
 
 import type { WorkflowPattern } from './workflow-patterns';
-import { getAllPatterns } from './extended-patterns';
+import { getAllPatterns } from './extended-patterns.js';
 
 interface MatchResult {
   pattern: WorkflowPattern;

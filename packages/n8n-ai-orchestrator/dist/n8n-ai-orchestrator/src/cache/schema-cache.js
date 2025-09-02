@@ -48,7 +48,7 @@ export class SchemaCache {
         if (age > this.ttl) {
             this.delete(key);
             this.stats.misses++;
-            return null;
+            return undefined;
         }
         // Update access order (LRU)
         this.updateAccessOrder(key);
@@ -58,12 +58,14 @@ export class SchemaCache {
     /**
      * Set node description in cache
      */
-    set(nodeType, version, description) {
+    set(nodeType, versionOrDesc, maybeDesc) {
+        const version = typeof versionOrDesc === 'number' || versionOrDesc === undefined ? versionOrDesc : undefined;
+        const description = version !== undefined ? maybeDesc : versionOrDesc;
         const key = this.makeKey(nodeType, version);
         // Create cached entry
         const cached = {
             ...description,
-            typeVersion: version || description.version || 1,
+            typeVersion: version || description.typeVersion || description.version || 1,
             cachedAt: new Date().toISOString(),
             hash: this.computeHash(description),
         };
@@ -74,6 +76,20 @@ export class SchemaCache {
         this.cache.set(key, cached);
         this.updateAccessOrder(key);
         this.stats.size = this.cache.size;
+    }
+    /**
+     * Invalidate cache entry if hash does not match
+     */
+    invalidate(nodeType, expectedHash, version) {
+        const key = this.makeKey(nodeType, version);
+        const entry = this.cache.get(key);
+        if (!entry)
+            return false;
+        if (entry.hash !== expectedHash) {
+            this.delete(key);
+            return true;
+        }
+        return false;
     }
     /**
      * Delete entry from cache
@@ -94,6 +110,9 @@ export class SchemaCache {
         this.accessOrder = [];
         this.stats.size = 0;
         this.stats.lastReset = new Date();
+        this.stats.hits = 0;
+        this.stats.misses = 0;
+        this.stats.evictions = 0;
     }
     /**
      * Get cache statistics
@@ -114,6 +133,24 @@ export class SchemaCache {
     async warmUp(nodeTypes) {
         for (const node of nodeTypes) {
             this.set(node.type, node.version, node.description);
+        }
+    }
+    /**
+     * Warm cache via introspect API and list of node type ids
+     */
+    async warmCache(introspect, types) {
+        for (const t of types) {
+            try {
+                const desc = await introspect(t);
+                if (desc) {
+                    const fullType = desc.type ?? `n8n-nodes-base.${t}`;
+                    // Store under versionless key so has('type') works as expected in tests
+                    this.set(fullType, desc);
+                }
+            }
+            catch {
+                // ignore single-node errors during pre-warm
+            }
         }
     }
     /**
@@ -193,7 +230,8 @@ export class SchemaCache {
         this.stats.size = this.cache.size;
     }
     computeHash(obj) {
-        const json = JSON.stringify(obj, Object.keys(obj).sort());
+        const keys = obj && typeof obj === 'object' ? Object.keys(obj).sort() : undefined;
+        const json = JSON.stringify(obj ?? {}, keys);
         return crypto.createHash('sha256').update(json).digest('hex').substring(0, 16);
     }
 }

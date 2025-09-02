@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { mount } from '@vue/test-utils';
 import ExplainNode from './ExplainNode.vue';
+import { delay, getTypedWrapper } from '../test-utils';
 
 describe('ExplainNode', () => {
   const mockNode = {
@@ -70,7 +71,7 @@ describe('ExplainNode', () => {
       await wrapper.find('.explain-trigger').trigger('click');
       
       // Wait for explanation to load
-      await vi.delay(1100); // Mock timeout is 1000ms
+      await delay(1100); // Mock timeout is 1000ms
       
       const explanation = wrapper.find('.explanation');
       expect(explanation.exists()).toBe(true);
@@ -82,7 +83,7 @@ describe('ExplainNode', () => {
 
     it('should show current configuration', async () => {
       await wrapper.find('.explain-trigger').trigger('click');
-      await vi.delay(1100);
+      await delay(1100);
       
       const configList = wrapper.find('.config-list');
       expect(configList.exists()).toBe(true);
@@ -108,9 +109,11 @@ describe('ExplainNode', () => {
       // Simulate error by using non-existent node type
       await errorWrapper.find('.explain-trigger').trigger('click');
       
-      // Mock the error state
-      errorWrapper.vm.error = 'Failed to generate explanation';
-      errorWrapper.vm.isLoading = false;
+      // Mock the error state by setting data directly
+      await errorWrapper.setData({
+        error: 'Failed to generate explanation',
+        isLoading: false
+      });
       await errorWrapper.vm.$nextTick();
       
       const errorState = errorWrapper.find('.error-state');
@@ -127,7 +130,7 @@ describe('ExplainNode', () => {
   describe('inputs/outputs section', () => {
     it('should display inputs and outputs', async () => {
       await wrapper.find('.explain-trigger').trigger('click');
-      await vi.delay(1100);
+      await delay(1100);
       
       const ioSection = wrapper.find('.io-section');
       expect(ioSection.exists()).toBe(true);
@@ -145,7 +148,7 @@ describe('ExplainNode', () => {
   describe('examples section', () => {
     it('should show examples with tabs', async () => {
       await wrapper.find('.explain-trigger').trigger('click');
-      await vi.delay(1100);
+      await delay(1100);
       
       const examplesTabs = wrapper.find('.examples-tabs');
       if (examplesTabs.exists()) {
@@ -168,7 +171,7 @@ describe('ExplainNode', () => {
   describe('related nodes', () => {
     it('should emit event when related node clicked', async () => {
       await wrapper.find('.explain-trigger').trigger('click');
-      await vi.delay(1100);
+      await delay(1100);
       
       const relatedNodes = wrapper.find('.related-nodes');
       if (relatedNodes.exists()) {
@@ -177,7 +180,9 @@ describe('ExplainNode', () => {
           await relatedNode.trigger('click');
           
           expect(wrapper.emitted('select-node')).toBeTruthy();
-          expect(wrapper.emitted('select-node')[0]).toEqual(['n8n-nodes-base.set']);
+          const emitted = wrapper.emitted('select-node');
+          expect(emitted).toBeDefined();
+          expect(emitted![0]).toEqual(['n8n-nodes-base.set']);
         }
       }
     });
@@ -186,7 +191,7 @@ describe('ExplainNode', () => {
   describe('documentation link', () => {
     it('should show documentation link', async () => {
       await wrapper.find('.explain-trigger').trigger('click');
-      await vi.delay(1100);
+      await delay(1100);
       
       const docLink = wrapper.find('.doc-link');
       if (docLink.exists()) {

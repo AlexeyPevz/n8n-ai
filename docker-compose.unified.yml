@@ -1,0 +1,87 @@
+version: '3.9'
+
+services:
+  n8n-ai:
+    build:
+      context: .
+      dockerfile: Dockerfile.unified
+    container_name: n8n-ai-unified
+    ports:
+      - "${N8N_PORT:-5678}:5678"
+    environment:
+      # n8n config
+      - N8N_PORT=5678
+      - N8N_PROTOCOL=http
+      - N8N_HOST=${N8N_HOST:-localhost}
+      - NODE_FUNCTION_ALLOW_EXTERNAL=*
+      - N8N_ENCRYPTION_KEY=${N8N_ENCRYPTION_KEY:-test-key}
+      
+      # AI features
+      - N8N_AI_ENABLED=true
+      - N8N_AI_ORCHESTRATOR_MODE=embedded
+      - N8N_AI_UI_POSITION=bottom
+      
+      # AI providers
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
+      
+      # Security
+      - N8N_AI_API_TOKEN=${N8N_AI_API_TOKEN}
+      - JWT_SECRET=${JWT_SECRET:-change-me}
+      
+      # Features
+      - WORKFLOW_MAP_ENABLED=true
+      - AUDIT_LOG_ENABLED=true
+      
+    volumes:
+      - n8n_data:/home/node/.n8n
+      - ./workflows:/workflows
+    
+    depends_on:
+      redis:
+        condition: service_healthy
+      qdrant:
+        condition: service_healthy
+    
+    restart: unless-stopped
+    
+    networks:
+      - n8n-ai-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: n8n-ai-redis
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks:
+      - n8n-ai-network
+
+  qdrant:
+    image: qdrant/qdrant:v1.11.0
+    container_name: n8n-ai-qdrant
+    volumes:
+      - qdrant_data:/qdrant/storage
+    environment:
+      - QDRANT__SERVICE__HTTP_PORT=6333
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:6333/readyz"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - n8n-ai-network
+
+volumes:
+  n8n_data:
+  redis_data:
+  qdrant_data:
+
+networks:
+  n8n-ai-network:
+    driver: bridge

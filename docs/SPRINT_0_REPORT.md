@@ -1,5 +1,7 @@
 # Sprint 0 - Initialisation Report
 
+> **Note**: This is a historical document from the initial development phase. For current project status, see [Current Status](./CURRENT_STATUS.md).
+
 **Дата завершения**: 29 августа 2025
 **Статус**: ✅ Completed
 

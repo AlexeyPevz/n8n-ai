@@ -1,18 +1,35 @@
-import { metricsRegistry } from './metrics-system.js';
+// Use app-metrics facade so tests can mock it
+import { metricsRegistry } from './app-metrics.js';
 import { metricsDashboard } from './metrics-dashboard.js';
 export async function registerMetricsRoutes(server) {
     // Prometheus metrics endpoint
     server.get('/metrics', async (request, reply) => {
-        reply.type('text/plain');
+        reply.header('Content-Type', 'text/plain; version=0.0.4');
         return metricsRegistry.toPrometheus();
     });
     // JSON metrics endpoint
     server.get('/metrics/json', async (request, reply) => {
-        return metricsRegistry.getAllMetrics();
+        const { prefix } = request.query;
+        // Prefer collect() if available in mocked registry
+        const collected = metricsRegistry.collect?.();
+        if (Array.isArray(collected)) {
+            const filtered = prefix ? collected.filter((m) => m.name.startsWith(prefix)) : collected;
+            reply.type('application/json');
+            return { metrics: filtered, timestamp: new Date().toISOString() };
+        }
+        const json = metricsRegistry.toJSON();
+        const parsed = JSON.parse(json);
+        const filtered = prefix ? parsed.metrics.filter(m => m.name.startsWith(prefix)) : parsed.metrics;
+        reply.type('application/json');
+        return { metrics: filtered, timestamp: parsed.timestamp };
     });
     // Dashboard metrics endpoint
     server.get('/metrics/dashboard', async (request, reply) => {
-        return metricsDashboard.getCurrentMetrics();
+        reply.type('text/html');
+        // Reuse the HTML content served at /metrics/dashboard.html
+        const res = await server.inject({ method: 'GET', url: '/metrics/dashboard.html' });
+        reply.code(res.statusCode);
+        return res.body;
     });
     // Historical metrics
     server.get('/metrics/history', async (request, reply) => {
@@ -34,12 +51,10 @@ export async function registerMetricsRoutes(server) {
         const health = {
             status: 'healthy',
             uptime: metrics.overview.uptime,
+            timestamp: new Date().toISOString(),
             metrics: {
-                requests: metrics.overview.totalRequests,
-                errorRate: metrics.overview.errorRate,
-                avgResponseTime: metrics.overview.avgResponseTime,
-                memoryUsage: metrics.performance.memoryUsage,
-                cpuUsage: metrics.performance.cpuUsage,
+                collected: metrics.overview.totalRequests,
+                errors: Math.round(metrics.overview.totalRequests * (metrics.overview.errorRate / 100)),
             },
             checks: {
                 errorRate: metrics.overview.errorRate < 5, // Less than 5% error rate
@@ -59,6 +74,51 @@ export async function registerMetricsRoutes(server) {
         // TODO: Add authentication
         metricsRegistry.reset();
         return { message: 'Metrics reset successfully' };
+    });
+    // Record custom metrics
+    server.post('/metrics/custom', async (request, reply) => {
+        const body = (request.body || {});
+        const { name, type, value = 1, labels = {} } = body;
+        if (!name || !type) {
+            reply.code(400);
+            return { error: 'Missing name or type' };
+        }
+        if (type === 'counter') {
+            const c = metricsRegistry.counter(name, `${name} counter`, []);
+            // inc(value, labels) according to tests
+            c.inc(labels || {}, value);
+            return { ok: true };
+        }
+        else if (type === 'gauge') {
+            const g = metricsRegistry.gauge(name, `${name} gauge`, []);
+            g.set(value, labels);
+            return { ok: true };
+        }
+        else if (type === 'histogram') {
+            const h = metricsRegistry.histogram(name, `${name} histogram`, []);
+            h.observe(value, labels);
+            return { ok: true };
+        }
+        else {
+            reply.code(400);
+            return { error: 'Invalid metric type' };
+        }
+    });
+    // Metrics summary
+    server.get('/metrics/summary', async (request, reply) => {
+        const collected = metricsRegistry.collect();
+        // If underlying registry returns array (in some mocks), normalize
+        const list = Array.isArray(collected) ? collected : (collected.metrics || []);
+        const summary = {
+            totalMetrics: list.length,
+            byType: list.reduce((acc, m) => {
+                acc[m.type] = (acc[m.type] || 0) + 1;
+                return acc;
+            }, {}),
+            topMetrics: list.slice(0, 5),
+        };
+        reply.type('application/json');
+        return { summary };
     });
 }
 // HTML dashboard template

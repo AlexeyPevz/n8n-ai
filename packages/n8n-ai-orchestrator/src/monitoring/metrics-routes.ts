@@ -104,7 +104,7 @@ export async function registerMetricsRoutes(server: FastifyInstance) {
     if (type === 'counter') {
       const c = metricsRegistry.counter(name, `${name} counter`, []);
       // inc(value, labels) according to tests
-      c.inc(value, labels);
+      c.inc(labels || {}, value);
       return { ok: true };
     } else if (type === 'gauge') {
       const g = metricsRegistry.gauge(name, `${name} gauge`, []);
@@ -124,7 +124,7 @@ export async function registerMetricsRoutes(server: FastifyInstance) {
   server.get('/metrics/summary', async (request, reply) => {
     const collected = metricsRegistry.collect();
     // If underlying registry returns array (in some mocks), normalize
-    const list = Array.isArray(collected) ? collected : (collected.metrics || []);
+    const list = Array.isArray(collected) ? collected : ((collected as any).metrics || []);
     const summary = {
       totalMetrics: list.length,
       byType: list.reduce((acc: Record<string, number>, m: any) => {

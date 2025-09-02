@@ -8,6 +8,8 @@
     "build": "vite build",
     "preview": "vite preview",
     "lint": "eslint --ext .ts,.vue src",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "e2e:ui": "playwright test",
     "e2e:install": "playwright install --with-deps"
   },

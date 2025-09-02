@@ -2,7 +2,8 @@ import { RAGSystem } from './rag-system.js';
 import { DocumentProcessor } from './document-processor.js';
 import { AIProviderFactory } from '../providers/factory.js';
 import { getAIConfig } from '../config.js';
-import { loadBuiltinNodes } from '../../../../n8n-ai-hooks/load-builtin-nodes.js';
+// @ts-ignore - workspace import
+import { loadBuiltinNodes } from '../../hooks-import';
 export class DocumentIndexer {
     ragSystem;
     constructor(ragSystem) {
@@ -14,7 +15,7 @@ export class DocumentIndexer {
     async indexBuiltinNodes() {
         // Using structured logs would be preferable in production
         const nodes = loadBuiltinNodes();
-        const nodeDescriptions = nodes.map(n => n.description).filter(Boolean);
+        const nodeDescriptions = nodes.map((n) => n.description).filter(Boolean);
         await this.ragSystem.indexNodeTypes(nodeDescriptions);
     }
     /**

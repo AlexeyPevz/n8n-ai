@@ -1,11 +1,12 @@
 import { z } from 'zod';
-import { exec } from 'child_process';
+import { exec, execFile } from 'child_process';
 import { promisify } from 'util';
 import path from 'path';
 import { promises as fs } from 'fs';
 import type { OperationBatch } from '@n8n-ai/schemas';
 
 const execAsync = promisify(exec);
+const execFileAsync = promisify(execFile);
 
 // Git configuration schema
 export const GitConfigSchema = z.object({
@@ -42,6 +43,8 @@ export interface GitOperationResult {
 export type CommitOptions = {
   message?: string;
   promptUsed?: string;
+  userId?: string;
+  description?: string;
 };
 
 export class GitIntegration {
@@ -55,21 +58,26 @@ export class GitIntegration {
     } catch {}
 
     await new Promise<void>((resolve, reject) => {
-      exec('git init', { cwd: this.config.repoPath }, (err, _stdout) => {
+      execFile('git', ['init'], { cwd: this.config.repoPath }, (err, _stdout) => {
         if (err) return reject(err);
         resolve();
       });
     });
   }
 
-  async commitWorkflow(workflow: { id: string; name: string }, message?: string, options?: CommitOptions): Promise<{ success: boolean; commitHash: string }> {
+  async commitWorkflow(workflow: { id: string; name: string }, message?: string, options?: CommitOptions): Promise<GitOperationResult> {
+    // Validate workflow.id to prevent path traversal
+    if (!/^[a-zA-Z0-9_-]+$/.test(workflow.id)) {
+      throw new Error('Invalid workflow ID');
+    }
+    
     const workflowFile = path.join(this.config.repoPath, 'workflows', `${workflow.id}.json`);
     await fs.mkdir(path.dirname(workflowFile), { recursive: true });
     await fs.writeFile(workflowFile, JSON.stringify(workflow, null, 2));
 
     // git add
     await new Promise<void>((resolve, reject) => {
-      exec(`git add ${workflowFile}`, { cwd: this.config.repoPath }, (err) => {
+      execFile('git', ['add', workflowFile], { cwd: this.config.repoPath }, (err) => {
         if (err) return reject(err);
         resolve();
       });
@@ -78,14 +86,18 @@ export class GitIntegration {
     // git commit
     const commitMsg = this.generateCommitMessage(workflow.name, { version: 'v1', ops: [] } as any, message ?? options?.promptUsed ?? '');
     await new Promise<void>((resolve, reject) => {
-      exec(`git commit -m "${commitMsg}"`, { cwd: this.config.repoPath }, (err) => {
+      execFile('git', ['commit', '-m', commitMsg], { cwd: this.config.repoPath }, (err) => {
         if (err) return reject(err);
         resolve();
       });
     });
 
     // fake hash for tests
-    return { success: true, commitHash: Date.now().toString(16) };
+    return { 
+      success: true, 
+      commitHash: Date.now().toString(16),
+      branch: this.config.branch || 'main'
+    };
   }
 
   generateCommitMessage(workflowName: string, operations: any, prompt?: string): string {
@@ -108,7 +120,7 @@ export class GitIntegration {
       return { success: false, message: 'Manual PR creation required for this provider' };
     }
     return await new Promise((resolve) => {
-      exec(`gh pr create --title "${opts.title}" --body "${opts.body}" --head ${opts.branch}`, { cwd: this.config.repoPath }, (err, stdout) => {
+      execFile('gh', ['pr', 'create', '--title', opts.title, '--body', opts.body, '--head', opts.branch], { cwd: this.config.repoPath }, (err, stdout) => {
         if (err) return resolve({ success: false, message: 'Failed to create PR' });
         resolve({ success: true, prUrl: String(stdout).trim() });
       });
@@ -116,9 +128,14 @@ export class GitIntegration {
   }
 
   async createBranch(workflowId: string): Promise<string> {
+    // Validate workflowId to prevent command injection
+    if (!/^[a-zA-Z0-9_-]+$/.test(workflowId)) {
+      throw new Error('Invalid workflow ID for branch creation');
+    }
+    
     const name = `ai/${workflowId}-${Date.now()}`;
     await new Promise<void>((resolve, reject) => {
-      exec(`git checkout -b ${name}`, { cwd: this.config.repoPath }, (err) => {
+      execFile('git', ['checkout', '-b', name], { cwd: this.config.repoPath }, (err) => {
         if (err) return reject(err);
         resolve();
       });
@@ -128,7 +145,7 @@ export class GitIntegration {
 
   async switchToMainBranch(): Promise<void> {
     await new Promise<void>((resolve, reject) => {
-      exec(`git checkout ${this.config.branch}`, { cwd: this.config.repoPath }, (err) => {
+      execFile('git', ['checkout', this.config.branch], { cwd: this.config.repoPath }, (err) => {
         if (err) return reject(err);
         resolve();
       });
@@ -156,14 +173,7 @@ export class GitIntegration {
     return lines.join('\n');
   }
 
-  private async execAsyncCompat(cmd: string): Promise<void> {
-    await new Promise<void>((resolve, reject) => {
-      exec(cmd, { cwd: this.config.repoPath }, (err) => {
-        if (err) return reject(err);
-        resolve();
-      });
-    });
-  }
+
 }
 
 // Factory function

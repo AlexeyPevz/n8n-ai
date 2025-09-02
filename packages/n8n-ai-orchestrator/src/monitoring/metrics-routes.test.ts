@@ -194,7 +194,7 @@ http_requests_total{method="POST",status="201"} 10`;
         expect.any(String),
         expect.any(Array)
       );
-      expect(mockCounter.inc).toHaveBeenCalledWith(1, { event: 'test' });
+      expect(mockCounter.inc).toHaveBeenCalledWith({ event: 'test' }, 1);
     });
 
     it('should record gauge metric', async () => {

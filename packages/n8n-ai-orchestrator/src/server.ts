@@ -47,6 +47,8 @@ import { ModelSelector } from './ai/model-selector.js';
 import { registerPlannerRoutes } from './plugins/planner-routes.js';
 import { RAGSystem } from './ai/rag/rag-system.js';
 import { DocumentIndexer } from './ai/rag/indexer.js';
+import { getAIConfig } from './ai/config.js';
+import { AIProviderFactory } from './ai/providers/factory.js';
 
 // Simple fetch with timeout and retries for proxying to n8n hooks
 async function fetchWithRetry(url: string, init: any = {}): Promise<any> {
@@ -172,8 +174,108 @@ server.setErrorHandler((error, request, reply) => {
   reply.status(appError.statusCode).send(errorToResponse(appError));
 });
 
+// Initialize RAG system if enabled
+if (process.env.RAG_ENABLED !== 'false' && process.env.QDRANT_URL) {
+  server.log.info('Initializing RAG system...');
+  try {
+    const config = getAIConfig();
+    const provider = AIProviderFactory.create(config.providers.primary);
+    
+    const ragSystem = new RAGSystem({
+      vectorStore: {
+        type: 'qdrant',
+        url: process.env.QDRANT_URL,
+        collectionName: 'n8n-knowledge'
+      },
+      embedder: provider
+    });
+    
+    await ragSystem.initialize();
+    
+    // Make RAG available globally for AI planner
+    (global as any).ragSystem = ragSystem;
+    
+    // Check if we need to populate
+    const docs = await ragSystem.search('n8n', 1);
+    if (docs.length === 0) {
+      server.log.warn('RAG system is empty. Run populate-rag.ts to add knowledge.');
+    } else {
+      server.log.info(`RAG system ready with knowledge base`);
+    }
+  } catch (error) {
+    server.log.error('Failed to initialize RAG system:', error);
+    server.log.warn('Continuing without RAG support');
+  }
+}
+
 // Health endpoint
 server.get('/api/v1/ai/health', async () => ({ status: 'ok', ts: Date.now() }));
+
+// RAG status endpoint
+server.get('/api/v1/ai/rag/status', async () => {
+  const ragSystem = (global as any).ragSystem;
+  
+  if (!ragSystem) {
+    return {
+      enabled: false,
+      reason: 'RAG system not initialized'
+    };
+  }
+  
+  try {
+    // Test search to verify it's working
+    const results = await ragSystem.search('n8n', 1);
+    
+    return {
+      enabled: true,
+      documents: results.length > 0 ? 'populated' : 'empty',
+      collections: ['n8n-knowledge'],
+      lastUpdate: new Date().toISOString()
+    };
+  } catch (error) {
+    return {
+      enabled: true,
+      error: 'Failed to query RAG system',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    };
+  }
+});
+
+// RAG search endpoint
+server.post('/api/v1/ai/rag/search', async (req, reply) => {
+  const ragSystem = (global as any).ragSystem;
+  
+  if (!ragSystem) {
+    return reply.status(503).send({
+      error: 'RAG system not available'
+    });
+  }
+  
+  const { query, limit = 5 } = req.body as { query: string; limit?: number };
+  
+  if (!query) {
+    return reply.status(400).send({
+      error: 'Query parameter is required'
+    });
+  }
+  
+  try {
+    const results = await ragSystem.search(query, limit);
+    return {
+      query,
+      results: results.map((r: any) => ({
+        content: r.content.substring(0, 200) + '...',
+        score: r.score,
+        metadata: r.metadata
+      }))
+    };
+  } catch (error) {
+    server.log.error('RAG search error:', error);
+    return reply.status(500).send({
+      error: 'Failed to search RAG system'
+    });
+  }
+});
 
 // Metrics endpoint
 server.get('/api/v1/ai/metrics', async () => {

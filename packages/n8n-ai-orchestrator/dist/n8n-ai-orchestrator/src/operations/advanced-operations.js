@@ -366,3 +366,119 @@ export class OptimizeBatchesHandler {
         return branch;
     }
 }
+export function replaceNode(graph, nodeId, newType, newParams) {
+    // Find predecessors and successors
+    const incoming = [];
+    const outgoing = [];
+    for (const [from, cfg] of Object.entries(graph.connections || {})) {
+        const main = cfg.main || [];
+        main.forEach((branch) => {
+            branch.forEach((conn) => {
+                if (conn.node === nodeId)
+                    incoming.push({ from });
+                if (from === nodeId)
+                    outgoing.push({ to: conn.node, index: conn.index ?? 0 });
+            });
+        });
+    }
+    const ops = [];
+    ops.push({ op: 'delete', nodeId });
+    ops.push({ op: 'add_node', nodeType: newType, parameters: newParams });
+    // Reconnect all incoming to new node and preserve all outgoing
+    for (const inc of incoming) {
+        ops.push({ op: 'connect', source: { node: inc.from, output: 'main', index: 0 }, target: { node: nodeId, input: 'main', index: 0 } });
+    }
+    for (const out of outgoing) {
+        ops.push({ op: 'connect', source: { node: nodeId, output: 'main', index: 0 }, target: { node: out.to, input: 'main', index: out.index } });
+    }
+    return { version: 'v1', ops };
+}
+export function extractSubworkflow(graph, nodeIds, name) {
+    const ops = [];
+    for (const id of nodeIds)
+        ops.push({ op: 'delete', nodeId: id });
+    ops.push({ op: 'add_node', nodeType: 'n8n-nodes-base.executeWorkflow', name });
+    // naive: connect first predecessor to execute, and execute to first successor of last node
+    const first = nodeIds[0];
+    const last = nodeIds[nodeIds.length - 1];
+    let pred;
+    for (const [from, cfg] of Object.entries(graph.connections || {})) {
+        const main = cfg.main || [];
+        if (main.some((b) => b.some((c) => c.node === first)))
+            pred = String(from);
+    }
+    let succ;
+    const lastConns = (graph.connections?.[last]?.main?.[0] || []);
+    if (lastConns[0])
+        succ = { node: lastConns[0].node, index: lastConns[0].index ?? 0 };
+    if (pred)
+        ops.push({ op: 'connect', source: { node: pred, output: 'main', index: 0 } });
+    if (succ)
+        ops.push({ op: 'connect', target: { node: succ.node, input: 'main', index: succ.index } });
+    return { version: 'v1', ops };
+}
+export function optimizeBatches(batch) {
+    const ops = [];
+    const inputOps = batch.ops;
+    let i = 0;
+    while (i < inputOps.length) {
+        const curr = inputOps[i];
+        if (curr.op === 'add_node') {
+            const nodeId = curr.nodeId;
+            // Collect consecutive set_params for same node
+            const collected = [];
+            let j = i + 1;
+            while (j < inputOps.length && inputOps[j].op === 'set_params' && (inputOps[j].nodeId === nodeId)) {
+                collected.push(inputOps[j]);
+                j++;
+            }
+            if (collected.length === 1) {
+                // Merge single immediate set_params into add_node
+                const params = collected[0].params || collected[0].parameters || {};
+                ops.push({ ...curr, parameters: { ...(curr.parameters || {}), ...params } });
+                i = j; // skip the set_params
+                continue;
+            }
+            else if (collected.length > 1) {
+                // Keep add_node and append one merged set_params
+                ops.push({ ...curr });
+                const merged = collected.reduce((acc, c) => ({ ...acc, ...(c.params || c.parameters || {}) }), {});
+                ops.push({ op: 'set_params', nodeId, params: merged });
+                i = j;
+                continue;
+            }
+            else {
+                ops.push({ ...curr });
+                i++;
+                continue;
+            }
+        }
+        // Not add_node
+        ops.push(curr);
+        i++;
+    }
+    return { version: batch.version || 'v1', ops };
+}
+export function mergeSequentialNodes(graph, targetIds) {
+    const ops = [];
+    const ids = targetIds && targetIds.length > 0 ? targetIds : (graph.nodes || []).filter((n) => n.type.includes('httpRequest')).map((n) => n.id);
+    if (ids.length >= 2) {
+        for (const id of ids)
+            ops.push({ op: 'delete', nodeId: id });
+        ops.push({ op: 'add_node', nodeType: 'n8n-nodes-base.function', name: 'HTTP Batch' });
+    }
+    return { version: 'v1', ops };
+}
+export function parallelizeIndependentNodes(graph) {
+    const ops = [];
+    // naive: if two http nodes both connect from trigger, ensure both connections exist
+    const hasTrigger = (graph.nodes || []).some((n) => n.type.includes('manualTrigger') || n.type.includes('webhook'));
+    if (hasTrigger) {
+        const httpIds = (graph.nodes || []).filter((n) => n.type.includes('httpRequest')).map((n) => n.id);
+        if (httpIds.length >= 2) {
+            ops.push({ op: 'connect', source: { node: 'trigger', output: 'main', index: 0 }, target: { node: httpIds[0], input: 'main', index: 0 } });
+            ops.push({ op: 'connect', source: { node: 'trigger', output: 'main', index: 0 }, target: { node: httpIds[1], input: 'main', index: 0 } });
+        }
+    }
+    return { version: 'v1', ops };
+}

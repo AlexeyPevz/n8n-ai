@@ -1,0 +1,87 @@
+name: Update RAG Knowledge Base
+
+on:
+  schedule:
+    # Run daily at 2 AM UTC
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+  push:
+    paths:
+      - 'packages/n8n-ai-orchestrator/src/extended-patterns.ts'
+      - 'packages/n8n-ai-orchestrator/src/workflow-patterns.ts'
+
+jobs:
+  update-rag:
+    runs-on: ubuntu-latest
+    
+    services:
+      qdrant:
+        image: qdrant/qdrant:latest
+        ports:
+          - 6333:6333
+        options: >-
+          --health-cmd "wget --no-verbose --tries=1 --spider http://localhost:6333/readyz || exit 1"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          
+      - name: Install pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 8
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Build packages
+        run: pnpm build
+
+      - name: Populate RAG system
+        env:
+          QDRANT_URL: http://localhost:6333
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Use OpenAI for embeddings if available
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          AI_PROVIDER: ${{ secrets.OPENAI_API_KEY && 'openai' || 'mock' }}
+        run: |
+          cd packages/n8n-ai-orchestrator
+          npx tsx scripts/populate-rag.ts
+
+      - name: Export RAG data
+        if: success()
+        run: |
+          # Export Qdrant data for backup
+          mkdir -p rag-backup
+          docker exec $(docker ps -q -f ancestor=qdrant/qdrant:latest) \
+            qdrant-backup create /qdrant/storage /tmp/backup
+          docker cp $(docker ps -q -f ancestor=qdrant/qdrant:latest):/tmp/backup rag-backup/
+          
+      - name: Upload RAG backup
+        if: success()
+        uses: actions/upload-artifact@v3
+        with:
+          name: rag-backup-${{ github.run_id }}
+          path: rag-backup/
+          retention-days: 30
+
+      - name: Create issue on failure
+        if: failure()
+        uses: actions/github-script@v6
+        with:
+          script: |
+            github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: 'RAG Update Failed',
+              body: `The automated RAG update failed in workflow run ${context.runId}. Please check the logs.`,
+              labels: ['bug', 'rag-system']
+            })

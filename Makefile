@@ -67,6 +67,8 @@ smoke: ## Run smoke checks (compose up, health, plan/apply/validate/simulate, wo
 	docker compose down
 
 # Development shortcuts
+full-stack: ## Start full stack with RAG system
+	./scripts/start-full-stack.sh
 dev-orchestrator: ## Start only orchestrator in dev mode
 	pnpm -C packages/n8n-ai-orchestrator dev
 
@@ -87,3 +89,32 @@ curl-plan: ## Test plan API with sample prompt
 
 curl-health: ## Check orchestrator health
 	curl -s http://localhost:3000/api/v1/ai/health | python3 -m json.tool
+
+# Unified app commands
+unified-build: ## Build unified n8n with AI
+	pnpm -C packages/n8n-ai-unified build
+
+unified-start: ## Start unified n8n with AI
+	./scripts/start-unified.sh
+
+unified-docker-build: ## Build unified Docker image
+	docker build -f Dockerfile.unified -t n8n-ai-unified:latest .
+
+unified-docker-up: ## Start unified app with Docker
+	docker-compose -f docker-compose.unified.yml up -d
+
+unified-docker-down: ## Stop unified app
+	docker-compose -f docker-compose.unified.yml down
+
+unified-logs: ## Show unified app logs
+	docker-compose -f docker-compose.unified.yml logs -f
+
+# RAG commands
+rag-populate: ## Populate RAG system with n8n documentation
+	cd packages/n8n-ai-orchestrator && npx tsx scripts/populate-rag.ts
+
+rag-start: ## Start Qdrant for RAG
+	docker run -d --name qdrant -p 6333:6333 -v qdrant_storage:/qdrant/storage qdrant/qdrant
+
+rag-stop: ## Stop Qdrant
+	docker stop qdrant && docker rm qdrant

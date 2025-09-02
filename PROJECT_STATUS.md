@@ -1,5 +1,7 @@
 # Статус проекта n8n-ai
 
+> **Note**: This document shows Sprint 3 completion status. For the most current project status including all fixes and production readiness, see [Current Status](./docs/CURRENT_STATUS.md).
+
 ## 📅 Текущий прогресс
 
 | Спринт | Статус | Завершен | Ключевые достижения |

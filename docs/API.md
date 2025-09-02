@@ -1,38 +1,46 @@
-# Orchestrator API Reference
+# API Documentation
 
-## Health & Metrics
+**Note**: This document provides a quick overview. For complete API documentation with examples, see [API Reference](./API_REFERENCE.md).
 
-- GET `/api/v1/ai/health` — status
-- GET `/api/v1/ai/metrics` — JSON metrics
-- GET `/metrics` — Prometheus text format
+## Quick Reference
 
-## Introspection
+### Base URL
+```
+http://localhost:3000
+```
 
-- GET `/introspect/nodes` — list of available nodes
+### Authentication
+```bash
+curl -H "X-API-Token: your-token" http://localhost:3000/api/v1/ai/health
+```
 
-## Planner
+### Core Endpoints
 
-- POST `/plan` { prompt }
-- POST `/suggest` { prompt, category? }
-- GET `/patterns`
-- POST `/ai/recommend-model` { prompt }
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/v1/ai/health` | Health check |
+| POST | `/plan` | Generate workflow plan |
+| POST | `/graph/:id/batch` | Apply operations |
+| GET | `/graph/:id` | Get workflow |
+| POST | `/graph/:id/undo` | Undo operations |
+| POST | `/graph/:id/validate` | Validate workflow |
+| GET | `/introspect/nodes` | List nodes |
+| GET | `/introspect/search` | Search nodes |
+| GET | `/workflow-map` | Get dependencies |
 
-## Graph
+### Quick Examples
 
-- POST `/graph/:id/batch` { OperationBatch }
-- POST `/graph/:id/validate`
-- POST `/graph/:id/simulate`
-- POST `/graph/:id/critic` { batch? }
-- POST `/graph/:id/undo` { undoId? }
-- POST `/graph/:id/redo`
-- GET `/graph/:id`
+#### Create a Workflow
+```bash
+# 1. Generate plan
+curl -X POST http://localhost:3000/plan \
+  -H "Content-Type: application/json" \
+  -d '{"prompt": "webhook that posts to slack"}'
 
-## Workflow Map
+# 2. Apply operations
+curl -X POST http://localhost:3000/graph/my-workflow/batch \
+  -H "Content-Type: application/json" \
+  -d '{"version": "v1", "ops": [...]}'
+```
 
-- GET `/workflow-map`
-- GET `/workflow-map/live` (SSE)
-- WS `/live` (websocket)
-
-## REST aliases
-
-Same routes under `/rest/ai/*` for upstream compatibility.
+For detailed documentation including request/response schemas, error codes, and advanced features, see [API Reference](./API_REFERENCE.md).

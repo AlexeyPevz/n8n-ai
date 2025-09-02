@@ -1,5 +1,8 @@
 import { metricsRegistry } from './metrics-system.js';
 
+// Re-export metricsRegistry for other modules
+export { metricsRegistry };
+
 // HTTP metrics
 export const httpRequestsTotal = metricsRegistry.counter(
   'n8n_ai_http_requests_total',

@@ -169,7 +169,7 @@ Import the dashboard from `docs/grafana-dashboard.json` or create custom panels.
 
 ### Adding New Metrics
 ```typescript
-import { metricsRegistry } from './monitoring/metrics-system';
+import { metricsRegistry } from './monitoring/metrics-system.js';
 
 // Counter
 const myCounter = metricsRegistry.counter(
@@ -198,7 +198,7 @@ myHistogram.observe(2.5, { label: 'value' });
 
 ### Using Decorators
 ```typescript
-import { measureAsync } from './monitoring/metrics-middleware';
+import { measureAsync } from './monitoring/metrics-middleware.js';
 
 class MyService {
   @measureAsync('my_operation_duration', { service: 'myservice' })
@@ -210,7 +210,7 @@ class MyService {
 
 ### Manual Timing
 ```typescript
-import { appMetrics } from './monitoring/app-metrics';
+import { appMetrics } from './monitoring/app-metrics.js';
 
 const timer = appMetrics.ai.planningDuration.startTimer({ complexity: 'medium' });
 try {
