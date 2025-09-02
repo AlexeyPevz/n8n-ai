@@ -67,6 +67,8 @@ smoke: ## Run smoke checks (compose up, health, plan/apply/validate/simulate, wo
 	docker compose down
 
 # Development shortcuts
+full-stack: ## Start full stack with RAG system
+	./scripts/start-full-stack.sh
 dev-orchestrator: ## Start only orchestrator in dev mode
 	pnpm -C packages/n8n-ai-orchestrator dev
 

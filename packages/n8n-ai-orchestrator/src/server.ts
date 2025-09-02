@@ -211,6 +211,72 @@ if (process.env.RAG_ENABLED !== 'false' && process.env.QDRANT_URL) {
 // Health endpoint
 server.get('/api/v1/ai/health', async () => ({ status: 'ok', ts: Date.now() }));
 
+// RAG status endpoint
+server.get('/api/v1/ai/rag/status', async () => {
+  const ragSystem = (global as any).ragSystem;
+  
+  if (!ragSystem) {
+    return {
+      enabled: false,
+      reason: 'RAG system not initialized'
+    };
+  }
+  
+  try {
+    // Test search to verify it's working
+    const results = await ragSystem.search('n8n', 1);
+    
+    return {
+      enabled: true,
+      documents: results.length > 0 ? 'populated' : 'empty',
+      collections: ['n8n-knowledge'],
+      lastUpdate: new Date().toISOString()
+    };
+  } catch (error) {
+    return {
+      enabled: true,
+      error: 'Failed to query RAG system',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    };
+  }
+});
+
+// RAG search endpoint
+server.post('/api/v1/ai/rag/search', async (req, reply) => {
+  const ragSystem = (global as any).ragSystem;
+  
+  if (!ragSystem) {
+    return reply.status(503).send({
+      error: 'RAG system not available'
+    });
+  }
+  
+  const { query, limit = 5 } = req.body as { query: string; limit?: number };
+  
+  if (!query) {
+    return reply.status(400).send({
+      error: 'Query parameter is required'
+    });
+  }
+  
+  try {
+    const results = await ragSystem.search(query, limit);
+    return {
+      query,
+      results: results.map((r: any) => ({
+        content: r.content.substring(0, 200) + '...',
+        score: r.score,
+        metadata: r.metadata
+      }))
+    };
+  } catch (error) {
+    server.log.error('RAG search error:', error);
+    return reply.status(500).send({
+      error: 'Failed to search RAG system'
+    });
+  }
+});
+
 // Metrics endpoint
 server.get('/api/v1/ai/metrics', async () => {
   return metrics.getMetrics();
