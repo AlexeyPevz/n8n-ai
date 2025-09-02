@@ -221,6 +221,7 @@
               
               <h3>{{ testMessage }}</h3>
               <p v-if="testDetails" class="test-details">{{ testDetails }}</p>
+              <div v-if="testStatus === 'error'" class="test-result error">{{ testError }}</div>
               
               <div v-if="testStatus !== 'testing'" class="test-actions">
                 <button
@@ -470,7 +471,9 @@ if (instance2 && instance2.proxy) {
 }
 
 const progressPercentage = computed(() => {
-  const set: Set<string> = (configuredCredentials as any).value || new Set();
+  // Prefer $data.configuredCredentials if present (for setData in tests)
+  const fromData: Set<string> | undefined = (vm?.$data as any)?.configuredCredentials;
+  const set: Set<string> = fromData instanceof Set ? fromData : ((configuredCredentials as any).value || new Set());
   const configured = props.requiredCredentials.filter(c => c.configured || set.has(c.type)).length;
   const total = props.requiredCredentials.length;
   return total > 0 ? (configured / total) * 100 : 0;
