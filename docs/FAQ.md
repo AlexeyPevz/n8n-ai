@@ -8,7 +8,7 @@ n8n-ai is an AI-first extension for n8n that allows users to create workflows us
 
 ### Is this a fork of n8n?
 
-No, n8n-ai is designed as an extension that works alongside n8n. It uses a minimal hook system to integrate with n8n without modifying the core codebase significantly.
+No, n8n-ai is designed as an extension that works alongside n8n. It uses a plugin architecture and API integration to add AI features without forking the n8n codebase. The unified package embeds all functionality into a standard n8n instance.
 
 ### What AI providers are supported?
 

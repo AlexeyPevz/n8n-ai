@@ -19,7 +19,7 @@ AI_MAX_TOKENS=4000              # Max response length
 # Fallback Provider (optional)
 AI_FALLBACK_PROVIDER=anthropic
 AI_FALLBACK_API_KEY=your-key
-AI_FALLBACK_MODEL=claude-3-sonnet-20240229
+AI_FALLBACK_MODEL=claude-3-sonnet
 ```
 
 ### Supported Providers
