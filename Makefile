@@ -106,3 +106,13 @@ unified-docker-down: ## Stop unified app
 
 unified-logs: ## Show unified app logs
 	docker-compose -f docker-compose.unified.yml logs -f
+
+# RAG commands
+rag-populate: ## Populate RAG system with n8n documentation
+	cd packages/n8n-ai-orchestrator && npx tsx scripts/populate-rag.ts
+
+rag-start: ## Start Qdrant for RAG
+	docker run -d --name qdrant -p 6333:6333 -v qdrant_storage:/qdrant/storage qdrant/qdrant
+
+rag-stop: ## Stop Qdrant
+	docker stop qdrant && docker rm qdrant

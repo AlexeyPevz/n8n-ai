@@ -47,6 +47,8 @@ import { ModelSelector } from './ai/model-selector.js';
 import { registerPlannerRoutes } from './plugins/planner-routes.js';
 import { RAGSystem } from './ai/rag/rag-system.js';
 import { DocumentIndexer } from './ai/rag/indexer.js';
+import { getAIConfig } from './ai/config.js';
+import { AIProviderFactory } from './ai/providers/factory.js';
 
 // Simple fetch with timeout and retries for proxying to n8n hooks
 async function fetchWithRetry(url: string, init: any = {}): Promise<any> {
@@ -171,6 +173,40 @@ server.setErrorHandler((error, request, reply) => {
   try { sendSse('api_error', { code: appError.code, url: request.url, details: appError.details }); } catch {}
   reply.status(appError.statusCode).send(errorToResponse(appError));
 });
+
+// Initialize RAG system if enabled
+if (process.env.RAG_ENABLED !== 'false' && process.env.QDRANT_URL) {
+  server.log.info('Initializing RAG system...');
+  try {
+    const config = getAIConfig();
+    const provider = AIProviderFactory.create(config.providers.primary);
+    
+    const ragSystem = new RAGSystem({
+      vectorStore: {
+        type: 'qdrant',
+        url: process.env.QDRANT_URL,
+        collectionName: 'n8n-knowledge'
+      },
+      embedder: provider
+    });
+    
+    await ragSystem.initialize();
+    
+    // Make RAG available globally for AI planner
+    (global as any).ragSystem = ragSystem;
+    
+    // Check if we need to populate
+    const docs = await ragSystem.search('n8n', 1);
+    if (docs.length === 0) {
+      server.log.warn('RAG system is empty. Run populate-rag.ts to add knowledge.');
+    } else {
+      server.log.info(`RAG system ready with knowledge base`);
+    }
+  } catch (error) {
+    server.log.error('Failed to initialize RAG system:', error);
+    server.log.warn('Continuing without RAG support');
+  }
+}
 
 // Health endpoint
 server.get('/api/v1/ai/health', async () => ({ status: 'ok', ts: Date.now() }));
