@@ -1,6 +1,8 @@
 import Fastify from 'fastify';
 import cors from '@fastify/cors';
 import websocket from '@fastify/websocket';
+import helmet from '@fastify/helmet';
+import rateLimit from '@fastify/rate-limit';
 import { OperationBatchSchema } from '@n8n-ai/schemas';
 import { SimplePlanner } from './planner.js';
 import { patternMatcher } from './pattern-matcher.js';
@@ -126,6 +128,9 @@ server.addContentTypeParser('application/json', { parseAs: 'string' }, (req, bod
 
 await server.register(cors, { origin: true, credentials: true });
 await server.register(websocket);
+// Security hardening plugins
+await server.register(helmet, { global: true });
+await server.register(rateLimit, { max: Number(process.env.RATE_LIMIT_MAX || 100), timeWindow: '1 minute' });
 
 // Get security configuration
 const securityConfig = getSecurityPreset();
@@ -214,6 +219,8 @@ if (process.env.RAG_ENABLED !== 'false' && process.env.QDRANT_URL) {
 
 // Health endpoint
 server.get('/api/v1/ai/health', async () => ({ status: 'ok', ts: Date.now() }));
+server.get('/readyz', async () => ({ ok: true }));
+server.get('/livez', async () => ({ ok: true }));
 
 // RAG status endpoint
 server.get('/api/v1/ai/rag/status', async () => {
