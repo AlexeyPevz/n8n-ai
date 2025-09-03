@@ -27,15 +27,19 @@ const server = Fastify({ logger: true });
 
 // --- SSE clients registry ---
 const sseClients = new Set<import('node:http').ServerResponse>();
+const MAX_SSE_CLIENTS = Math.max(50, Number(process.env.SSE_MAX_CLIENTS || 100));
 function sendSse(event: string, data: unknown): void {
+  let dropped = 0;
   for (const res of sseClients) {
     try {
       res.write(`event: ${event}\n`);
       res.write(`data: ${JSON.stringify(data)}\n\n`);
     } catch {
-      // drop broken client
-      try { sseClients.delete(res); } catch {}
+      try { sseClients.delete(res); dropped++; } catch {}
     }
+  }
+  if (dropped > 0) {
+    try { server.log.warn({ dropped }, 'Removed broken SSE clients'); } catch {}
   }
 }
 
@@ -672,6 +676,11 @@ server.get('/events', async (req, reply) => {
     'Cache-Control': 'no-cache',
     Connection: 'keep-alive'
   });
+  if (sseClients.size >= MAX_SSE_CLIENTS) {
+    reply.raw.write(`event: rejected\n`);
+    reply.raw.write(`data: {\"error\":\"too_many_clients\"}\n\n`);
+    return reply.code(503);
+  }
   sseClients.add(reply.raw);
   const send = (event: string, data: unknown) => {
     try {
@@ -686,7 +695,9 @@ server.get('/events', async (req, reply) => {
     progress = (progress + 10) % 100;
     send('build_progress', { ts: Date.now(), progress });
   }, 15000);
-  req.raw.on('close', () => { clearInterval(interval); try { sseClients.delete(reply.raw); } catch {} });
+  const cleanup = () => { try { clearInterval(interval); sseClients.delete(reply.raw); } catch {} };
+  req.raw.on('close', cleanup);
+  reply.raw.on('error', cleanup);
   return reply;
 });
 
