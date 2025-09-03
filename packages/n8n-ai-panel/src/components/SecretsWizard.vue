@@ -361,20 +361,10 @@ onMounted(() => {
   watch(() => (vm as any).currentStep, (v) => { (currentStep as any).value = v as any; }, { immediate: true });
   watch(() => (vm as any).testStatus, (v) => { (testStatus as any).value = v as any; }, { immediate: true });
   watch(() => (vm as any).testError, (v) => { (testError as any).value = v as any; }, { immediate: true });
-  // Snapshot configured credentials from data() into a reactive Set
-  const updateConfiguredSnapshot = (v: any) => {
-    const out = new Set<string>();
-    if (v && typeof (v as any).forEach === 'function') {
-      (v as any).forEach((val: any) => out.add(val));
-    } else if (Array.isArray(v)) {
-      v.forEach((val: any) => out.add(val));
-    } else if (v && typeof v === 'object') {
-      Object.keys(v).forEach((key) => out.add(key));
-    }
-    (configuredSnapshot as any).value = out;
-  };
-  watch(() => (vm as any).configuredCredentials, (v) => updateConfiguredSnapshot(v), { immediate: true });
-  watch(configuredCredentials, (v) => updateConfiguredSnapshot(v), { immediate: true });
+  // Sync configured set from Options API data to computed reader
+  watch(configuredCredentials, (v) => {
+    // no-op: computed reads current value via toNormalizedSet
+  }, { immediate: true });
 
   // Directly bind to data() to ensure setData updates propagate
   if (Object.prototype.hasOwnProperty.call(dataObj, 'currentStep')) currentStep = toRef(dataObj, 'currentStep') as any;
@@ -491,8 +481,7 @@ function toNormalizedSet(input: any): Set<string> {
   return new Set<string>();
 }
 
-const configuredSnapshot = ref<Set<string>>(new Set());
-const configuredSet = computed<Set<string>>(() => configuredSnapshot.value);
+const configuredSet = computed<Set<string>>(() => toNormalizedSet((configuredCredentials as any).value));
 
 function configuredHas(type: string): boolean {
   return configuredSet.value.has(type);
