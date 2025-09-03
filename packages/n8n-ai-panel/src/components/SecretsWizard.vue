@@ -481,7 +481,10 @@ function toNormalizedSet(input: any): Set<string> {
   return new Set<string>();
 }
 
-const configuredSet = computed<Set<string>>(() => toNormalizedSet((configuredCredentials as any).value));
+const configuredSet = computed<Set<string>>(() => {
+  const vm = getCurrentInstance()?.proxy as any;
+  return toNormalizedSet(vm?.$data?.configuredCredentials);
+});
 
 function configuredHas(type: string): boolean {
   return configuredSet.value.has(type);
