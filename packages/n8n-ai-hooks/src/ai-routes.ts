@@ -19,8 +19,36 @@ const undoStacks: Map<string, Array<{ undoId: string; batch: OperationBatch }>> 
 export function createAIRoutes(): Router {
   const router = Router();
 
+  // --- CORS (in-router) ---
+  const allowedOrigins = (process.env.N8N_AI_CORS_ORIGINS || '')
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
+
+  router.use((req, res, next) => {
+    try {
+      const origin = req.headers['origin'] as string | undefined;
+      if (allowedOrigins.length > 0 && origin) {
+        if (allowedOrigins.includes('*') || allowedOrigins.includes(origin)) {
+          res.setHeader('Access-Control-Allow-Origin', origin);
+          res.setHeader('Vary', 'Origin');
+        } else {
+          return res.status(403).json({ error: 'origin_not_allowed' });
+        }
+      }
+      res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
+      res.setHeader('Access-Control-Allow-Headers', 'Authorization,Content-Type,If-None-Match');
+      res.setHeader('Access-Control-Allow-Credentials', 'true');
+      if (req.method === 'OPTIONS') {
+        return res.status(204).end();
+      }
+    } catch {}
+    next();
+  });
+
   // --- Security: token auth + basic rate limit ---
   let API_TOKEN = process.env.N8N_AI_API_TOKEN;
+  const REQUIRE_TOKEN = process.env.N8N_AI_REQUIRE_TOKEN === '1' || process.env.NODE_ENV === 'production';
   const rateWindowMs = Number(process.env.N8N_AI_RATELIMIT_WINDOW_MS ?? 15000);
   const rateMax = Number(process.env.N8N_AI_RATELIMIT_MAX ?? 60);
   const rateBuckets = new Map<string, { count: number; resetAt: number }>();
@@ -28,7 +56,11 @@ export function createAIRoutes(): Router {
   const authMiddleware = (req: Request, res: Response, next: NextFunction): void => {
     // Read token dynamically to allow tests to toggle env
     API_TOKEN = process.env.N8N_AI_API_TOKEN;
-    if (!API_TOKEN) return next();
+    if (!API_TOKEN) {
+      if (!REQUIRE_TOKEN) return next();
+      res.status(401).json({ error: 'unauthorized', reason: 'token_required' });
+      return;
+    }
     const header = req.header('authorization') || '';
     const token = header.startsWith('Bearer ') ? header.slice(7) : undefined;
     if (token === API_TOKEN) return next();

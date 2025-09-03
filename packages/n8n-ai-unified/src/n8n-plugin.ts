@@ -3,8 +3,7 @@
  */
 
 import type { INodeTypeDescription, IWebhookFunctions } from 'n8n-workflow';
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const { createAIRoutes } = require('@n8n-ai/hooks');
+import { createAIRoutes } from '@n8n-ai/hooks';
 import { startOrchestrator } from './embedded-orchestrator';
 import express from 'express';
 import path from 'path';

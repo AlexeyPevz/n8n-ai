@@ -44,8 +44,8 @@ jobs:
       - name: Install dependencies
         run: pnpm install
       
-      - name: Run linters
-        run: pnpm run lint
+      - name: Run linters (no warnings)
+        run: pnpm run lint && git ls-files '*.ts' '*.tsx' '*.js' '*.vue' | xargs -r -n 50 pnpm exec eslint --max-warnings 0
 
   test:
     name: Test
