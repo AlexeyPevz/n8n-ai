@@ -491,15 +491,19 @@ function configuredHas(type: string): boolean {
 }
 
 const allCredentialsConfigured = computed(() => {
+  const vm = getCurrentInstance()?.proxy as any;
+  const dataSet = toNormalizedSet(vm?.$data?.configuredCredentials);
   const total = props.requiredCredentials.length;
-  const configuredCount = props.requiredCredentials.filter(c => c.configured || configuredHas(c.type)).length;
+  const configuredCount = props.requiredCredentials.filter(c => c.configured || dataSet.has(c.type)).length;
   return total > 0 && configuredCount === total;
 });
 
 // Expose for setData via Options API data()
 
 const progressPercentage = computed(() => {
-  const configured = props.requiredCredentials.filter(c => c.configured || configuredHas(c.type)).length;
+  const vm = getCurrentInstance()?.proxy as any;
+  const dataSet = toNormalizedSet(vm?.$data?.configuredCredentials);
+  const configured = props.requiredCredentials.filter(c => c.configured || dataSet.has(c.type)).length;
   const total = props.requiredCredentials.length;
   return total > 0 ? (configured / total) * 100 : 0;
 });
@@ -515,7 +519,9 @@ function selectCredential(credential: RequiredCredential) {
 }
 
 function isConfigured(cred: RequiredCredential) {
-  return cred.configured || configuredHas(cred.type);
+  const vm = getCurrentInstance()?.proxy as any;
+  const dataSet = toNormalizedSet(vm?.$data?.configuredCredentials);
+  return cred.configured || dataSet.has(cred.type);
 }
 
 function configureCredential(credential: RequiredCredential) {
