@@ -7,13 +7,15 @@ export default defineConfig({
   test: {
     globals: true,
     environment: 'jsdom',
+    setupFiles: ['./vitest.setup.ts'],
+    include: ['src/**/*.test.ts'],
+    exclude: ['tests/**', 'playwright.config.*'],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'lcov', 'html'],
       exclude: [
         'node_modules/**',
         'dist/**',
-        '**/*.test.ts',
         '**/*.spec.ts',
         'src/main.ts',
         'vite.config.ts',

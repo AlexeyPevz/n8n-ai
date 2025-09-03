@@ -3,8 +3,9 @@ import { DocumentProcessor } from './document-processor.js';
 import type { AIProvider } from '../providers/base.js';
 import { AIProviderFactory } from '../providers/factory.js';
 import { getAIConfig } from '../config.js';
-// @ts-ignore - workspace import
-import { loadBuiltinNodes } from '../../hooks-import';
+// Avoid cross-project typing; rely on runtime import
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const { loadBuiltinNodes } = require('../../hooks-import');
 
 export class DocumentIndexer {
   private ragSystem: RAGSystem;

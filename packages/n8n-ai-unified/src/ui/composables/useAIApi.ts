@@ -2,7 +2,8 @@
  * API клиент для AI функций
  */
 
-import type { OperationBatch } from '@n8n-ai/schemas';
+// Local copy of OperationBatch type to decouple from workspace path mapping
+type OperationBatch = { version: string; ops: Array<any> };
 
 const API_BASE = '/api/v1/ai';
 
@@ -92,9 +93,10 @@ export function useAIApi() {
     const result = await response.json();
     
     // Определяем какие ноды были добавлены
-    const addedNodeIds = operations.ops
-      .filter(op => op.op === 'add_node')
-      .map(op => op.node.id);
+    const addedNodeIds = (operations.ops || [])
+      .filter((op: any) => op.op === 'add_node')
+      .map((op: any) => op.node?.id)
+      .filter(Boolean);
     
     return {
       success: result.success,

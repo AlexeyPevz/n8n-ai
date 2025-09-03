@@ -4,7 +4,7 @@
 
 import { ref, computed } from 'vue';
 import { useAIApi } from './useAIApi';
-import type { OperationBatch } from '@n8n-ai/schemas';
+type OperationBatch = { version: string; ops: Array<any> };
 import type { Modal, Toast } from '../components/types';
 // Modal keys
 export const DIFF_PREVIEW_MODAL_KEY = 'diffPreview';

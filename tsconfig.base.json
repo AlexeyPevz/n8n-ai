@@ -10,7 +10,8 @@
     "forceConsistentCasingInFileNames": true,
     "baseUrl": ".",
     "paths": {
-      "@n8n-ai/schemas": ["packages/n8n-ai-schemas/src"]
+      "@n8n-ai/schemas": ["packages/n8n-ai-schemas/src"],
+      
     }
   }
 }

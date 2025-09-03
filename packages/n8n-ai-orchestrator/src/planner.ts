@@ -92,8 +92,8 @@ export class SimplePlanner {
       // Если запрос про "insert after" — добавим соединение к целевой ноде, если она есть
       if (promptLower.includes('insert after') || promptLower.includes('после')) {
         const target = 'HTTP Request';
-        const hasTarget = operations.some(op => op.op === 'add_node' && op.node.name === target);
-        const inserted = operations.find(op => op.op === 'add_node' && op.node.name === 'Log Response');
+        const hasTarget = operations.some((op: OperationBatch['ops'][number]) => (op as any).op === 'add_node' && (op as any).node.name === target);
+        const inserted = operations.find((op: OperationBatch['ops'][number]) => (op as any).op === 'add_node' && (op as any).node.name === 'Log Response');
         if (hasTarget && inserted) {
           operations.push({ op: 'connect', from: target, to: 'Log Response' } as any);
         }
