@@ -2,7 +2,8 @@
   "root": true,
   "parser": "@typescript-eslint/parser",
   "plugins": [
-    "@typescript-eslint"
+    "@typescript-eslint",
+    "import"
   ],
   "extends": [
     "eslint:recommended",
@@ -27,7 +28,9 @@
     "semi": ["error", "always"],
     "quotes": ["error", "single", { "avoidEscape": true }],
     "prefer-const": ["error"],
-    "eqeqeq": ["error", "smart"]
+    "eqeqeq": ["error", "smart"],
+    "import/order": ["error", { "alphabetize": { "order": "asc" }, "newlines-between": "always" }],
+    "import/no-cycle": ["error"]
   },
   "overrides": [
     {
