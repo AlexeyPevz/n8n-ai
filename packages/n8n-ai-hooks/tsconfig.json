@@ -15,12 +15,7 @@
   },
   "include": [
     "src/**/*.ts",
-    "src/index.ts",
-    "ai-routes.ts",
-    "introspect-api.ts",
-    "load-builtin-nodes.ts",
-    "metrics.ts",
-    "dev-server.ts"
+    "src/index.ts"
   ],
   "exclude": [
     "dist",

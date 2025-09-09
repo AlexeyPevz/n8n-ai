@@ -12,50 +12,49 @@
       <div class="scene" :style="sceneStyle">
         <!-- Простая визуализация нод и связей -->
         <svg
-          class="connections-layer"
-          :width="canvasSize.width"
-          :height="canvasSize.height"
-        >
-        <g
-          v-for="connection in connections"
-          :key="`${connection.from}-${connection.to}`"
-        >
-          <path
-            :d="getConnectionPath(connection)"
-            :class="['connection', getConnectionClass(connection)]"
-            fill="none"
-            stroke-width="2"
-          />
-        </g>
+class="connections-layer" :width="canvasSize.width"
+:height="canvasSize.height"
+>
+          <g
+v-for="connection in connections" :key="`${connection.from}-${connection.to}`"
+>
+            >
+            <path
+              :d="getConnectionPath(connection)"
+              :class="['connection', getConnectionClass(connection)]"
+              fill="none"
+              stroke-width="2"
+            />
+          </g>
         </svg>
-      
-      <div
-        v-for="node in nodes"
-        :key="node.id"
-        :class="['node', getNodeClass(node)]"
-        :style="getNodeStyle(node)"
-        @click="$emit('node-click', node)"
-      >
-        <div class="node-icon">
-          {{ getNodeIcon(node.type) }}
-        </div>
-        <div class="node-name">
-          {{ node.name }}
-        </div>
-        <div v-if="statusById[node.id]" class="node-overlay">
-          <span class="st">{{ statusById[node.id].status }}</span>
-          <span class="cost">$ {{ (statusById[node.id].estimatedCostCents/100).toFixed(2) }}</span>
-        </div>
+
         <div
-          v-if="node.annotation"
-          class="node-annotation"
+          v-for="node in nodes"
+          :key="node.id"
+          :class="['node', getNodeClass(node)]"
+          :style="getNodeStyle(node)"
+          @click="$emit('node-click', node)"
         >
-          {{ node.annotation }}
+          <div class="node-icon">
+            {{ getNodeIcon(node.type) }}
+          </div>
+          <div class="node-name">
+            {{ node.name }}
+          </div>
+          <div v-if="statusById[node.id]" class="node-overlay">
+            <span class="st">{{ statusById[node.id].status }}</span>
+            <span class="cost"
+              >$ {{ (statusById[node.id].estimatedCostCents / 100).toFixed(2) }}</span
+            >
+          </div>
+          <div v-if="node.annotation"
+class="node-annotation">
+            {{ node.annotation }}
+          </div>
         </div>
-      </div>
       </div>
     </div>
-    
+
     <div class="canvas-legend">
       <div class="legend-item">
         <span class="legend-color added" />
@@ -74,8 +73,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue';
 import type { Node, Connection } from '@n8n-ai/schemas';
+import { ref, computed } from 'vue';
 
 interface Props {
   nodes: Node[];
@@ -85,7 +84,12 @@ interface Props {
     modified: string[];
     deleted: string[];
   };
-  liveOverlay?: Array<{ id: string; name: string; status: 'idle' | 'running' | 'error'; estimatedCostCents: number }>
+  liveOverlay?: Array<{
+    id: string;
+    name: string;
+    status: 'idle' | 'running' | 'error';
+    estimatedCostCents: number;
+  }>;
 }
 
 const props = defineProps<Props>();
@@ -94,7 +98,7 @@ const canvasRef = ref<HTMLElement>();
 
 const canvasSize = computed(() => ({
   width: 800,
-  height: 600
+  height: 600,
 }));
 
 const nodePositions = computed(() => {
@@ -102,19 +106,22 @@ const nodePositions = computed(() => {
   const positions: Record<string, { x: number; y: number }> = {};
   const x = 100;
   const y = 100;
-  
+
   props.nodes.forEach((node, index) => {
     positions[node.id] = {
       x: x + (index % 3) * 200,
-      y: y + Math.floor(index / 3) * 150
+      y: y + Math.floor(index / 3) * 150,
     };
   });
-  
+
   return positions;
 });
 
-const statusById = computed<Record<string, { status: 'idle' | 'running' | 'error'; estimatedCostCents: number }>>(() => {
-  const map: Record<string, { status: 'idle' | 'running' | 'error'; estimatedCostCents: number }> = {};
+const statusById = computed<
+  Record<string, { status: 'idle' | 'running' | 'error'; estimatedCostCents: number }>
+>(() => {
+  const map: Record<string, { status: 'idle' | 'running' | 'error'; estimatedCostCents: number }> =
+    {};
   if (props.liveOverlay && Array.isArray(props.liveOverlay)) {
     for (const w of props.liveOverlay) {
       // отображаем лишь если id воркфлоу совпадает с id ноды (упрощение для демо)
@@ -135,7 +142,7 @@ let lastY = 0;
 
 const sceneStyle = computed(() => ({
   transform: `translate(${panX.value}px, ${panY.value}px) scale(${scale.value})`,
-  transformOrigin: '0 0'
+  transformOrigin: '0 0',
 }));
 
 function onWheel(e: WheelEvent) {
@@ -166,45 +173,45 @@ function getNodeStyle(node: Node) {
   const pos = nodePositions.value[node.id] || { x: 0, y: 0 };
   return {
     left: `${pos.x}px`,
-    top: `${pos.y}px`
+    top: `${pos.y}px`,
   };
 }
 
 function getNodeClass(node: Node) {
   if (!props.changes) return '';
-  
+
   if (props.changes.added.includes(node.id)) return 'added';
   if (props.changes.modified.includes(node.id)) return 'modified';
   if (props.changes.deleted.includes(node.id)) return 'deleted';
-  
+
   return '';
 }
 
 function getConnectionClass(connection: Connection) {
   if (!props.changes) return '';
-  
+
   const connectionId = `${connection.from}-${connection.to}`;
   if (props.changes.added.includes(connectionId)) return 'added';
   if (props.changes.deleted.includes(connectionId)) return 'deleted';
-  
+
   return '';
 }
 
 function getConnectionPath(connection: Connection) {
   const fromPos = nodePositions.value[connection.from];
   const toPos = nodePositions.value[connection.to];
-  
+
   if (!fromPos || !toPos) return '';
-  
+
   const x1 = fromPos.x + 150; // node width
-  const y1 = fromPos.y + 30;   // node height / 2
+  const y1 = fromPos.y + 30; // node height / 2
   const x2 = toPos.x;
   const y2 = toPos.y + 30;
-  
+
   // Bezier curve
   const cx1 = x1 + (x2 - x1) * 0.5;
   const cx2 = x2 - (x2 - x1) * 0.5;
-  
+
   return `M ${x1} ${y1} C ${cx1} ${y1}, ${cx2} ${y2}, ${x2} ${y2}`;
 }
 
@@ -216,9 +223,9 @@ function getNodeIcon(type: string) {
     'n8n-nodes-base.manualTrigger': '▶️',
     'n8n-nodes-base.set': '📝',
     'n8n-nodes-base.if': '❓',
-    'n8n-nodes-base.code': '💻'
+    'n8n-nodes-base.code': '💻',
   };
-  
+
   return iconMap[type] || '📦';
 }
 </script>
@@ -289,12 +296,16 @@ function getNodeIcon(type: string) {
   color: #334155;
 }
 
-.node .node-overlay .st { text-transform: uppercase; }
-.node .node-overlay .cost { font-weight: 600; }
+.node .node-overlay .st {
+  text-transform: uppercase;
+}
+.node .node-overlay .cost {
+  font-weight: 600;
+}
 
 .node:hover {
   transform: translateY(-2px);
-  box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
 }
 
 .node.added {

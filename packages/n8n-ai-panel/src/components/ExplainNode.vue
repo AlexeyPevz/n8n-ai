@@ -2,25 +2,24 @@
   <div class="explain-node-container">
     <!-- Trigger button -->
     <button
-      @click="showExplanation = !showExplanation"
       class="explain-trigger"
       :class="{ 'explain-active': showExplanation }"
       title="Explain this node"
+      @click="toggleExplanation"
     >
       <IconHelp v-if="!isLoading" />
       <IconLoader v-else class="spinning" />
     </button>
-    
+
     <!-- Explanation popup -->
     <transition name="explain">
       <div
-        v-if="showExplanation"
-        class="explain-popup"
-        :class="{ 'explain-loading': isLoading }"
-      >
+v-if="showExplanation" class="explain-popup"
+:class="{ 'explain-loading': isLoading }"
+>
         <div class="explain-header">
           <h4>
-            <img 
+            <img
               v-if="node.icon"
               :src="`/node-icons/${node.icon}`"
               :alt="node.name"
@@ -29,27 +28,31 @@
             >
             {{ node.name || node.type }}
           </h4>
-          <button @click="showExplanation = false" class="close-btn">
+          <button
+class="close-btn" @click="showExplanation = false"
+>
             <IconX />
           </button>
         </div>
-        
+
         <div class="explain-content">
           <!-- Loading state -->
           <div v-if="isLoading" class="loading-state">
             <IconLoader class="spinning" />
             <p>Analyzing node configuration...</p>
           </div>
-          
+
           <!-- Error state -->
           <div v-if="error" class="error-state">
             <IconAlert />
             <p>{{ error }}</p>
-            <button @click="fetchExplanation" class="retry-btn">
-              Try Again
-            </button>
+            <button class="retry-btn"
+@click="fetchExplanation"
+>
+Try Again
+</button>
           </div>
-          
+
           <!-- Explanation content -->
           <div v-else-if="explanation" class="explanation">
             <!-- Summary -->
@@ -57,15 +60,14 @@
               <h5>What it does</h5>
               <p>{{ explanation.summary }}</p>
             </div>
-            
+
             <!-- Current configuration -->
             <div v-if="explanation.configuration" class="explain-section">
               <h5>Current Configuration</h5>
               <ul class="config-list">
                 <li
-                  v-for="(config, index) in explanation.configuration"
-                  :key="index"
-                >
+v-for="(config, index) in explanation.configuration" :key="index"
+>
                   <span class="config-key">{{ config.key }}:</span>
                   <span class="config-value">{{ formatValue(config.value) }}</span>
                   <span v-if="config.description" class="config-desc">
@@ -74,48 +76,55 @@
                 </li>
               </ul>
             </div>
-            
+
             <!-- Inputs/Outputs -->
             <div class="explain-section io-section">
               <div class="io-block">
                 <h5>Expects</h5>
                 <div v-if="explanation.inputs && explanation.inputs.length > 0">
                   <div
-                    v-for="input in explanation.inputs"
-                    :key="input.type"
-                    class="io-item"
-                  >
+v-for="input in explanation.inputs" :key="input.type"
+class="io-item"
+>
                     <IconArrowRight class="io-icon input" />
                     <div>
                       <strong>{{ input.type }}</strong>
-                      <p v-if="input.description">{{ input.description }}</p>
+                      <p v-if="input.description">
+                        {{ input.description }}
+                      </p>
                     </div>
                   </div>
                 </div>
-                <p v-else class="io-empty">No input required</p>
+                <p
+v-else class="io-empty">No input required</p>
               </div>
-              
+
               <div class="io-block">
                 <h5>Produces</h5>
                 <div v-if="explanation.outputs && explanation.outputs.length > 0">
                   <div
-                    v-for="output in explanation.outputs"
-                    :key="output.type"
-                    class="io-item"
-                  >
+v-for="output in explanation.outputs" :key="output.type"
+class="io-item"
+>
                     <IconArrowRight class="io-icon output" />
                     <div>
                       <strong>{{ output.type }}</strong>
-                      <p v-if="output.description">{{ output.description }}</p>
+                      <p v-if="output.description">
+                        {{ output.description }}
+                      </p>
                     </div>
                   </div>
                 </div>
-                <p v-else class="io-empty">No output</p>
+                <p
+v-else class="io-empty">No output</p>
               </div>
             </div>
-            
+
             <!-- Common issues -->
-            <div v-if="explanation.commonIssues && explanation.commonIssues.length > 0" class="explain-section">
+            <div
+              v-if="explanation.commonIssues && explanation.commonIssues.length > 0"
+              class="explain-section"
+            >
               <h5>Common Issues</h5>
               <div class="issues-list">
                 <div
@@ -134,29 +143,37 @@
                 </div>
               </div>
             </div>
-            
+
             <!-- Examples -->
-            <div v-if="explanation.examples && explanation.examples.length > 0" class="explain-section">
+            <div
+              v-if="explanation.examples && explanation.examples.length > 0"
+              class="explain-section"
+            >
               <h5>Examples</h5>
               <div class="examples-tabs">
                 <button
                   v-for="(example, index) in explanation.examples"
                   :key="index"
-                  @click="selectedExample = index"
                   class="example-tab"
                   :class="{ active: selectedExample === index }"
+                  @click="selectedExample = index"
                 >
                   {{ example.title }}
                 </button>
               </div>
               <div v-if="explanation.examples[selectedExample]" class="example-content">
                 <p>{{ explanation.examples[selectedExample].description }}</p>
-                <pre v-if="explanation.examples[selectedExample].code" class="example-code">{{ explanation.examples[selectedExample].code }}</pre>
+                <pre v-if="explanation.examples[selectedExample].code" class="example-code">{{
+                  explanation.examples[selectedExample].code
+                }}</pre>
               </div>
             </div>
-            
+
             <!-- Related nodes -->
-            <div v-if="explanation.relatedNodes && explanation.relatedNodes.length > 0" class="explain-section">
+            <div
+              v-if="explanation.relatedNodes && explanation.relatedNodes.length > 0"
+              class="explain-section"
+            >
               <h5>Works well with</h5>
               <div class="related-nodes">
                 <div
@@ -165,7 +182,7 @@
                   class="related-node"
                   @click="$emit('select-node', related.type)"
                 >
-                  <img 
+                  <img
                     v-if="related.icon"
                     :src="`/node-icons/${related.icon}`"
                     :alt="related.name"
@@ -175,10 +192,10 @@
                 </div>
               </div>
             </div>
-            
+
             <!-- Documentation link -->
             <div v-if="explanation.documentationUrl" class="explain-footer">
-              <a 
+              <a
                 :href="explanation.documentationUrl"
                 target="_blank"
                 rel="noopener noreferrer"
@@ -208,7 +225,8 @@ export default {
 </script>
 
 <script setup lang="ts">
-import { ref, watch, computed, getCurrentInstance, toRef, onMounted } from 'vue';
+import { ref, watch, getCurrentInstance, toRef, onMounted } from 'vue';
+
 import IconStubs from './icons/IconStubs.vue';
 const IconHelp = IconStubs as any;
 const IconLoader = IconStubs as any;
@@ -265,21 +283,23 @@ const props = defineProps<{
   node: NodeInfo;
 }>();
 
-const emit = defineEmits<{
-  'select-node': [nodeType: string];
-}>();
+// const emit = defineEmits<{
+//   'select-node': [nodeType: string];
+// }>();
 
 // State
 const showExplanation = ref(false);
 // Bridge to Options API data() for setData compatibility
-let isLoading = ref(false);
-let error = ref('');
+const isLoading = ref(false);
+const error = ref('');
 onMounted(() => {
   const vm = getCurrentInstance()?.proxy as any;
   const data = vm?.$data as any;
   if (!data) return;
-  if (Object.prototype.hasOwnProperty.call(data, 'isLoading')) isLoading = toRef(data, 'isLoading') as any;
-  if (Object.prototype.hasOwnProperty.call(data, 'error')) error = toRef(data, 'error') as any;
+  if (Object.prototype.hasOwnProperty.call(data, 'isLoading'))
+    isLoading.value = toRef(data, 'isLoading') as any;
+  if (Object.prototype.hasOwnProperty.call(data, 'error'))
+    error.value = toRef(data, 'error') as any;
 });
 const explanation = ref<NodeExplanation | null>(null);
 const selectedExample = ref(0);
@@ -287,32 +307,55 @@ const selectedExample = ref(0);
 // Expose for setData in tests by defining properties on proxy
 const instance = getCurrentInstance();
 if (instance && instance.proxy) {
-  // @ts-ignore
+  // @ts-expect-error
   Object.defineProperty(instance.proxy, 'error', {
     get: () => error.value,
-    set: (v) => { error.value = v as any; },
+    set: (v) => {
+      error.value = v as any;
+    },
     configurable: true,
   });
-  // @ts-ignore
+  // @ts-expect-error
   Object.defineProperty(instance.proxy, 'isLoading', {
     get: () => isLoading.value,
-    set: (v) => { isLoading.value = v as any; },
+    set: (v) => {
+      isLoading.value = v as any;
+    },
+    configurable: true,
+  });
+  // @ts-expect-error
+  Object.defineProperty(instance.proxy, 'explanation', {
+    get: () => explanation.value,
+    set: (v) => {
+      explanation.value = v as any;
+    },
     configurable: true,
   });
 }
 
+// Toggle explanation popup and fetch explanation if needed
+async function toggleExplanation(): Promise<void> {
+  if (!showExplanation.value) {
+    showExplanation.value = true;
+    if (!explanation.value) {
+      await fetchExplanation();
+    }
+  } else {
+    showExplanation.value = false;
+  }
+}
+
 // Generate explanation for the node
-async function fetchExplanation() {
+async function fetchExplanation(): Promise<void> {
   isLoading.value = true;
   error.value = '';
-  
+
   try {
     // In real implementation, this would call an AI service
     // For now, generate based on node type
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+
     explanation.value = generateExplanation(props.node);
-    
   } catch (err: any) {
     error.value = err.message || 'Failed to generate explanation';
   } finally {
@@ -323,11 +366,12 @@ async function fetchExplanation() {
 // Generate explanation based on node type (mock implementation)
 function generateExplanation(node: NodeInfo): NodeExplanation {
   const nodeType = node.type.split('.').pop() || '';
-  
+
   // Base explanations for common nodes
   const explanations: Record<string, Partial<NodeExplanation>> = {
     httpRequest: {
-      summary: 'Makes HTTP requests to external APIs or webhooks. It can send GET, POST, PUT, DELETE, and other HTTP methods with custom headers, query parameters, and body data.',
+      summary:
+        'Makes HTTP requests to external APIs or webhooks. It can send GET, POST, PUT, DELETE, and other HTTP methods with custom headers, query parameters, and body data.',
       inputs: [
         {
           type: 'Main',
@@ -372,7 +416,8 @@ function generateExplanation(node: NodeInfo): NodeExplanation {
       documentationUrl: 'https://docs.n8n.io/nodes/n8n-nodes-base.httpRequest/',
     },
     webhook: {
-      summary: 'Creates an endpoint that listens for incoming HTTP requests. When a request is received, it triggers the workflow to run.',
+      summary:
+        'Creates an endpoint that listens for incoming HTTP requests. When a request is received, it triggers the workflow to run.',
       outputs: [
         {
           type: 'Main',
@@ -383,16 +428,22 @@ function generateExplanation(node: NodeInfo): NodeExplanation {
         {
           title: 'Webhook Not Receiving Data',
           description: 'The webhook URL is not being called',
-          solution: 'Ensure the webhook URL is correctly configured in your external service and the workflow is active',
+          solution:
+            'Ensure the webhook URL is correctly configured in your external service and the workflow is active',
         },
       ],
       relatedNodes: [
-        { type: 'n8n-nodes-base.respondToWebhook', name: 'Respond to Webhook', icon: 'webhook.svg' },
+        {
+          type: 'n8n-nodes-base.respondToWebhook',
+          name: 'Respond to Webhook',
+          icon: 'webhook.svg',
+        },
       ],
       documentationUrl: 'https://docs.n8n.io/nodes/n8n-nodes-base.webhook/',
     },
     set: {
-      summary: 'Sets or modifies values in your workflow data. Use it to add new fields, rename existing ones, or transform data structure.',
+      summary:
+        'Sets or modifies values in your workflow data. Use it to add new fields, rename existing ones, or transform data structure.',
       inputs: [
         {
           type: 'Main',
@@ -420,12 +471,12 @@ function generateExplanation(node: NodeInfo): NodeExplanation {
       documentationUrl: 'https://docs.n8n.io/nodes/n8n-nodes-base.set/',
     },
   };
-  
+
   // Get base explanation or generate generic one
   const baseExplanation = explanations[nodeType] || {
     summary: `This is a ${node.name || nodeType} node. It performs operations as configured in its parameters.`,
   };
-  
+
   // Add current configuration
   const configuration: NodeExplanation['configuration'] = [];
   if (node.parameters) {
@@ -439,7 +490,7 @@ function generateExplanation(node: NodeInfo): NodeExplanation {
       }
     }
   }
-  
+
   return {
     ...baseExplanation,
     configuration: configuration.length > 0 ? configuration : undefined,
@@ -450,7 +501,7 @@ function generateExplanation(node: NodeInfo): NodeExplanation {
 function formatParameterName(name: string): string {
   return name
     .replace(/([A-Z])/g, ' $1')
-    .replace(/^./, str => str.toUpperCase())
+    .replace(/^./, (str) => str.toUpperCase())
     .trim();
 }
 
@@ -469,7 +520,7 @@ function getParameterDescription(nodeType: string, param: string, value: any): s
       responseMode: 'When to send the response back',
     },
   };
-  
+
   return descriptions[nodeType]?.[param];
 }
 
@@ -488,7 +539,7 @@ function formatValue(value: any): string {
 }
 
 // Handle icon loading errors
-function handleIconError(event: Event) {
+function handleIconError(event: Event): void {
   (event.target as HTMLImageElement).src = '/node-icons/default.svg';
 }
 
@@ -500,11 +551,14 @@ watch(showExplanation, (isShown) => {
 });
 
 // Reset when node changes
-watch(() => props.node.id, () => {
-  explanation.value = null;
-  selectedExample.value = 0;
-  error.value = '';
-});
+watch(
+  () => props.node.id,
+  () => {
+    explanation.value = null;
+    selectedExample.value = 0;
+    error.value = '';
+  },
+);
 </script>
 
 <style scoped>
@@ -924,6 +978,8 @@ watch(() => props.node.id, () => {
 }
 
 @keyframes spin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 </style>
