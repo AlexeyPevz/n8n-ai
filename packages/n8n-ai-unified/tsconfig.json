@@ -12,6 +12,7 @@
     "esModuleInterop": true,
     "paths": {
       "@n8n-ai/schemas": ["../n8n-ai-schemas/src"],
+      "@n8n-ai/hooks": ["../n8n-ai-hooks/dist"],
       "@n8n-ai/orchestrator/*": ["../n8n-ai-orchestrator/*"]
     }
   },

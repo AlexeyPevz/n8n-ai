@@ -2,15 +2,15 @@
   <div class="cost-tooltip-container">
     <!-- Cost indicator -->
     <div
-      @mouseenter="showTooltip = true"
-      @mouseleave="showTooltip = false"
       class="cost-indicator"
       :class="costLevel"
+      @mouseenter="showTooltip = true"
+      @mouseleave="showTooltip = false"
     >
       <IconDollar />
       <span class="cost-value">{{ formatCost(totalCost) }}</span>
     </div>
-    
+
     <!-- Tooltip -->
     <transition name="tooltip">
       <div
@@ -22,14 +22,13 @@
           <h4>Execution Cost Breakdown</h4>
           <span class="cost-total">{{ formatCost(totalCost, true) }}</span>
         </div>
-        
+
         <!-- Cost breakdown by type -->
         <div class="cost-breakdown">
           <div
-            v-for="item in costBreakdown"
-            :key="item.type"
-            class="cost-item"
-          >
+v-for="item in costBreakdown" :key="item.type"
+class="cost-item"
+>
             <div class="cost-item-header">
               <span class="cost-type">
                 <component :is="item.icon" class="cost-icon" />
@@ -37,18 +36,17 @@
               </span>
               <span class="cost-amount">{{ formatCost(item.amount) }}</span>
             </div>
-            
+
             <div v-if="item.details" class="cost-details">
               <div
-                v-for="(detail, index) in item.details"
-                :key="index"
-                class="detail-row"
-              >
+v-for="(detail, index) in item.details" :key="index"
+class="detail-row"
+>
                 <span class="detail-label">{{ detail.label }}</span>
                 <span class="detail-value">{{ detail.value }}</span>
               </div>
             </div>
-            
+
             <div
               v-if="item.amount > 0"
               class="cost-bar"
@@ -56,7 +54,7 @@
             />
           </div>
         </div>
-        
+
         <!-- Optimization suggestions -->
         <div v-if="optimizations.length > 0" class="cost-optimizations">
           <h5>
@@ -65,9 +63,8 @@
           </h5>
           <ul>
             <li
-              v-for="(tip, index) in optimizations"
-              :key="index"
-            >
+v-for="(tip, index) in optimizations" :key="index"
+>
               {{ tip.text }}
               <span v-if="tip.savings" class="savings">
                 (Save ~{{ formatCost(tip.savings) }})
@@ -75,7 +72,7 @@
             </li>
           </ul>
         </div>
-        
+
         <!-- Historical comparison -->
         <div v-if="historicalData" class="cost-history">
           <div class="history-item">
@@ -93,16 +90,14 @@
             </span>
           </div>
         </div>
-        
+
         <!-- Pricing info -->
         <div class="pricing-info">
           <p>
             <IconInfo />
             Costs are estimated based on current pricing. Actual costs may vary.
           </p>
-          <a href="#" @click.prevent="$emit('show-pricing')">
-            View pricing details →
-          </a>
+          <a href="#" @click.prevent="$emit('show-pricing')"> View pricing details → </a>
         </div>
       </div>
     </transition>
@@ -111,6 +106,7 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue';
+
 import IconStubs from './icons/IconStubs.vue';
 const IconDollar = IconStubs as any;
 const IconCloud = IconStubs as any;
@@ -154,9 +150,9 @@ const props = defineProps<{
   position?: 'above' | 'below';
 }>();
 
-const emit = defineEmits<{
-  'show-pricing': [];
-}>();
+// const emit = defineEmits<{
+//   'show-pricing': [];
+// }>();
 
 // State
 const showTooltip = ref(false);
@@ -166,13 +162,13 @@ const costRates = {
   // API calls
   httpRequest: 0.0001, // $0.0001 per request
   webhook: 0.00005, // $0.00005 per webhook
-  
+
   // Compute
   executionTime: 0.00001, // $0.00001 per second
-  
+
   // Data
   dataTransfer: 0.00000001, // $0.00000001 per byte
-  
+
   // LLM tokens (per 1K tokens)
   'gpt-4': 0.03,
   'gpt-3.5-turbo': 0.002,
@@ -183,29 +179,29 @@ const costRates = {
 // Computed
 const totalCost = computed(() => {
   let total = 0;
-  
+
   // API calls cost
   if (props.cost.apiCalls) {
     total += props.cost.apiCalls * costRates.httpRequest;
   }
-  
+
   // Execution time cost
   if (props.cost.executionTime) {
     total += (props.cost.executionTime / 1000) * costRates.executionTime;
   }
-  
+
   // Data transfer cost
   if (props.cost.dataProcessed) {
     total += props.cost.dataProcessed * costRates.dataTransfer;
   }
-  
+
   // LLM tokens cost
   if (props.cost.llmTokens) {
     const rate = costRates[props.cost.llmTokens.model as keyof typeof costRates] || 0.01;
     const totalTokens = props.cost.llmTokens.prompt + props.cost.llmTokens.completion;
     total += (totalTokens / 1000) * rate;
   }
-  
+
   return total;
 });
 
@@ -217,7 +213,7 @@ const costLevel = computed(() => {
 
 const costBreakdown = computed(() => {
   const breakdown = [];
-  
+
   // API Calls
   if (props.cost.apiCalls) {
     breakdown.push({
@@ -231,7 +227,7 @@ const costBreakdown = computed(() => {
       ],
     });
   }
-  
+
   // Compute
   if (props.cost.executionTime) {
     const seconds = props.cost.executionTime / 1000;
@@ -246,7 +242,7 @@ const costBreakdown = computed(() => {
       ],
     });
   }
-  
+
   // Data
   if (props.cost.dataProcessed) {
     const mb = props.cost.dataProcessed / (1024 * 1024);
@@ -261,7 +257,7 @@ const costBreakdown = computed(() => {
       ],
     });
   }
-  
+
   // AI/LLM
   if (props.cost.llmTokens) {
     const { prompt, completion, model } = props.cost.llmTokens;
@@ -280,7 +276,7 @@ const costBreakdown = computed(() => {
       ],
     });
   }
-  
+
   // Preserve a stable order (API, Compute, Data, AI) to satisfy tests that
   // inspect the first detail row without filtering by type.
   return breakdown;
@@ -288,7 +284,7 @@ const costBreakdown = computed(() => {
 
 const optimizations = computed((): Optimization[] => {
   const tips: Optimization[] = [];
-  
+
   // Check for expensive API calls
   if (props.cost.apiCalls && props.cost.apiCalls > 10) {
     tips.push({
@@ -296,7 +292,7 @@ const optimizations = computed((): Optimization[] => {
       savings: props.cost.apiCalls * costRates.httpRequest * 0.3,
     });
   }
-  
+
   // Check for long execution time
   if (props.cost.executionTime && props.cost.executionTime > 30000) {
     tips.push({
@@ -304,7 +300,7 @@ const optimizations = computed((): Optimization[] => {
       savings: (props.cost.executionTime / 1000) * costRates.executionTime * 0.2,
     });
   }
-  
+
   // Check for large data processing
   if (props.cost.dataProcessed && props.cost.dataProcessed > 10 * 1024 * 1024) {
     tips.push({
@@ -312,25 +308,25 @@ const optimizations = computed((): Optimization[] => {
       savings: props.cost.dataProcessed * costRates.dataTransfer * 0.4,
     });
   }
-  
+
   // Check for expensive LLM usage
   if (props.cost.llmTokens) {
     const { model, prompt, completion } = props.cost.llmTokens;
-    
-    if (model === 'gpt-4' && (prompt + completion) > 1000) {
+
+    if (model === 'gpt-4' && prompt + completion > 1000) {
       tips.push({
         text: 'Consider using GPT-3.5 for this task to reduce costs',
         savings: ((prompt + completion) / 1000) * (costRates['gpt-4'] - costRates['gpt-3.5-turbo']),
       });
     }
-    
+
     if (prompt > completion * 2) {
       tips.push({
         text: 'Large prompt detected. Consider caching or reducing context',
       });
     }
   }
-  
+
   return tips.slice(0, 3); // Show max 3 tips
 });
 
@@ -346,9 +342,9 @@ const percentageChange = computed(() => {
 // Methods
 function formatCost(amount: number, includeSign = false): string {
   if (amount === 0) return includeSign ? '$0.00' : '0';
-  
+
   const prefix = includeSign ? '$' : '';
-  
+
   if (amount < 0.01) {
     return `${prefix}<0.01`;
   } else if (amount < 1) {

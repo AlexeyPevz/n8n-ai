@@ -1,13 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import {
-  NodeSchema,
-  GraphSchema,
-  OperationBatchSchema,
-  OperationAddNode,
-  OperationConnect,
-  OperationAnnotate,
-  LintSchema,
-} from './index';
+
+import { NodeSchema, GraphSchema, OperationBatchSchema, LintSchema } from './index';
 
 describe('NodeSchema', () => {
   it('should validate correct node', () => {

@@ -7,17 +7,17 @@
  * @param ms Milliseconds to delay
  */
 export const delay = (ms: number): Promise<void> => {
-  return new Promise(resolve => setTimeout(resolve, ms));
-}
+  return new Promise((resolve) => setTimeout(resolve, ms));
+};
 
 /**
  * Wait for next tick in Vue
  */
 export const nextTick = (): Promise<void> => {
-  return new Promise(resolve => {
+  return new Promise((resolve) => {
     setTimeout(resolve, 0);
   });
-}
+};
 
 /**
  * Type-safe wrapper access for Vue test utils

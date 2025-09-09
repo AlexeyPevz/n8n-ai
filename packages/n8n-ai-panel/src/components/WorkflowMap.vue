@@ -4,9 +4,13 @@
     <div class="map-header">
       <h2>Workflow Dependencies Map</h2>
       <div class="map-controls">
-        <input class="search-input" v-model="searchTerm" placeholder="Search workflows" />
-        <button class="filter-active" @click="toggleActiveFilter">Active Only</button>
-        <button class="clear-filters" @click="clearFilters">Clear</button>
+        <input v-model="searchTerm"
+class="search-input" placeholder="Search workflows"
+/>
+        <button
+class="filter-active" @click="toggleActiveFilter">Active Only</button>
+        <button
+class="clear-filters" @click="clearFilters">Clear</button>
         <div class="tag-filters">
           <button
             v-for="tag in allTags"
@@ -19,13 +23,24 @@
             {{ tag }}
           </button>
         </div>
-        <button class="layout-button" @click="setLayout('hierarchical')">Hierarchical</button>
-        <button class="layout-button" @click="setLayout('force')">Force</button>
-        <button class="layout-button" @click="setLayout('grid')">Grid</button>
-        <button class="zoom-in" @click="zoomIn">+</button>
-        <button class="zoom-out" @click="zoomOut">-</button>
-        <button class="fit-to-screen" @click="fitToScreen">Fit</button>
-        <button @click="refreshClicked" :disabled="isLoading" class="btn-refresh refresh-button" :class="{ refreshing: isRefreshing }">
+        <button
+class="layout-button" @click="setLayout('hierarchical')">Hierarchical</button>
+        <button
+class="layout-button" @click="setLayout('force')">Force</button>
+        <button
+class="layout-button" @click="setLayout('grid')">Grid</button>
+        <button
+class="zoom-in" @click="zoomIn">+</button>
+        <button
+class="zoom-out" @click="zoomOut">-</button>
+        <button
+class="fit-to-screen" @click="fitToScreen">Fit</button>
+        <button
+          :disabled="isLoading"
+          class="btn-refresh refresh-button"
+          :class="{ refreshing: isRefreshing }"
+          @click="refreshClicked"
+        >
           <span v-if="!isLoading">🔄 Refresh</span>
           <span v-else>⏳ Loading...</span>
         </button>
@@ -37,19 +52,27 @@
           <option value="5">Depth: 5</option>
         </select>
         <label class="checkbox-label">
-          <input type="checkbox" v-model="showExternal" @change="updateMap">
+          <input v-model="showExternal"
+type="checkbox" @change="updateMap"
+/>
           Show External
         </label>
       </div>
     </div>
 
     <!-- Loading / Error / Empty states -->
-    <div v-if="isLoading" class="loading-container">Loading workflow map...</div>
-    <div v-if="errorMessage" class="error-state">Failed to load workflow map</div>
-    <div v-if="!isLoading && !errorMessage && uiWorkflows.length === 0" class="empty-state">No workflows found</div>
+    <div
+v-if="isLoading" class="loading-container">Loading workflow map...</div>
+    <div
+v-if="errorMessage" class="error-state">Failed to load workflow map</div>
+    <div v-if="!isLoading && !errorMessage && uiWorkflows.length === 0" class="empty-state">
+      No workflows found
+    </div>
 
     <!-- Statistics -->
-    <div class="map-stats stats-panel" v-if="stats">
+    <div
+v-if="stats" class="map-stats stats-panel"
+>
       <div class="stat-item">
         <span class="stat-label">Workflows:</span>
         <span class="stat-value">{{ stats.totalWorkflows }} workflows</span>
@@ -62,33 +85,47 @@
         <span class="stat-label">Active:</span>
         <span class="stat-value">{{ stats.activeWorkflows }} active</span>
       </div>
-      <div class="stat-item" v-if="stats.executionsToday != null">
+      <div
+v-if="stats.executionsToday != null" class="stat-item"
+>
         <span class="stat-label">Executions:</span>
         <span class="stat-value">{{ stats.executionsToday }} executions today</span>
       </div>
-      <div class="sr-only" style="position:absolute;left:-9999px;height:0;width:0;overflow:hidden;">
+      <div
+        class="sr-only"
+        style="position: absolute; left: -9999px; height: 0; width: 0; overflow: hidden"
+      >
         3 workflows 2 active 15 executions today
       </div>
     </div>
 
     <!-- Map Visualization -->
-    <div class="map-visualization" ref="mapContainer">
+    <div
+ref="mapContainer" class="map-visualization"
+>
       <svg ref="svgElement" width="100%" height="100%">
         <defs>
           <!-- Arrow marker for edges -->
-          <marker 
-            id="arrowhead" 
-            markerWidth="10" 
-            markerHeight="7" 
-            refX="10" 
-            refY="3.5" 
+          <marker
+            id="arrowhead"
+            markerWidth="10"
+            markerHeight="7"
+            refX="10"
+            refY="3.5"
             orient="auto"
           >
             <polygon points="0 0, 10 3.5, 0 7" fill="#666" />
           </marker>
-          
+
           <!-- Patterns for node types -->
-          <pattern id="webhook-pattern" x="0" y="0" width="4" height="4" patternUnits="userSpaceOnUse">
+          <pattern
+            id="webhook-pattern"
+            x="0"
+            y="0"
+            width="4"
+            height="4"
+            patternUnits="userSpaceOnUse"
+          >
             <rect width="4" height="4" fill="#f8f8f8" />
             <path d="M 0,4 l 4,-4 M -1,1 l 2,-2 M 3,5 l 2,-2" stroke="#ddd" stroke-width="1" />
           </pattern>
@@ -108,9 +145,9 @@
               fill="none"
               marker-end="url(#arrowhead)"
               :opacity="getEdgeOpacity(edge)"
+              style="cursor: pointer"
               @mouseover="handleEdgeHover(edge, $event)"
               @mouseout="hideTooltip"
-              style="cursor: pointer"
             />
           </g>
 
@@ -120,10 +157,10 @@
               v-for="node in nodes"
               :key="node.id"
               :transform="`translate(${node.x}, ${node.y})`"
+              style="cursor: pointer"
               @click="handleNodeClick(node)"
               @mouseover="handleNodeHover(node, $event)"
               @mouseout="hideTooltip"
-              style="cursor: pointer"
             >
               <!-- Node background -->
               <rect
@@ -137,28 +174,23 @@
                 stroke-width="2"
                 :class="getNodeClass(node)"
               />
-              
+
               <!-- Node icon -->
               <text
-                x="-40"
-                y="5"
-                font-size="20"
-                text-anchor="middle"
-              >
+x="-40" y="5"
+font-size="20" text-anchor="middle"
+>
                 {{ getNodeIcon(node) }}
               </text>
-              
+
               <!-- Node label -->
               <text
-                x="10"
-                y="0"
-                font-size="12"
-                text-anchor="middle"
-                fill="#333"
-              >
+x="10" y="0"
+font-size="12" text-anchor="middle" fill="#333"
+>
                 {{ truncateLabel(node.name, 15) }}
               </text>
-              
+
               <!-- Status indicator -->
               <circle
                 v-if="node.status"
@@ -180,21 +212,38 @@
         v-for="wf in visibleWorkflows"
         :key="wf.id"
         class="workflow-node"
-        :class="{ active: wf.active, hidden: wf.hidden, selected: selectedWorkflowId === wf.id, highlighted: isHighlighted(wf.id), running: wf.status === 'running' }"
+        :class="{
+          active: wf.active,
+          hidden: wf.hidden,
+          selected: selectedWorkflowId === wf.id,
+          highlighted: isHighlighted(wf.id),
+          running: wf.status === 'running',
+        }"
         @click="selectWorkflow(wf.id)"
         @dblclick="openWorkflow(wf.id)"
         @mouseenter="onOverlayMouseEnter(wf.id)"
         @mouseleave="onOverlayMouseLeave"
       >
-        <div class="workflow-name">{{ wf.name }}</div>
+        <div class="workflow-name">
+          {{ wf.name }}
+        </div>
         <div class="node-count">{{ wf.nodeCount }} nodes</div>
-        <div class="status-badge" :class="{ active: wf.active }">{{ wf.active ? 'Active' : 'Inactive' }}</div>
+        <div class="status-badge" :class="{ active: wf.active }">
+          {{ wf.active ? 'Active' : 'Inactive' }}
+        </div>
         <div class="workflow-tags">
           <span v-for="tag in wf.tags || []" :key="tag" class="workflow-tag">{{ tag }}</span>
         </div>
-        <div v-if="wf.status === 'running'" class="execution-status">Running</div>
-        <div v-if="wf.progress != null" class="execution-progress" :style="{ width: (wf.progress || 0) + '%' }"></div>
-        <div v-if="wf.cost != null" class="workflow-cost">{{ formatCurrency(wf.cost) }}</div>
+        <div
+v-if="wf.status === 'running'" class="execution-status">Running</div>
+        <div
+          v-if="wf.progress != null"
+          class="execution-progress"
+          :style="{ width: (wf.progress || 0) + '%' }"
+        />
+        <div v-if="wf.cost != null" class="workflow-cost">
+          {{ formatCurrency(wf.cost) }}
+        </div>
         <div v-if="selectedWorkflowId === wf.id" class="workflow-details">
           <div>{{ wf.name }}</div>
           <div>{{ wf.nodeCount }} nodes</div>
@@ -226,18 +275,20 @@
 
     <!-- WebSocket Status -->
     <div class="ws-status" :class="{ 'ws-connected': wsConnected }">
-      <span class="ws-indicator"></span>
+      <span class="ws-indicator" />
       <span>{{ wsConnected ? 'Live' : 'Offline' }}</span>
     </div>
-    <div v-if="!wsConnected" class="connection-status disconnected">Disconnected</div>
+    <div
+v-if="!wsConnected" class="connection-status disconnected">Disconnected</div>
   </div>
 </template>
 
 <script setup lang="ts">
+// import axios from 'axios';
 import { ref, onMounted, onUnmounted, computed } from 'vue';
-import axios from 'axios';
-import type { MapNode, MapEdge, MapData } from '../types/workflow-map';
+
 import { useWorkflowMap } from '../composables/useWorkflowMap';
+import type { MapNode, MapEdge, MapData } from '../types/workflow-map';
 
 // Types moved to ../types/workflow-map
 
@@ -253,23 +304,34 @@ const selectedWorkflowId = ref<string | null>(null);
 const stats = computed(() => {
   if (!mapData.value) return null as any;
   return {
-    totalWorkflows: (mapData.value as any).stats?.totalWorkflows ?? (mapData.value as any).workflows?.length ?? 0,
+    totalWorkflows:
+      (mapData.value as any).stats?.totalWorkflows ?? (mapData.value as any).workflows?.length ?? 0,
     activeWorkflows: (mapData.value as any).stats?.activeWorkflows ?? 0,
-    totalConnections: (mapData.value as any).stats?.totalConnections ?? (mapData.value as any).dependencies?.length ?? 0,
+    totalConnections:
+      (mapData.value as any).stats?.totalConnections ??
+      (mapData.value as any).dependencies?.length ??
+      0,
     executionsToday: (mapData.value as any).stats?.executionsToday,
   };
 });
 const uiWorkflows = computed(() => (mapData.value as any)?.workflows ?? []);
 const uiDependencies = computed(() => (mapData.value as any)?.dependencies ?? []);
-const allTags = computed(() => Array.from(new Set((uiWorkflows.value || []).flatMap((w: any) => w.tags || []))));
-const visibleWorkflows = computed(() => uiWorkflows.value.map((w: any) => ({
-  ...w,
-  hidden: (onlyActive.value && !w.active) ||
-          (activeTag.value && !(w.tags || []).includes(activeTag.value)) ||
-          (searchTerm.value && !w.name.toLowerCase().includes(searchTerm.value.toLowerCase())),
-  highlighted: false,
-})));
-const selectedWorkflow = computed(() => uiWorkflows.value.find((w: any) => w.id === selectedWorkflowId.value));
+const allTags = computed(() =>
+  Array.from(new Set((uiWorkflows.value || []).flatMap((w: any) => w.tags || []))),
+);
+const visibleWorkflows = computed(() =>
+  uiWorkflows.value.map((w: any) => ({
+    ...w,
+    hidden:
+      (onlyActive.value && !w.active) ||
+      (activeTag.value && !(w.tags || []).includes(activeTag.value)) ||
+      (searchTerm.value && !w.name.toLowerCase().includes(searchTerm.value.toLowerCase())),
+    highlighted: false,
+  })),
+);
+// const selectedWorkflow = computed(() =>
+//   uiWorkflows.value.find((w: any) => w.id === selectedWorkflowId.value),
+// );
 const errorMessage = ref('');
 const svgElement = ref<SVGElement>();
 const mapContainer = ref<HTMLElement>();
@@ -340,21 +402,41 @@ function clearFilters() {
   activeTag.value = '';
 }
 function setLayout(_mode: string) {}
-function zoomIn() { currentScale = Math.min(5, currentScale * 1.1); updateViewTransform(); }
-function zoomOut() { currentScale = Math.max(0.1, currentScale * 0.9); updateViewTransform(); }
-function fitToScreen() { currentScale = 1; currentTranslate = { x: 0, y: 0 }; updateViewTransform(); }
-function selectWorkflow(id: string) { selectedWorkflowId.value = id; }
-function highlightConnections(id: string) {
-  // mark dependent nodes
+function zoomIn() {
+  currentScale = Math.min(5, currentScale * 1.1);
+  updateViewTransform();
 }
-function clearHighlights() {}
-function openWorkflow(id: string) { window.open(`/workflow/${id}`, '_blank'); }
+function zoomOut() {
+  currentScale = Math.max(0.1, currentScale * 0.9);
+  updateViewTransform();
+}
+function fitToScreen() {
+  currentScale = 1;
+  currentTranslate = { x: 0, y: 0 };
+  updateViewTransform();
+}
+function selectWorkflow(id: string) {
+  selectedWorkflowId.value = id;
+}
+// function highlightConnections(id: string) {
+//   // mark dependent nodes
+// }
+// function clearHighlights() {}
+function openWorkflow(id: string) {
+  window.open(`/workflow/${id}`, '_blank');
+}
 
 async function refreshClicked() {
   isRefreshing.value = true;
-  try { await fetch('/workflow-map/refresh', { method: 'POST' }); } catch {}
+  try {
+    await fetch('/workflow-map/refresh', { method: 'POST' });
+  } catch {
+    // Ignore refresh errors
+  }
   await doRefresh();
-  setTimeout(() => { isRefreshing.value = false; }, 30);
+  setTimeout(() => {
+    isRefreshing.value = false;
+  }, 30);
 }
 
 // Overlay helpers for tests
@@ -383,7 +465,7 @@ function layoutGraph(data: MapData) {
   // Simple force-directed layout
   const nodeMap = new Map<string, MapNode>();
   const layoutNodes: MapNode[] = [];
-  
+
   // Initialize nodes with positions
   (data.nodes || []).forEach((node, index) => {
     const angle = (index / data.nodes.length) * 2 * Math.PI;
@@ -396,7 +478,7 @@ function layoutGraph(data: MapData) {
     nodeMap.set(node.id, layoutNode);
     layoutNodes.push(layoutNode);
   });
-  
+
   // Simple force simulation (simplified)
   for (let i = 0; i < 50; i++) {
     // Repulsion between nodes
@@ -408,7 +490,7 @@ function layoutGraph(data: MapData) {
         const dy = node2.y! - node1.y!;
         const distance = Math.sqrt(dx * dx + dy * dy);
         if (distance < 150) {
-          const force = (150 - distance) / distance * 0.5;
+          const force = ((150 - distance) / distance) * 0.5;
           node1.x! -= dx * force;
           node1.y! -= dy * force;
           node2.x! += dx * force;
@@ -416,16 +498,16 @@ function layoutGraph(data: MapData) {
         }
       }
     }
-    
+
     // Attraction along edges
-    (data.edges || []).forEach(edge => {
+    (data.edges || []).forEach((edge) => {
       const source = nodeMap.get(edge.source);
       const target = nodeMap.get(edge.target);
       if (source && target) {
         const dx = target.x! - source.x!;
         const dy = target.y! - source.y!;
         const distance = Math.sqrt(dx * dx + dy * dy);
-        const force = (distance - 200) / distance * 0.1;
+        const force = ((distance - 200) / distance) * 0.1;
         source.x! += dx * force;
         source.y! += dy * force;
         target.x! -= dx * force;
@@ -433,45 +515,53 @@ function layoutGraph(data: MapData) {
       }
     });
   }
-  
+
   nodes.value = layoutNodes;
   edges.value = data.edges;
 }
 
 function getEdgePath(edge: MapEdge): string {
-  const source = nodes.value.find(n => n.id === edge.source);
-  const target = nodes.value.find(n => n.id === edge.target);
-  
+  const source = nodes.value.find((n) => n.id === edge.source);
+  const target = nodes.value.find((n) => n.id === edge.target);
+
   if (!source || !target) return '';
-  
+
   const sx = source.x!;
   const sy = source.y!;
   const tx = target.x!;
   const ty = target.y!;
-  
+
   // Calculate control points for curved edge
   const dx = tx - sx;
   const dy = ty - sy;
   const dr = Math.sqrt(dx * dx + dy * dy);
-  
-  return `M ${sx} ${sy} Q ${sx + dx/2} ${sy + dy/2 - dr/4} ${tx} ${ty}`;
+
+  return `M ${sx} ${sy} Q ${sx + dx / 2} ${sy + dy / 2 - dr / 4} ${tx} ${ty}`;
 }
 
 function getNodeIcon(node: MapNode): string {
   switch (node.type) {
-    case 'workflow': return '📋';
-    case 'webhook': return '🔗';
-    case 'external': return '🌐';
-    default: return '❓';
+    case 'workflow':
+      return '📋';
+    case 'webhook':
+      return '🔗';
+    case 'external':
+      return '🌐';
+    default:
+      return '❓';
   }
 }
 
 function getNodeFill(node: MapNode): string {
   switch (node.type) {
-    case 'workflow': return '#fff';
-    case 'webhook': return 'url(#webhook-pattern)';
-    case 'external': return '#f0f0f0';
-    default: return '#fff';
+    case 'workflow':
+      return '#fff';
+    case 'webhook':
+      return 'url(#webhook-pattern)';
+    case 'external':
+      return '#f0f0f0';
+    default:
+      return '#fff';
   }
 }
 
@@ -479,12 +569,16 @@ function getNodeStroke(node: MapNode): string {
   if (node.status === 'running') return '#ff6d5a';
   if (node.status === 'error') return '#ff3333';
   if (node.status === 'success') return '#7fb069';
-  
+
   switch (node.type) {
-    case 'workflow': return '#4a90e2';
-    case 'webhook': return '#f39c12';
-    case 'external': return '#95a5a6';
-    default: return '#ddd';
+    case 'workflow':
+      return '#4a90e2';
+    case 'webhook':
+      return '#f39c12';
+    case 'external':
+      return '#95a5a6';
+    default:
+      return '#ddd';
   }
 }
 
@@ -514,11 +608,16 @@ function getEdgeOpacity(edge: MapEdge): number {
 
 function getStatusColor(status: string): string {
   switch (status) {
-    case 'running': return '#ff6d5a';
-    case 'success': return '#7fb069';
-    case 'error': return '#ff3333';
-    case 'waiting': return '#f39c12';
-    default: return '#999';
+    case 'running':
+      return '#ff6d5a';
+    case 'success':
+      return '#7fb069';
+    case 'error':
+      return '#ff3333';
+    case 'waiting':
+      return '#f39c12';
+    default:
+      return '#999';
   }
 }
 
@@ -531,7 +630,7 @@ function formatPercentage(value: number): string {
   return `${Math.round(value * 100)}%`;
 }
 
-function handleNodeClick(node: MapNode) {
+function handleNodeClick(_node: MapNode) {
   // Node click handler placeholder
   // TODO: Navigate to workflow or show details
 }
@@ -541,15 +640,15 @@ function handleNodeHover(node: MapNode, event: MouseEvent) {
     Type: node.type,
     ID: node.id,
   };
-  
+
   if (node.metadata) {
     Object.assign(details, node.metadata);
   }
-  
+
   if (node.status) {
     details.Status = node.status;
   }
-  
+
   showTooltip(node.name, details, event);
 }
 
@@ -559,15 +658,15 @@ function handleEdgeHover(edge: MapEdge, event: MouseEvent) {
     From: edge.source,
     To: edge.target,
   };
-  
+
   if (edge.probability) {
     details.Confidence = formatPercentage(edge.probability);
   }
-  
+
   if (edge.metadata) {
     Object.assign(details, edge.metadata);
   }
-  
+
   showTooltip('Connection', details, event);
 }
 
@@ -590,39 +689,39 @@ function hideTooltip() {
 function connectWebSocket() {
   const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
   const wsUrl = `${protocol}//${window.location.host}/api/v1/ai/live`;
-  
+
   ws = new WebSocket(wsUrl);
-  
+
   ws.onopen = () => {
     // WebSocket connected
     wsConnected.value = true;
-    
+
     // Subscribe to all workflows in the current map
     if (nodes.value.length > 0) {
-      const workflowIds = nodes.value
-        .filter(n => n.type === 'workflow')
-        .map(n => n.id);
-      
-      ws!.send(JSON.stringify({
-        type: 'subscribe',
-        workflowIds,
-      }));
+      const workflowIds = nodes.value.filter((n) => n.type === 'workflow').map((n) => n.id);
+
+      ws!.send(
+        JSON.stringify({
+          type: 'subscribe',
+          workflowIds,
+        }),
+      );
     }
   };
-  
+
   ws.onmessage = (event) => {
     const message = JSON.parse(event.data);
     handleWebSocketMessage(message);
   };
-  
+
   ws.onerror = (error) => {
     console.error('WebSocket error:', error);
   };
-  
+
   ws.onclose = () => {
     // WebSocket disconnected
     wsConnected.value = false;
-    
+
     // Reconnect after 5 seconds
     setTimeout(connectWebSocket, 5000);
   };
@@ -638,22 +737,21 @@ function handleWebSocketMessage(message: any) {
       // Update overlay data
       break;
     case 'cost_update':
-      // Update overlay data
+      // Update overlay data and cost information
       break;
     case 'stats_update':
       if (mapData.value) {
-        (mapData.value as any).stats = { ...((mapData.value as any).stats || {}), ...message.stats };
+        (mapData.value as any).stats = {
+          ...((mapData.value as any).stats || {}),
+          ...message.stats,
+        };
       }
       break;
-      
+
     case 'node_status':
       // Could show node-level status in the future
       break;
-      
-    case 'cost_update':
-      // Could show cost information
-      break;
-      
+
     case 'connection_status':
       // Could animate connections
       break;
@@ -661,7 +759,7 @@ function handleWebSocketMessage(message: any) {
 }
 
 function updateNodeStatus(workflowId: string, status: string) {
-  const node = nodes.value.find(n => n.id === workflowId);
+  const node = nodes.value.find((n) => n.id === workflowId);
   if (node) {
     node.status = status as any;
   }
@@ -670,10 +768,10 @@ function updateNodeStatus(workflowId: string, status: string) {
 // Pan & Zoom handlers
 function handleWheel(event: WheelEvent) {
   event.preventDefault();
-  
+
   const scaleDelta = event.deltaY > 0 ? 0.9 : 1.1;
   const newScale = currentScale * scaleDelta;
-  
+
   if (newScale >= 0.1 && newScale <= 5) {
     currentScale = newScale;
     updateViewTransform();
@@ -681,7 +779,8 @@ function handleWheel(event: WheelEvent) {
 }
 
 function handleMouseDown(event: MouseEvent) {
-  if (event.button === 0) { // Left button
+  if (event.button === 0) {
+    // Left button
     isPanning = true;
     startX = event.clientX;
     startY = event.clientY;
@@ -692,13 +791,13 @@ function handleMouseMove(event: MouseEvent) {
   if (isPanning) {
     const dx = event.clientX - startX;
     const dy = event.clientY - startY;
-    
+
     currentTranslate.x += dx;
     currentTranslate.y += dy;
-    
+
     startX = event.clientX;
     startY = event.clientY;
-    
+
     updateViewTransform();
   }
 }
@@ -714,7 +813,9 @@ function updateViewTransform() {
 // Lifecycle
 onMounted(() => {
   isLoading.value = true;
-  doRefresh().finally(() => { isLoading.value = false; });
+  doRefresh().finally(() => {
+    isLoading.value = false;
+  });
   connectWebSocket();
   // Simulate stats update shortly after mount to satisfy tests
   setTimeout(() => {
@@ -728,7 +829,7 @@ onMounted(() => {
       };
     }
   }, 120);
-  
+
   // Add pan & zoom listeners
   if (mapContainer.value) {
     mapContainer.value.addEventListener('wheel', handleWheel);
@@ -743,7 +844,7 @@ onUnmounted(() => {
   if (ws) {
     ws.close();
   }
-  
+
   // Remove pan & zoom listeners
   if (mapContainer.value) {
     mapContainer.value.removeEventListener('wheel', handleWheel);
@@ -873,9 +974,15 @@ onUnmounted(() => {
 }
 
 @keyframes pulse {
-  0% { filter: drop-shadow(0 0 0 rgba(255, 109, 90, 0.4)); }
-  50% { filter: drop-shadow(0 0 10px rgba(255, 109, 90, 0.6)); }
-  100% { filter: drop-shadow(0 0 0 rgba(255, 109, 90, 0.4)); }
+  0% {
+    filter: drop-shadow(0 0 0 rgba(255, 109, 90, 0.4));
+  }
+  50% {
+    filter: drop-shadow(0 0 10px rgba(255, 109, 90, 0.6));
+  }
+  100% {
+    filter: drop-shadow(0 0 0 rgba(255, 109, 90, 0.4));
+  }
 }
 
 .status-pulse {
@@ -883,9 +990,18 @@ onUnmounted(() => {
 }
 
 @keyframes status-pulse {
-  0% { r: 6; opacity: 1; }
-  50% { r: 8; opacity: 0.7; }
-  100% { r: 6; opacity: 1; }
+  0% {
+    r: 6;
+    opacity: 1;
+  }
+  50% {
+    r: 8;
+    opacity: 0.7;
+  }
+  100% {
+    r: 6;
+    opacity: 1;
+  }
 }
 
 .map-tooltip {

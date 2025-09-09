@@ -1,7 +1,9 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { mount } from '@vue/test-utils';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
+
+import { delay } from '../test-utils';
+
 import WorkflowMap from './WorkflowMap.vue';
-import { delay, getTypedWrapper } from '../test-utils';
 
 // Mock fetch
 global.fetch = vi.fn();
@@ -66,7 +68,7 @@ describe('WorkflowMap', () => {
 
       expect(global.fetch).toHaveBeenCalledWith(
         expect.stringContaining('/workflow-map'),
-        expect.any(Object)
+        expect.any(Object),
       );
     });
 
@@ -82,14 +84,14 @@ describe('WorkflowMap', () => {
 
       const nodes = wrapper.findAll('.workflow-node');
       expect(nodes).toHaveLength(2);
-      
+
       expect(nodes[0].text()).toContain('Main Workflow');
       expect(nodes[1].text()).toContain('Sub Workflow');
     });
 
     it('should handle loading errors', async () => {
       (global.fetch as any).mockRejectedValue(new Error('Network error'));
-      
+
       const errorWrapper = mount(WorkflowMap);
       await errorWrapper.vm.$nextTick();
       await delay(100);
@@ -134,7 +136,7 @@ describe('WorkflowMap', () => {
     it('should show workflow tags', () => {
       const tags = wrapper.findAll('.workflow-tag');
       expect(tags.length).toBeGreaterThan(0);
-      
+
       const tagTexts = tags.map((t: any) => t.text());
       expect(tagTexts).toContain('production');
       expect(tagTexts).toContain('utility');
@@ -176,14 +178,11 @@ describe('WorkflowMap', () => {
 
     it('should open workflow on double click', async () => {
       const openSpy = vi.spyOn(window, 'open').mockImplementation(() => null);
-      
+
       const node = wrapper.find('.workflow-node');
       await node.trigger('dblclick');
 
-      expect(openSpy).toHaveBeenCalledWith(
-        expect.stringContaining('/workflow/wf1'),
-        '_blank'
-      );
+      expect(openSpy).toHaveBeenCalledWith(expect.stringContaining('/workflow/wf1'), '_blank');
     });
   });
 
@@ -201,12 +200,12 @@ describe('WorkflowMap', () => {
       await delay(100);
 
       // Simulate WebSocket message
-      const statusUpdate = {
-        type: 'execution_status',
-        workflowId: 'wf1',
-        status: 'running',
-        startedAt: new Date().toISOString(),
-      };
+      // const statusUpdate = {
+      //   type: 'execution_status',
+      //   workflowId: 'wf1',
+      //   status: 'running',
+      //   startedAt: new Date().toISOString(),
+      // };
 
       // TODO: Fix vm access - wrapper.vm.handleWebSocketMessage({ data: JSON.stringify(statusUpdate) });
       await wrapper.vm.$nextTick();
@@ -220,12 +219,12 @@ describe('WorkflowMap', () => {
       await wrapper.vm.$nextTick();
       await delay(100);
 
-      const progressUpdate = {
-        type: 'execution_progress',
-        workflowId: 'wf1',
-        progress: 60,
-        currentNode: 'HTTP Request',
-      };
+      // const progressUpdate = {
+      //   type: 'execution_progress',
+      //   workflowId: 'wf1',
+      //   progress: 60,
+      //   currentNode: 'HTTP Request',
+      // };
 
       // TODO: Fix vm access - wrapper.vm.handleWebSocketMessage({ data: JSON.stringify(progressUpdate) });
       await wrapper.vm.$nextTick();
@@ -239,17 +238,17 @@ describe('WorkflowMap', () => {
       await wrapper.vm.$nextTick();
       await delay(100);
 
-      const costUpdate = {
-        type: 'cost_update',
-        workflowId: 'wf1',
-        cost: {
-          total: 0.05,
-          breakdown: {
-            api: 0.03,
-            compute: 0.02,
-          },
-        },
-      };
+      // const costUpdate = {
+      //   type: 'cost_update',
+      //   workflowId: 'wf1',
+      //   cost: {
+      //     total: 0.05,
+      //     breakdown: {
+      //       api: 0.03,
+      //       compute: 0.02,
+      //     },
+      //   },
+      // };
 
       // TODO: Fix vm access - wrapper.vm.handleWebSocketMessage({ data: JSON.stringify(costUpdate) });
       await wrapper.vm.$nextTick();
@@ -312,7 +311,7 @@ describe('WorkflowMap', () => {
 
     it('should support different layout modes', async () => {
       const layoutButtons = wrapper.findAll('.layout-button');
-      
+
       // Hierarchical layout
       await layoutButtons[0].trigger('click');
       // TODO: Fix vm access - expect(wrapper.vm.layoutMode).toBe('hierarchical');
@@ -328,8 +327,8 @@ describe('WorkflowMap', () => {
 
     it('should zoom in and out', async () => {
       // TODO: Fix vm access - const initialZoom = wrapper.vm.zoomLevel;
-      const initialZoom = 1;
-      
+      // const initialZoom = 1;
+
       await wrapper.find('.zoom-in').trigger('click');
       // TODO: Fix vm access - expect(wrapper.vm.zoomLevel).toBeGreaterThan(initialZoom);
 
@@ -340,7 +339,7 @@ describe('WorkflowMap', () => {
 
     it('should fit to screen', async () => {
       await wrapper.find('.fit-to-screen').trigger('click');
-      
+
       // Should calculate and apply appropriate zoom/pan
       // TODO: Fix vm access
       // expect(wrapper.vm.zoomLevel).toBeDefined();
@@ -365,15 +364,15 @@ describe('WorkflowMap', () => {
     });
 
     it('should update stats in real-time', async () => {
-      const statsUpdate = {
-        type: 'stats_update',
-        stats: {
-          totalWorkflows: 3,
-          activeWorkflows: 2,
-          totalConnections: 2,
-          executionsToday: 15,
-        },
-      };
+      // const statsUpdate = {
+      //   type: 'stats_update',
+      //   stats: {
+      //     totalWorkflows: 3,
+      //     activeWorkflows: 2,
+      //     totalConnections: 2,
+      //     executionsToday: 15,
+      //   },
+      // };
 
       // TODO: Fix vm access - wrapper.vm.handleWebSocketMessage({ data: JSON.stringify(statsUpdate) });
       await wrapper.vm.$nextTick();
@@ -391,12 +390,12 @@ describe('WorkflowMap', () => {
       await delay(100);
 
       vi.clearAllMocks();
-      
+
       await wrapper.find('.refresh-button').trigger('click');
 
       expect(global.fetch).toHaveBeenCalledWith(
         expect.stringContaining('/workflow-map/refresh'),
-        expect.objectContaining({ method: 'POST' })
+        expect.objectContaining({ method: 'POST' }),
       );
     });
 
