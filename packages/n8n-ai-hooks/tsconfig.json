@@ -5,10 +5,17 @@
     "rootDir": "./",
     "composite": true,
     "declaration": true,
-    "declarationMap": true
+    "declarationMap": true,
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "node",
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "downlevelIteration": true
   },
   "include": [
     "src/**/*.ts",
+    "src/index.ts",
     "ai-routes.ts",
     "introspect-api.ts",
     "load-builtin-nodes.ts",
