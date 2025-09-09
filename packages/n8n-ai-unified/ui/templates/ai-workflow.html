@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Workflow - n8n</title>
+    <link rel="stylesheet" href="/ai-assets/n8n-ai-panel.css">
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 0;
+            padding: 0;
+            background: #f8f9fa;
+        }
+        .ai-workflow-container {
+            display: flex;
+            height: 100vh;
+        }
+        .ai-sidebar {
+            width: 400px;
+            background: white;
+            border-right: 1px solid #e1e5e9;
+            display: flex;
+            flex-direction: column;
+        }
+        .ai-sidebar-header {
+            padding: 20px;
+            border-bottom: 1px solid #e1e5e9;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        .ai-sidebar-content {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+        }
+        .ai-prompt-section {
+            margin-bottom: 30px;
+        }
+        .ai-prompt-label {
+            font-weight: 600;
+            margin-bottom: 10px;
+            color: #2c3e50;
+        }
+        .ai-prompt-textarea {
+            width: 100%;
+            height: 120px;
+            padding: 12px;
+            border: 1px solid #e1e5e9;
+            border-radius: 6px;
+            font-size: 14px;
+            resize: vertical;
+            font-family: inherit;
+        }
+        .ai-prompt-textarea:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        .ai-generate-button {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            width: 100%;
+            transition: background 0.2s;
+        }
+        .ai-generate-button:hover {
+            background: #5a6fd8;
+        }
+        .ai-generate-button:disabled {
+            background: #6c757d;
+            cursor: not-allowed;
+        }
+        .ai-workflow-preview {
+            flex: 1;
+            background: #f8f9fa;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+        .ai-workflow-canvas {
+            width: 100%;
+            height: 100%;
+            background: white;
+            border-radius: 8px;
+            margin: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            position: relative;
+            overflow: hidden;
+        }
+        .ai-workflow-placeholder {
+            text-align: center;
+            color: #6c757d;
+            font-size: 18px;
+        }
+        .ai-workflow-placeholder i {
+            font-size: 48px;
+            margin-bottom: 20px;
+            display: block;
+        }
+        .ai-workflow-actions {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            display: flex;
+            gap: 10px;
+        }
+        .ai-action-button {
+            background: white;
+            border: 1px solid #e1e5e9;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.2s;
+        }
+        .ai-action-button:hover {
+            background: #f8f9fa;
+            border-color: #667eea;
+        }
+        .ai-loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+        }
+        .ai-loading.show {
+            display: block;
+        }
+        .ai-spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 10px;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="ai-workflow-container">
+        <div class="ai-sidebar">
+            <div class="ai-sidebar-header">
+                <h2>🤖 AI Workflow Creator</h2>
+                <p>Describe your workflow in natural language</p>
+            </div>
+            <div class="ai-sidebar-content">
+                <div class="ai-prompt-section">
+                    <div class="ai-prompt-label">What do you want to build?</div>
+                    <textarea 
+                        class="ai-prompt-textarea" 
+                        id="aiPrompt"
+                        placeholder="Example: Create a webhook that receives data and sends it to Slack when a specific condition is met..."
+                    ></textarea>
+                    <button class="ai-generate-button" id="generateButton" onclick="generateWorkflow()">
+                        Generate Workflow
+                    </button>
+                </div>
+                
+                <div class="ai-loading" id="loadingIndicator">
+                    <div class="ai-spinner"></div>
+                    <div>Generating workflow...</div>
+                </div>
+                
+                <div id="workflowResult" style="display: none;">
+                    <h3>Generated Workflow</h3>
+                    <div id="workflowPreview"></div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="ai-workflow-preview">
+            <div class="ai-workflow-canvas" id="workflowCanvas">
+                <div class="ai-workflow-placeholder">
+                    <i>🎨</i>
+                    <div>Your AI-generated workflow will appear here</div>
+                </div>
+            </div>
+            
+            <div class="ai-workflow-actions">
+                <button class="ai-action-button" onclick="saveWorkflow()">Save</button>
+                <button class="ai-action-button" onclick="exportWorkflow()">Export</button>
+                <button class="ai-action-button" onclick="clearWorkflow()">Clear</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentWorkflow = null;
+        
+        async function generateWorkflow() {
+            const prompt = document.getElementById('aiPrompt').value.trim();
+            if (!prompt) {
+                alert('Please enter a description of your workflow');
+                return;
+            }
+            
+            const generateButton = document.getElementById('generateButton');
+            const loadingIndicator = document.getElementById('loadingIndicator');
+            const workflowResult = document.getElementById('workflowResult');
+            
+            generateButton.disabled = true;
+            loadingIndicator.classList.add('show');
+            workflowResult.style.display = 'none';
+            
+            try {
+                const response = await fetch('/api/v1/ai/plan', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ prompt })
+                });
+                
+                const result = await response.json();
+                
+                if (result.ops) {
+                    currentWorkflow = result;
+                    displayWorkflow(result);
+                    workflowResult.style.display = 'block';
+                    document.getElementById('workflowPreview').innerHTML = 
+                        `<pre>${JSON.stringify(result, null, 2)}</pre>`;
+                } else {
+                    throw new Error(result.error || 'Failed to generate workflow');
+                }
+            } catch (error) {
+                alert('Error generating workflow: ' + error.message);
+            } finally {
+                generateButton.disabled = false;
+                loadingIndicator.classList.remove('show');
+            }
+        }
+        
+        function displayWorkflow(workflow) {
+            const canvas = document.getElementById('workflowCanvas');
+            canvas.innerHTML = '<div class="ai-workflow-placeholder"><i>✅</i><div>Workflow generated successfully!</div></div>';
+            
+            // TODO: Implement visual workflow rendering
+            console.log('Generated workflow:', workflow);
+        }
+        
+        function saveWorkflow() {
+            if (!currentWorkflow) {
+                alert('No workflow to save');
+                return;
+            }
+            
+            // TODO: Implement workflow saving
+            alert('Workflow saved successfully!');
+        }
+        
+        function exportWorkflow() {
+            if (!currentWorkflow) {
+                alert('No workflow to export');
+                return;
+            }
+            
+            const dataStr = JSON.stringify(currentWorkflow, null, 2);
+            const dataBlob = new Blob([dataStr], {type: 'application/json'});
+            const url = URL.createObjectURL(dataBlob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = 'ai-workflow.json';
+            link.click();
+        }
+        
+        function clearWorkflow() {
+            currentWorkflow = null;
+            document.getElementById('aiPrompt').value = '';
+            document.getElementById('workflowResult').style.display = 'none';
+            document.getElementById('workflowCanvas').innerHTML = 
+                '<div class="ai-workflow-placeholder"><i>🎨</i><div>Your AI-generated workflow will appear here</div></div>';
+        }
+    </script>
+</body>
+</html>
