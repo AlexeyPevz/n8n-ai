@@ -13,9 +13,12 @@
     "dev": "pnpm -r --stream --parallel run dev",
     "dev:full": "docker compose up -d && pnpm -r --stream --parallel run dev",
     "lint": "pnpm -r run lint",
-    "lint:fix": "pnpm -r run lint -- --fix",
+    "lint:fix": "pnpm -r run lint:fix",
+    "type-check": "pnpm -r run type-check",
     "test": "pnpm -r run test",
-    "test:ci": "pnpm run lint && pnpm run test && pnpm run test:golden",
+    "test:unit": "pnpm -r run test:unit",
+    "test:edge-cases": "pnpm -r run test:edge-cases",
+    "test:ci": "pnpm run lint && pnpm run type-check && pnpm run test && pnpm run test:golden",
     "test:golden": "cd examples && pnpm test",
     "e2e": "pnpm -C packages/n8n-ai-orchestrator test:e2e",
     "docker:up": "docker compose up -d",
@@ -24,7 +27,9 @@
     "check:types": "pnpm -r exec tsc --noEmit",
     "format": "prettier -w .",
     "format:check": "prettier -c .",
-    "prepare": "husky install"
+    "clean": "pnpm -r run clean",
+    "prepare": "husky install",
+    "precommit": "pnpm run lint:fix && pnpm run type-check && pnpm run test:unit"
   },
   "devDependencies": {
     "@commitlint/cli": "^18.3.0",

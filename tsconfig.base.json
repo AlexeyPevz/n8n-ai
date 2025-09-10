@@ -11,7 +11,10 @@
     "baseUrl": ".",
     "paths": {
       "@n8n-ai/schemas": ["packages/n8n-ai-schemas/src"],
-      
+      "@n8n-ai/hooks": ["packages/n8n-ai-hooks/src"],
+      "@n8n-ai/orchestrator": ["packages/n8n-ai-orchestrator/src"],
+      "@n8n-ai/panel": ["packages/n8n-ai-panel/src"],
+      "@n8n-ai/unified": ["packages/n8n-ai-unified/src"]
     }
   }
 }

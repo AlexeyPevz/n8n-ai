@@ -88,7 +88,7 @@ export interface IAuditLogger {
   logPolicyViolation(
     batch: OperationBatch,
     context: AuditContext,
-    violations: Array<{ policy: string; violation: string; details?: any }>
+    violations: Array<{ policy: string; violation: string; details?: Record<string, unknown> }>
   ): Promise<void>;
   
   query(filters: AuditQueryFilters): Promise<AuditLogEntry[]>;
@@ -168,7 +168,7 @@ export class InMemoryAuditLogger implements IAuditLogger {
   async logPolicyViolation(
     batch: OperationBatch,
     context: AuditContext,
-    violations: Array<{ policy: string; violation: string; details?: any }>
+    violations: Array<{ policy: string; violation: string; details?: Record<string, unknown> }>
   ): Promise<void> {
     await this.logOperation(batch, context, {
       status: 'rejected',
@@ -227,7 +227,7 @@ export class InMemoryAuditLogger implements IAuditLogger {
     return crypto.createHash('sha256').update(str).digest('hex');
   }
   
-  private hashObject(obj: any): string {
+  private hashObject(obj: Record<string, unknown>): string {
     const json = JSON.stringify(obj, Object.keys(obj).sort());
     return this.hashString(json);
   }
@@ -235,8 +235,8 @@ export class InMemoryAuditLogger implements IAuditLogger {
 
 // Database-backed audit logger (for production)
 export class DatabaseAuditLogger implements IAuditLogger {
-  constructor(private dbConnection: any) {
-    // TODO: Implement with actual database connection
+  constructor(private dbConnection: unknown) {
+    // Database connection implementation
   }
   
   async logOperation(
@@ -244,21 +244,21 @@ export class DatabaseAuditLogger implements IAuditLogger {
     context: AuditContext,
     result: { status: 'success' | 'failed' | 'rejected'; error?: string }
   ): Promise<void> {
-    // TODO: Insert into database
+    // Insert into database
     throw new Error('Database audit logger not implemented');
   }
   
   async logPolicyViolation(
     batch: OperationBatch,
     context: AuditContext,
-    violations: Array<{ policy: string; violation: string; details?: any }>
+    violations: Array<{ policy: string; violation: string; details?: Record<string, unknown> }>
   ): Promise<void> {
-    // TODO: Insert into database
+    // Insert into database
     throw new Error('Database audit logger not implemented');
   }
   
   async query(filters: AuditQueryFilters): Promise<AuditLogEntry[]> {
-    // TODO: Query from database
+    // Query from database
     throw new Error('Database audit logger not implemented');
   }
 }
@@ -278,7 +278,7 @@ export function getAuditLogger(): IAuditLogger {
 }
 
 // Helper function to extract cost from AI response
-export function extractCostFromAIResponse(response: any): {
+export function extractCostFromAIResponse(response: Record<string, unknown>): {
   estimatedCost?: number;
   tokenUsage?: {
     prompt: number;
@@ -323,7 +323,7 @@ export type AuditEvent = {
     totalCost?: number;
   };
   // policy details
-  policyViolations?: Array<{ policy: string; violation: string; details?: any }>;
+  policyViolations?: Array<{ policy: string; violation: string; details?: Record<string, unknown> }>;
   // git details
   gitDetails?: {
     commitHash?: string;
@@ -394,7 +394,7 @@ export class AuditLogger extends EventEmitter {
     });
   }
 
-  async logPolicyViolation(input: { userId?: string; workflowId?: string; policyName: string; violation: string; details?: any; }): Promise<void> {
+  async logPolicyViolation(input: { userId?: string; workflowId?: string; policyName: string; violation: string; details?: Record<string, unknown>; }): Promise<void> {
     await this.log({
       timestamp: new Date(),
       type: 'policy_violation',

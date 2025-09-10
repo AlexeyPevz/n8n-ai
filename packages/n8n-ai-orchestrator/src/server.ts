@@ -57,11 +57,11 @@ import { getAIConfig } from './ai/config.js';
 import { AIProviderFactory } from './ai/providers/factory.js';
 
 // Simple fetch with timeout and retries for proxying to n8n hooks
-async function fetchWithRetry(url: string, init: any = {}): Promise<any> {
+async function fetchWithRetry(url: string, init: RequestInit = {}): Promise<Response> {
   const retries = Math.max(0, Number(process.env.HOOKS_FETCH_RETRIES ?? 2));
   const timeoutMs = Math.max(1, Number(init.timeoutMs ?? process.env.HOOKS_FETCH_TIMEOUT_MS ?? 3000));
 
-  const attempt = async (): Promise<any> => {
+  const attempt = async (): Promise<Response> => {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeoutMs);
     try {
@@ -274,7 +274,7 @@ server.post('/api/v1/ai/rag/search', async (req, reply) => {
     const results = await ragSystem.search(query, limit);
     return {
       query,
-      results: results.map((r: any) => ({
+      results: results.map((r: Record<string, unknown>) => ({
         content: r.content.substring(0, 200) + '...',
         score: r.score,
         metadata: r.metadata
@@ -401,12 +401,16 @@ server.post<{
   }
   // Diff policies (basic)
   const { maxAddNodes: policyMaxAdd, domainBlacklist: blacklist } = getDiffPolicies();
-  const addCount = parsed.data.ops.filter((op: any) => op.op === 'add_node').length;
+  const addCount = parsed.data.ops.filter((op: { op: string }) => op.op === 'add_node').length;
   if (addCount > policyMaxAdd) {
     return { ok: false, error: 'policy_violation', details: { rule: 'max_add_nodes', limit: policyMaxAdd, actual: addCount } };
   }
   if (blacklist.length > 0) {
-    const hasBlocked = parsed.data.ops.some((op: any) => op.op === 'add_node' && typeof op.node?.parameters?.url === 'string' && blacklist.some(d => (op.node.parameters.url as string).includes(d)));
+    const hasBlocked = parsed.data.ops.some((op: { op: string; node?: { parameters?: { url?: string } } }) => 
+      op.op === 'add_node' && 
+      typeof op.node?.parameters?.url === 'string' && 
+      blacklist.some(d => (op.node!.parameters!.url as string).includes(d))
+    );
     if (hasBlocked) {
       return { ok: false, error: 'policy_violation', details: { rule: 'domain_blacklist' } };
     }
@@ -646,7 +650,6 @@ type AuditEntry = {
 };
 const auditLogs: AuditEntry[] = [];
 
-// Deprecated: basic workflow map snapshot is handled by workflow-map routes plugin
 
 server.get('/workflow-map/live', async (_req, reply) => {
   reply.raw.writeHead(200, {

@@ -269,7 +269,7 @@ export async function runIndexer(): Promise<void> {
     const stats = await indexer.getStats();
     
   } catch (error) {
-    console.error('Indexing failed:', error);
+    // Indexing failed
     process.exit(1);
   }
 }

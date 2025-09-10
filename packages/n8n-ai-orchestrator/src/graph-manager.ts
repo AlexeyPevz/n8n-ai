@@ -213,7 +213,7 @@ export class GraphManager {
 
           case 'annotate': {
             // Аннотации пока просто логируем
-            console.log(`Annotation for ${op.name}: ${op.text}`);
+            // Annotation applied
             appliedCount++;
             break;
           }
