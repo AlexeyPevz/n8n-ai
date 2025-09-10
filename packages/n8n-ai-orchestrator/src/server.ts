@@ -646,7 +646,6 @@ type AuditEntry = {
 };
 const auditLogs: AuditEntry[] = [];
 
-// Deprecated: basic workflow map snapshot is handled by workflow-map routes plugin
 
 server.get('/workflow-map/live', async (_req, reply) => {
   reply.raw.writeHead(200, {

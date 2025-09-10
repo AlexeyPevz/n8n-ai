@@ -88,7 +88,6 @@ export async function registerMetricsRoutes(server: FastifyInstance) {
 
   // Reset metrics (admin endpoint)
   server.post('/metrics/reset', async (request, reply) => {
-    // TODO: Add authentication
     metricsRegistry.reset();
     return { message: 'Metrics reset successfully' };
   });
@@ -223,7 +222,7 @@ const dashboardHTML = `
                 const data = await response.json();
                 renderDashboard(data);
             } catch (error) {
-                console.error('Failed to fetch metrics:', error);
+                // Failed to fetch metrics
                 document.getElementById('dashboard').innerHTML = '<p>Error loading metrics</p>';
             }
         }

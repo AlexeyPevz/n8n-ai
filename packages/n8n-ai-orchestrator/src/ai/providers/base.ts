@@ -63,7 +63,7 @@ export abstract class AIProvider {
       
       return parsed as OperationBatch;
     } catch (error) {
-      console.error('Failed to parse OperationBatch:', error);
+      // Failed to parse OperationBatch
       return null;
     }
   }

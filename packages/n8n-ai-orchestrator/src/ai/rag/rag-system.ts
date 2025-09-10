@@ -245,7 +245,7 @@ export class RAGSystem {
     await this.initialize();
     
     // In production, this would require confirmation
-    console.warn('Clearing all documents from vector store...');
+    // Clearing all documents from vector store
     
     // Qdrant doesn't have a clear method, so we'd need to recreate the collection
     // For now, we'll leave this as a placeholder

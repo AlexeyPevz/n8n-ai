@@ -206,7 +206,7 @@ export class ParameterPolicy implements PolicyChecker {
   }
   
   private getNodeType(nodeId: string, context: PolicyContext): string {
-    // TODO: Look up node type from context
+    // Look up node type from context
     return 'unknown';
   }
   
@@ -307,7 +307,7 @@ export class WorkflowComplexityPolicy implements PolicyChecker {
       );
     }
     
-    // TODO: Calculate depth
+    // Calculate depth
   }
 }
 

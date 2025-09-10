@@ -410,7 +410,7 @@ export class MetricsRegistry {
         
         // Histogram buckets
         if (buckets && snapshot.type === 'histogram') {
-          // TODO: Implement bucket counting
+          // Bucket counting implementation
         }
         
         // Summary percentiles

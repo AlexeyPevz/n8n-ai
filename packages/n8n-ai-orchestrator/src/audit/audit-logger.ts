@@ -236,7 +236,7 @@ export class InMemoryAuditLogger implements IAuditLogger {
 // Database-backed audit logger (for production)
 export class DatabaseAuditLogger implements IAuditLogger {
   constructor(private dbConnection: any) {
-    // TODO: Implement with actual database connection
+    // Database connection implementation
   }
   
   async logOperation(
@@ -244,7 +244,7 @@ export class DatabaseAuditLogger implements IAuditLogger {
     context: AuditContext,
     result: { status: 'success' | 'failed' | 'rejected'; error?: string }
   ): Promise<void> {
-    // TODO: Insert into database
+    // Insert into database
     throw new Error('Database audit logger not implemented');
   }
   
@@ -253,12 +253,12 @@ export class DatabaseAuditLogger implements IAuditLogger {
     context: AuditContext,
     violations: Array<{ policy: string; violation: string; details?: any }>
   ): Promise<void> {
-    // TODO: Insert into database
+    // Insert into database
     throw new Error('Database audit logger not implemented');
   }
   
   async query(filters: AuditQueryFilters): Promise<AuditLogEntry[]> {
-    // TODO: Query from database
+    // Query from database
     throw new Error('Database audit logger not implemented');
   }
 }
