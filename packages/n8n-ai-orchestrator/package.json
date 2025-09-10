@@ -21,7 +21,11 @@
     "test:ui": "vitest --ui",
     "clean": "rm -rf dist",
     "prebuild": "npm run clean",
-    "postbuild": "npm run type-check"
+    "postbuild": "npm run type-check",
+    "migrate": "tsx src/migrations/migrate.ts",
+    "migrate:up": "tsx src/migrations/migrate.ts up",
+    "migrate:down": "tsx src/migrations/migrate.ts down",
+    "migrate:status": "tsx src/migrations/migrate.ts status"
   },
   "dependencies": {
     "@fastify/cors": "^9.0.1",
