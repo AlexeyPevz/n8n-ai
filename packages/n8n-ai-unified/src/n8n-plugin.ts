@@ -3,7 +3,7 @@
  */
 
 import type { INodeTypeDescription, IWebhookFunctions } from 'n8n-workflow';
-import { createAIRoutes } from '../../n8n-ai-hooks/dist/src/index';
+import { createAIRoutes } from '@n8n-ai/hooks';
 import { startOrchestrator } from './embedded-orchestrator';
 import { setupN8nAI as setupN8nAIIntegration } from './n8n-integration';
 import express from 'express';

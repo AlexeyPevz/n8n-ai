@@ -1,0 +1,26 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "dist",
+    "types": ["node"],
+    "lib": ["ES2022", "DOM"],
+    "jsx": "preserve",
+    "moduleResolution": "bundler",
+
+    "resolveJsonModule": true,
+    "allowSyntheticDefaultImports": true,
+    "esModuleInterop": true,
+    "paths": {
+      "@n8n-ai/schemas": ["../n8n-ai-schemas/src"],
+      "@n8n-ai/hooks": ["../n8n-ai-hooks/dist"],
+      "@n8n-ai/orchestrator/*": ["../n8n-ai-orchestrator/*"]
+    }
+  },
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist", "**/*.test.ts", "**/*.spec.ts"],
+  "references": [
+    { "path": "../n8n-ai-schemas" },
+    { "path": "../n8n-ai-hooks" },
+    { "path": "../n8n-ai-orchestrator" }
+  ]
+}

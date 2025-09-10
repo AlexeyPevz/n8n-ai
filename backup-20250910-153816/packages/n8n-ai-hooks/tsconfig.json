@@ -1,0 +1,30 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "./dist",
+    "rootDir": "./",
+    "composite": true,
+    "declaration": true,
+    "declarationMap": true,
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "node",
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "downlevelIteration": true
+  },
+  "include": [
+    "src/**/*.ts",
+    "src/index.ts"
+  ],
+  "exclude": [
+    "dist",
+    "node_modules",
+    "n8n-upstream",
+    "packages/n8n-ai-hooks-src",
+    "src/**/*.test.ts"
+  ],
+  "references": [
+    { "path": "../n8n-ai-schemas" }
+  ]
+}

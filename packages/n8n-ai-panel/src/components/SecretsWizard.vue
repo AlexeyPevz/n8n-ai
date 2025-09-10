@@ -1,6 +1,10 @@
 <template>
   <transition name="modal">
-    <div v-if="isOpen" class="secrets-wizard-overlay" @click.self="close">
+    <div
+      v-if="isOpen"
+      class="secrets-wizard-overlay"
+      @click.self="close"
+    >
       <div class="secrets-wizard">
         <!-- Header -->
         <div class="wizard-header">
@@ -8,19 +12,29 @@
             <IconKey class="header-icon" />
             Credentials Required
           </h2>
-          <button class="close-btn" @click="close" aria-label="Close">
+          <button
+            class="close-btn"
+            aria-label="Close"
+            @click="close"
+          >
             <IconX />
           </button>
         </div>
 
         <!-- Progress -->
         <div class="wizard-progress">
-          <div class="progress-bar" :style="{ width: progressWidth }" />
+          <div
+            class="progress-bar"
+            :style="{ width: progressWidth }"
+          />
         </div>
 
         <!-- Content -->
         <div class="wizard-content">
-          <div v-if="currentStep === 'select'" class="step-select">
+          <div
+            v-if="currentStep === 'select'"
+            class="step-select"
+          >
             <p class="step-description">
               This workflow requires credentials for the following services:
             </p>
@@ -41,18 +55,26 @@
                     :src="`/node-icons/${cred.icon || 'default.svg'}`"
                     :alt="cred.name"
                     @error="handleIconError"
-                  />
+                  >
                 </div>
 
                 <div class="credential-info">
                   <h4>{{ cred.displayName || cred.name }}</h4>
                   <p>{{ cred.description }}</p>
 
-                  <div v-if="isConfigured(cred)" class="credential-status configured">
+                  <div
+                    v-if="isConfigured(cred)"
+                    class="credential-status configured"
+                  >
                     <span class="status-icon configured" />
                     <IconCheck /> Configured
                   </div>
-                  <div v-else class="credential-status missing"><IconAlert /> Not configured</div>
+                  <div
+                    v-else
+                    class="credential-status missing"
+                  >
+                    <IconAlert /> Not configured
+                  </div>
                 </div>
 
                 <div class="credential-actions">
@@ -83,7 +105,12 @@
             </div>
 
             <div class="wizard-actions">
-              <button class="btn-secondary" @click="close">Cancel</button>
+              <button
+                class="btn-secondary"
+                @click="close"
+              >
+                Cancel
+              </button>
               <button
                 v-if="selectedCredential && !allCredentialsConfigured"
                 class="btn-primary"
@@ -101,8 +128,16 @@
             </div>
           </div>
 
-          <div v-else-if="currentStep === 'configure'" class="step-configure">
-            <button class="back-btn" @click="currentStep = 'select'"><IconArrowLeft /> Back</button>
+          <div
+            v-else-if="currentStep === 'configure'"
+            class="step-configure"
+          >
+            <button
+              class="back-btn"
+              @click="currentStep = 'select'"
+            >
+              <IconArrowLeft /> Back
+            </button>
 
             <div class="config-header">
               <h3>Configure {{ selectedCredential?.displayName || selectedCredential?.name }}</h3>
@@ -111,17 +146,27 @@
               {{ selectedCredential?.helpText || 'Enter the required credentials below.' }}
             </p>
 
-            <form class="credential-form" @submit.prevent="saveCredential" v-if="!isOAuth">
+            <form
+              v-if="!isOAuth"
+              class="credential-form"
+              @submit.prevent="saveCredential"
+            >
               <div
                 v-for="field in credentialFields"
                 :key="field.name"
                 class="form-field form-group"
               >
-                <label :for="field.name" class="form-label">
+                <label
+                  :for="field.name"
+                  class="form-label"
+                >
                   {{ field.displayName }}
                 </label>
 
-                <div v-if="field.type === 'string'" class="field-input">
+                <div
+                  v-if="field.type === 'string'"
+                  class="field-input"
+                >
                   <input
                     :id="field.name"
                     v-model="credentialData[field.name]"
@@ -135,7 +180,7 @@
                     :placeholder="field.placeholder"
                     :required="field.required"
                     class="form-input"
-                  />
+                  >
                   <button
                     v-if="field.typeOptions?.password"
                     type="button"
@@ -154,8 +199,14 @@
                   :required="field.required"
                   class="form-input"
                 >
-                  <option value="">Choose...</option>
-                  <option v-for="option in field.options" :key="option.value" :value="option.value">
+                  <option value="">
+                    Choose...
+                  </option>
+                  <option
+                    v-for="option in field.options"
+                    :key="option.value"
+                    :value="option.value"
+                  >
                     {{ option.name }}
                   </option>
                 </select>
@@ -170,26 +221,49 @@
                   class="form-input"
                 />
 
-                <p v-if="field.hint" class="field-hint">
+                <p
+                  v-if="field.hint"
+                  class="field-hint"
+                >
                   {{ field.hint }}
                 </p>
               </div>
 
-              <div v-if="configureError" class="error-message">
+              <div
+                v-if="configureError"
+                class="error-message"
+              >
                 <IconAlert /> {{ configureError }}
               </div>
-              <div v-if="testStatus === 'error'" class="test-result error">
+              <div
+                v-if="testStatus === 'error'"
+                class="test-result error"
+              >
                 {{ testError }}
               </div>
 
               <div class="form-actions">
-                <button type="button" class="btn-secondary" @click="testConnection">
+                <button
+                  type="button"
+                  class="btn-secondary"
+                  @click="testConnection"
+                >
                   {{ isTesting ? 'Testing...' : 'Test Connection' }}
                 </button>
-                <button type="button" @click="currentStep = 'select'" class="btn-secondary">
+                <button
+                  type="button"
+                  class="btn-secondary"
+                  @click="currentStep = 'select'"
+                >
                   Cancel
                 </button>
-                <button type="button" class="btn-primary" @click="emitSaveOnly">Save</button>
+                <button
+                  type="button"
+                  class="btn-primary"
+                  @click="emitSaveOnly"
+                >
+                  Save
+                </button>
                 <button
                   type="button"
                   :disabled="isSaving"
@@ -201,7 +275,10 @@
                 </button>
               </div>
             </form>
-            <div v-else class="oauth-section">
+            <div
+              v-else
+              class="oauth-section"
+            >
               <p>Connect your account to proceed.</p>
               <button class="btn-primary">
                 Connect with {{ selectedCredential?.displayName || selectedCredential?.name }}
@@ -209,27 +286,51 @@
             </div>
           </div>
 
-          <div v-else-if="currentStep === 'test'" class="step-test">
-            <div class="test-status" :class="testStatus">
-              <div v-if="testStatus === 'testing'" class="test-icon">
+          <div
+            v-else-if="currentStep === 'test'"
+            class="step-test"
+          >
+            <div
+              class="test-status"
+              :class="testStatus"
+            >
+              <div
+                v-if="testStatus === 'testing'"
+                class="test-icon"
+              >
                 <IconLoader class="spinning large" />
               </div>
-              <div v-else-if="testStatus === 'success'" class="test-icon">
+              <div
+                v-else-if="testStatus === 'success'"
+                class="test-icon"
+              >
                 <IconCheckCircle class="large success" />
               </div>
-              <div v-else-if="testStatus === 'error'" class="test-icon">
+              <div
+                v-else-if="testStatus === 'error'"
+                class="test-icon"
+              >
                 <IconXCircle class="large error" />
               </div>
 
               <h3>{{ testMessage }}</h3>
-              <p v-if="testDetails" class="test-details">
+              <p
+                v-if="testDetails"
+                class="test-details"
+              >
                 {{ testDetails }}
               </p>
-              <div v-if="testStatus === 'error'" class="test-result error">
+              <div
+                v-if="testStatus === 'error'"
+                class="test-result error"
+              >
                 {{ testError }}
               </div>
 
-              <div v-if="testStatus !== 'testing'" class="test-actions">
+              <div
+                v-if="testStatus !== 'testing'"
+                class="test-actions"
+              >
                 <button
                   v-if="testStatus === 'error'"
                   class="btn-secondary"
@@ -237,18 +338,42 @@
                 >
                   Back to Configure
                 </button>
-                <button v-else @click="currentStep = 'select'" class="btn-primary">Continue</button>
+                <button
+                  v-else
+                  class="btn-primary"
+                  @click="currentStep = 'select'"
+                >
+                  Continue
+                </button>
               </div>
             </div>
           </div>
-          <div v-else-if="currentStep === 'summary'" class="step-summary">
+          <div
+            v-else-if="currentStep === 'summary'"
+            class="step-summary"
+          >
             <h3>Summary</h3>
             <div class="summary-list">
-              <div v-for="cred in requiredCredentials" :key="cred.type" class="summary-item">
+              <div
+                v-for="cred in requiredCredentials"
+                :key="cred.type"
+                class="summary-item"
+              >
                 <span class="cred-name">{{ cred.displayName || cred.name }}</span>
-                <span v-if="isConfigured(cred)" class="status-badge success">Configured</span>
-                <span v-else class="status-badge error">Missing</span>
-                <button class="btn-ghost" @click="configureCredential(cred)">Edit</button>
+                <span
+                  v-if="isConfigured(cred)"
+                  class="status-badge success"
+                >Configured</span>
+                <span
+                  v-else
+                  class="status-badge error"
+                >Missing</span>
+                <button
+                  class="btn-ghost"
+                  @click="configureCredential(cred)"
+                >
+                  Edit
+                </button>
               </div>
             </div>
             <div class="wizard-actions">
@@ -261,7 +386,10 @@
               </button>
             </div>
           </div>
-          <div v-else-if="isOAuth" class="oauth-section">
+          <div
+            v-else-if="isOAuth"
+            class="oauth-section"
+          >
             <p>Connect your account to proceed.</p>
             <button class="btn-primary">
               Connect with {{ selectedCredential?.displayName || selectedCredential?.name }}
@@ -275,7 +403,7 @@
 
 <script lang="ts">
 export default {
-  data(): any {
+  data() {
     return {
       currentStep: 'select',
       configuredCredentials: new Set() as Set<string>,
@@ -300,16 +428,16 @@ import {
 } from 'vue';
 
 import IconStubs from './icons/IconStubs.vue';
-const IconKey = IconStubs as any;
-const IconX = IconStubs as any;
-const IconCheck = IconStubs as any;
-const IconAlert = IconStubs as any;
-const IconLoader = IconStubs as any;
-const IconArrowLeft = IconStubs as any;
-const IconEye = IconStubs as any;
-const IconEyeOff = IconStubs as any;
-const IconCheckCircle = IconStubs as any;
-const IconXCircle = IconStubs as any;
+const IconKey = IconStubs as unknown;
+const IconX = IconStubs as unknown;
+const IconCheck = IconStubs as unknown;
+const IconAlert = IconStubs as unknown;
+const IconLoader = IconStubs as unknown;
+const IconArrowLeft = IconStubs as unknown;
+const IconEye = IconStubs as unknown;
+const IconEyeOff = IconStubs as unknown;
+const IconCheckCircle = IconStubs as unknown;
+const IconXCircle = IconStubs as unknown;
 
 // Types
 interface RequiredCredential {
@@ -342,15 +470,15 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   close: [];
-  configured: [credentials: Record<string, any>];
+  configured: [credentials: Record<string, unknown>];
   apply: [];
   execute: [];
-  save: [payload: any];
+  save: [payload: unknown];
 }>();
 
 // State
-const vmInit = getCurrentInstance()?.proxy as any;
-const dataObjInit = vmInit?.$data as any;
+const vmInit = getCurrentInstance()?.proxy as unknown;
+const dataObjInit = vmInit?.$data as unknown;
 const currentStep: Ref<'select' | 'configure' | 'test' | 'summary'> = ref('select');
 const testStatus: Ref<'idle' | 'testing' | 'success' | 'error'> = ref('idle');
 const testError: Ref<string> = ref('');
@@ -363,7 +491,7 @@ if (instance && instance.proxy) {
   Object.defineProperty(instance.proxy, 'currentStep', {
     get: () => currentStep.value,
     set: (v) => {
-      currentStep.value = v as any;
+      currentStep.value = v as 'select' | 'configure' | 'test' | 'summary';
     },
     configurable: true,
   });
@@ -371,7 +499,7 @@ if (instance && instance.proxy) {
   Object.defineProperty(instance.proxy, 'testStatus', {
     get: () => testStatus.value,
     set: (v) => {
-      testStatus.value = v as any;
+      testStatus.value = v as 'idle' | 'testing' | 'success' | 'error';
     },
     configurable: true,
   });
@@ -379,7 +507,7 @@ if (instance && instance.proxy) {
   Object.defineProperty(instance.proxy, 'testError', {
     get: () => testError.value,
     set: (v) => {
-      testError.value = v as any;
+      testError.value = v as string;
     },
     configurable: true,
   });
@@ -387,7 +515,7 @@ if (instance && instance.proxy) {
   Object.defineProperty(instance.proxy, 'configuredCredentials', {
     get: () => configuredCredentials.value,
     set: (v) => {
-      configuredCredentials.value = v as any;
+      configuredCredentials.value = v as Set<string>;
     },
     configurable: true,
   });
@@ -395,39 +523,39 @@ if (instance && instance.proxy) {
 
 if (dataObjInit) {
   if (Object.prototype.hasOwnProperty.call(dataObjInit, 'currentStep'))
-    currentStep.value = toRef(dataObjInit, 'currentStep') as any;
+    currentStep.value = toRef(dataObjInit, 'currentStep') as Ref<'select' | 'configure' | 'test' | 'summary'>;
   if (Object.prototype.hasOwnProperty.call(dataObjInit, 'testStatus'))
-    testStatus.value = toRef(dataObjInit, 'testStatus') as any;
+    testStatus.value = toRef(dataObjInit, 'testStatus') as Ref<'idle' | 'testing' | 'success' | 'error'>;
   if (Object.prototype.hasOwnProperty.call(dataObjInit, 'testError'))
-    testError.value = toRef(dataObjInit, 'testError') as any;
+    testError.value = toRef(dataObjInit, 'testError') as Ref<string>;
   if (Object.prototype.hasOwnProperty.call(dataObjInit, 'configuredCredentials'))
-    configuredCredentials.value = toRef(dataObjInit, 'configuredCredentials') as any;
+    configuredCredentials.value = toRef(dataObjInit, 'configuredCredentials') as Ref<Set<string>>;
 }
 
 onMounted(() => {
-  const vm = getCurrentInstance()?.proxy as any;
-  const dataObj = vm?.$data as any;
+  const vm = getCurrentInstance()?.proxy as unknown;
+  const dataObj = vm?.$data as unknown;
   if (!dataObj) return;
   // Bridge vm proxy props <-> local refs so wrapper.setData() updates reflect in template
   // From vm -> local
   watch(
-    () => (vm as any).currentStep,
+    () => (vm as { currentStep?: unknown }).currentStep,
     (v) => {
-      (currentStep as any).value = v as any;
+      (currentStep as { value: unknown }).value = v as 'select' | 'configure' | 'test' | 'summary';
     },
     { immediate: true },
   );
   watch(
-    () => (vm as any).testStatus,
+    () => (vm as { testStatus?: unknown }).testStatus,
     (v) => {
-      (testStatus as any).value = v as any;
+      (testStatus as { value: unknown }).value = v as 'idle' | 'testing' | 'success' | 'error';
     },
     { immediate: true },
   );
   watch(
-    () => (vm as any).testError,
+    () => (vm as { testError?: unknown }).testError,
     (v) => {
-      (testError as any).value = v as any;
+      (testError as { value: unknown }).value = v as string;
     },
     { immediate: true },
   );
@@ -442,18 +570,18 @@ onMounted(() => {
 
   // Directly bind to data() to ensure setData updates propagate
   if (Object.prototype.hasOwnProperty.call(dataObj, 'currentStep'))
-    currentStep.value = toRef(dataObj, 'currentStep') as any;
+    currentStep.value = toRef(dataObj, 'currentStep') as Ref<'select' | 'configure' | 'test' | 'summary'>;
   if (Object.prototype.hasOwnProperty.call(dataObj, 'testStatus'))
-    testStatus.value = toRef(dataObj, 'testStatus') as any;
+    testStatus.value = toRef(dataObj, 'testStatus') as Ref<'idle' | 'testing' | 'success' | 'error'>;
   if (Object.prototype.hasOwnProperty.call(dataObj, 'testError'))
-    testError.value = toRef(dataObj, 'testError') as any;
+    testError.value = toRef(dataObj, 'testError') as Ref<string>;
   if (Object.prototype.hasOwnProperty.call(dataObj, 'configuredCredentials'))
-    configuredCredentials.value = toRef(dataObj, 'configuredCredentials') as any;
+    configuredCredentials.value = toRef(dataObj, 'configuredCredentials') as Ref<Set<string>>;
 });
 
 // removed getConfiguredSet in favor of computed configuredSet
 const selectedCredential = ref<RequiredCredential | null>(null);
-const credentialData = ref<Record<string, any>>({});
+const credentialData = ref<Record<string, unknown>>({});
 const passwordVisible = ref<Record<string, boolean>>({});
 const testingCredential = ref<string | null>(null);
 const isSaving = ref(false);
@@ -550,23 +678,23 @@ const credentialFields = computed((): CredentialField[] => {
 const isOAuth = computed(() => selectedCredential.value?.type?.toLowerCase().includes('oauth'));
 
 // Computed
-function toNormalizedSet(input: any): Set<string> {
+function toNormalizedSet(input: unknown): Set<string> {
   if (
     input &&
-    typeof (input as any).has === 'function' &&
-    typeof (input as any).forEach === 'function'
+    typeof (input as { has?: unknown; forEach?: unknown }).has === 'function' &&
+    typeof (input as { has?: unknown; forEach?: unknown }).forEach === 'function'
   ) {
     const out = new Set<string>();
-    (input as any).forEach((value: any) => out.add(value));
+    (input as { forEach: (callback: (value: unknown) => void) => void }).forEach((value: unknown) => out.add(String(value)));
     return out;
   }
-  if (Array.isArray(input)) return new Set(input as any);
-  if (input && typeof input === 'object') return new Set(Object.keys(input as any));
+  if (Array.isArray(input)) return new Set(input as string[]);
+  if (input && typeof input === 'object') return new Set(Object.keys(input as Record<string, unknown>));
   return new Set<string>();
 }
 
 // const configuredSet = computed<Set<string>>(() => {
-//   const vm = getCurrentInstance()?.proxy as any;
+//   const vm = getCurrentInstance()?.proxy as unknown;
 //   return toNormalizedSet(vm?.$data?.configuredCredentials);
 // });
 
@@ -575,7 +703,7 @@ function toNormalizedSet(input: any): Set<string> {
 // }
 
 const allCredentialsConfigured = computed(() => {
-  const vm = getCurrentInstance()?.proxy as any;
+  const vm = getCurrentInstance()?.proxy as unknown;
   const dataSet = toNormalizedSet(vm?.$data?.configuredCredentials);
   const total = props.requiredCredentials.length;
   const configuredCount = props.requiredCredentials.filter(
@@ -587,13 +715,13 @@ const allCredentialsConfigured = computed(() => {
 // Expose for setData via Options API data()
 
 const progressPercentage = computed(() => {
-  const vm = getCurrentInstance()?.proxy as any;
+  const vm = getCurrentInstance()?.proxy as unknown;
   const dataSet = toNormalizedSet(vm?.$data?.configuredCredentials);
   const configured = props.requiredCredentials.filter(
     (c) => c.configured || dataSet.has(c.type),
   ).length;
   const total = props.requiredCredentials.length;
-  return total > 0 ? (configured / total) * 100 : 0;
+  return total > 0 ? configured / total * 100 : 0;
 });
 const progressWidth = computed(() => `${progressPercentage.value}%`);
 
@@ -607,7 +735,7 @@ function selectCredential(credential: RequiredCredential): void {
 }
 
 function isConfigured(cred: RequiredCredential): boolean {
-  const vm = getCurrentInstance()?.proxy as any;
+  const vm = getCurrentInstance()?.proxy as unknown;
   const dataSet = toNormalizedSet(vm?.$data?.configuredCredentials);
   return cred.configured || dataSet.has(cred.type);
 }
@@ -663,15 +791,15 @@ async function saveCredential(): Promise<void> {
     // Mark as configured
     if (selectedCredential.value) {
       selectedCredential.value.configured = true;
-      const set: Set<string> = (configuredCredentials as any).value || new Set();
+      const set: Set<string> = (configuredCredentials as { value: Set<string> }).value || new Set();
       set.add(selectedCredential.value.type);
-      (configuredCredentials as any).value = set;
+      (configuredCredentials as { value: Set<string> }).value = set;
       emit('configured', { [selectedCredential.value.type]: credentialData.value });
       emit('save', { type: selectedCredential.value.type, data: { ...credentialData.value } });
-      currentStep.value = 'summary' as any;
+      currentStep.value = 'summary';
     }
-  } catch (error: any) {
-    configureError.value = error.message || 'Failed to save credential';
+  } catch (error: unknown) {
+    configureError.value = (error as Error).message || 'Failed to save credential';
   } finally {
     isSaving.value = false;
   }
@@ -714,8 +842,8 @@ function emitSaveOnly(): void {
         throw new Error(`${field.displayName} is required`);
       }
     }
-  } catch (error: any) {
-    configureError.value = error.message || 'Validation failed';
+  } catch (error: unknown) {
+    configureError.value = (error as Error).message || 'Validation failed';
   }
 }
 

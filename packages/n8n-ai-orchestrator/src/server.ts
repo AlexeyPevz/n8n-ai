@@ -59,7 +59,7 @@ import { AIProviderFactory } from './ai/providers/factory.js';
 // Simple fetch with timeout and retries for proxying to n8n hooks
 async function fetchWithRetry(url: string, init: RequestInit = {}): Promise<Response> {
   const retries = Math.max(0, Number(process.env.HOOKS_FETCH_RETRIES ?? 2));
-  const timeoutMs = Math.max(1, Number(init.timeoutMs ?? process.env.HOOKS_FETCH_TIMEOUT_MS ?? 3000));
+  const timeoutMs = Math.max(1, Number((init as { timeoutMs?: number }).timeoutMs ?? process.env.HOOKS_FETCH_TIMEOUT_MS ?? 3000));
 
   const attempt = async (): Promise<Response> => {
     const controller = new AbortController();
@@ -275,7 +275,7 @@ server.post('/api/v1/ai/rag/search', async (req, reply) => {
     return {
       query,
       results: results.map((r: Record<string, unknown>) => ({
-        content: r.content.substring(0, 200) + '...',
+        content: (r.content as string).substring(0, 200) + '...',
         score: r.score,
         metadata: r.metadata
       }))
@@ -310,7 +310,7 @@ server.get('/introspect/nodes', async (req) => {
   const hooksBase = process.env.N8N_URL ?? 'http://localhost:5678';
   try {
     const headers = pickForwardHeaders(req.headers);
-    const resp = await fetchWithRetry(`${hooksBase}/api/v1/ai/introspect/nodes`, { timeoutMs: 2500, headers });
+    const resp = await fetchWithRetry(`${hooksBase}/api/v1/ai/introspect/nodes`, { headers } as RequestInit & { timeoutMs: number });
     const data = (await resp.json()) as unknown;
     const nodes = Array.isArray(data) ? data : ((data as { nodes?: unknown }).nodes ?? []);
     if (Array.isArray(nodes) && nodes.length > 0) return nodes;
@@ -475,9 +475,9 @@ server.post<{ Params: { id: string } }>('/graph/:id/validate', async (req) => {
       const resp = await fetchWithRetry(`${hooksBase}/api/v1/ai/graph/${encodeURIComponent(workflowId)}/validate${autofix ? '?autofix=1' : ''}`, {
         method: 'POST',
         headers,
-        timeoutMs: 3000,
-        body: JSON.stringify(req.body ?? {})
-      });
+        body: JSON.stringify(req.body ?? {}),
+        timeoutMs: 3000
+      } as RequestInit & { timeoutMs: number });
       const json = await resp.json();
       if (resp.ok) return json;
       server.log.warn({ status: resp.status, body: json }, 'Hooks validate returned non-200, falling back to local');
@@ -506,9 +506,9 @@ server.post<{ Params: { id: string } }>('/graph/:id/simulate', async (req) => {
       const resp = await fetchWithRetry(`${hooksBase}/api/v1/ai/graph/${encodeURIComponent(workflowId)}/simulate`, {
         method: 'POST',
         headers,
-        timeoutMs: 3000,
-        body: JSON.stringify(req.body ?? {})
-      });
+        body: JSON.stringify(req.body ?? {}),
+        timeoutMs: 3000
+      } as RequestInit & { timeoutMs: number });
       const json = await resp.json();
       if (resp.ok) return json;
       server.log.warn({ status: resp.status, body: json }, 'Hooks simulate returned non-200, falling back to local');

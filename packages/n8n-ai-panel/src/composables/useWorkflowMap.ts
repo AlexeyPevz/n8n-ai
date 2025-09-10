@@ -3,7 +3,7 @@ import { ref } from 'vue';
 // Use fetch to simplify mocking in unit tests
 import type { MapData, MapNode, MapEdge } from '../types/workflow-map';
 
-export function useWorkflowMap(): any {
+export function useWorkflowMap() {
   const isLoading = ref(true);
   const mapData = ref<MapData | null>(null);
   const nodes = ref<MapNode[]>([]);

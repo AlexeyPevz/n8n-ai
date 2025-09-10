@@ -22,22 +22,22 @@ export const nextTick = (): Promise<void> => {
 /**
  * Type-safe wrapper access for Vue test utils
  */
-export interface TypedWrapper<T extends Record<string, any>> {
+export interface TypedWrapper<T extends Record<string, unknown>> {
   vm: T;
-  emitted(): Record<string, any[][]>;
+  emitted(): Record<string, unknown[][]>;
 }
 
 /**
  * Cast wrapper to typed version for accessing VM properties
  */
-export function getTypedWrapper<T extends Record<string, any>>(wrapper: any): TypedWrapper<T> {
+export function getTypedWrapper<T extends Record<string, unknown>>(wrapper: unknown): TypedWrapper<T> {
   return wrapper as TypedWrapper<T>;
 }
 
 /**
  * Check if element contains specific text content
  */
-export function hasTextContent(wrapper: any, selector: string, text: string): boolean {
+export function hasTextContent(wrapper: unknown, selector: string, text: string): boolean {
   const element = wrapper.find(selector);
   return element.exists() && element.text().includes(text);
 }
@@ -45,7 +45,7 @@ export function hasTextContent(wrapper: any, selector: string, text: string): bo
 /**
  * Access component data in a test-safe way
  */
-export async function getComponentData(wrapper: any, key: string): Promise<any> {
+export async function getComponentData(wrapper: unknown, key: string): Promise<unknown> {
   // Try to access via vm first
   if (wrapper.vm && key in wrapper.vm) {
     return wrapper.vm[key];
@@ -57,7 +57,7 @@ export async function getComponentData(wrapper: any, key: string): Promise<any> 
 /**
  * Set component data in a test-safe way
  */
-export async function setComponentData(wrapper: any, data: Record<string, any>): Promise<void> {
+export async function setComponentData(wrapper: unknown, data: Record<string, unknown>): Promise<void> {
   try {
     await wrapper.setData(data);
   } catch (e) {

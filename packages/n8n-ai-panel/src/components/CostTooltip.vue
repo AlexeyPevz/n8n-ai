@@ -26,22 +26,30 @@
         <!-- Cost breakdown by type -->
         <div class="cost-breakdown">
           <div
-v-for="item in costBreakdown" :key="item.type"
-class="cost-item"
->
+            v-for="item in costBreakdown"
+            :key="item.type"
+            class="cost-item"
+          >
             <div class="cost-item-header">
               <span class="cost-type">
-                <component :is="item.icon" class="cost-icon" />
+                <component
+                  :is="item.icon"
+                  class="cost-icon"
+                />
                 {{ item.label }}
               </span>
               <span class="cost-amount">{{ formatCost(item.amount) }}</span>
             </div>
 
-            <div v-if="item.details" class="cost-details">
+            <div
+              v-if="item.details"
+              class="cost-details"
+            >
               <div
-v-for="(detail, index) in item.details" :key="index"
-class="detail-row"
->
+                v-for="(detail, index) in item.details"
+                :key="index"
+                class="detail-row"
+              >
                 <span class="detail-label">{{ detail.label }}</span>
                 <span class="detail-value">{{ detail.value }}</span>
               </div>
@@ -56,17 +64,24 @@ class="detail-row"
         </div>
 
         <!-- Optimization suggestions -->
-        <div v-if="optimizations.length > 0" class="cost-optimizations">
+        <div
+          v-if="optimizations.length > 0"
+          class="cost-optimizations"
+        >
           <h5>
             <IconLightbulb />
             Cost Optimization Tips
           </h5>
           <ul>
             <li
-v-for="(tip, index) in optimizations" :key="index"
->
+              v-for="(tip, index) in optimizations"
+              :key="index"
+            >
               {{ tip.text }}
-              <span v-if="tip.savings" class="savings">
+              <span
+                v-if="tip.savings"
+                class="savings"
+              >
                 (Save ~{{ formatCost(tip.savings) }})
               </span>
             </li>
@@ -74,7 +89,10 @@ v-for="(tip, index) in optimizations" :key="index"
         </div>
 
         <!-- Historical comparison -->
-        <div v-if="historicalData" class="cost-history">
+        <div
+          v-if="historicalData"
+          class="cost-history"
+        >
           <div class="history-item">
             <span>Average (last 7 days):</span>
             <span :class="{ 'cost-up': isAboveAverage, 'cost-down': !isAboveAverage }">
@@ -97,7 +115,10 @@ v-for="(tip, index) in optimizations" :key="index"
             <IconInfo />
             Costs are estimated based on current pricing. Actual costs may vary.
           </p>
-          <a href="#" @click.prevent="$emit('show-pricing')"> View pricing details → </a>
+          <a
+            href="#"
+            @click.prevent="$emit('show-pricing')"
+          > View pricing details → </a>
         </div>
       </div>
     </transition>
@@ -108,15 +129,20 @@ v-for="(tip, index) in optimizations" :key="index"
 import { ref, computed } from 'vue';
 
 import IconStubs from './icons/IconStubs.vue';
-const IconDollar = IconStubs as any;
-const IconCloud = IconStubs as any;
-const IconCpu = IconStubs as any;
-const IconDatabase = IconStubs as any;
-const IconBot = IconStubs as any;
-const IconLightbulb = IconStubs as any;
-const IconInfo = IconStubs as any;
-const IconTrendUp = IconStubs as any;
-const IconTrendDown = IconStubs as any;
+
+// Define emits
+defineEmits<{
+  'show-pricing': [];
+}>();
+const IconDollar = IconStubs as unknown;
+const IconCloud = IconStubs as unknown;
+const IconCpu = IconStubs as unknown;
+const IconDatabase = IconStubs as unknown;
+const IconBot = IconStubs as unknown;
+const IconLightbulb = IconStubs as unknown;
+const IconInfo = IconStubs as unknown;
+const IconTrendUp = IconStubs as unknown;
+const IconTrendDown = IconStubs as unknown;
 
 // Types
 interface CostData {
@@ -187,7 +213,7 @@ const totalCost = computed(() => {
 
   // Execution time cost
   if (props.cost.executionTime) {
-    total += (props.cost.executionTime / 1000) * costRates.executionTime;
+    total += props.cost.executionTime / 1000 * costRates.executionTime;
   }
 
   // Data transfer cost
@@ -199,7 +225,7 @@ const totalCost = computed(() => {
   if (props.cost.llmTokens) {
     const rate = costRates[props.cost.llmTokens.model as keyof typeof costRates] || 0.01;
     const totalTokens = props.cost.llmTokens.prompt + props.cost.llmTokens.completion;
-    total += (totalTokens / 1000) * rate;
+    total += totalTokens / 1000 * rate;
   }
 
   return total;
@@ -267,7 +293,7 @@ const costBreakdown = computed(() => {
       type: 'ai',
       label: 'AI Processing',
       icon: IconBot,
-      amount: (totalTokens / 1000) * rate,
+      amount: totalTokens / 1000 * rate,
       details: [
         { label: 'Model', value: model },
         { label: 'Tokens', value: totalTokens.toLocaleString() },
@@ -297,7 +323,7 @@ const optimizations = computed((): Optimization[] => {
   if (props.cost.executionTime && props.cost.executionTime > 30000) {
     tips.push({
       text: 'Long execution time detected. Consider splitting into smaller workflows',
-      savings: (props.cost.executionTime / 1000) * costRates.executionTime * 0.2,
+      savings: props.cost.executionTime / 1000 * costRates.executionTime * 0.2,
     });
   }
 
@@ -316,7 +342,7 @@ const optimizations = computed((): Optimization[] => {
     if (model === 'gpt-4' && prompt + completion > 1000) {
       tips.push({
         text: 'Consider using GPT-3.5 for this task to reduce costs',
-        savings: ((prompt + completion) / 1000) * (costRates['gpt-4'] - costRates['gpt-3.5-turbo']),
+        savings: (prompt + completion) / 1000 * (costRates['gpt-4'] - costRates['gpt-3.5-turbo']),
       });
     }
 
@@ -336,7 +362,7 @@ const isAboveAverage = computed(() => {
 
 const percentageChange = computed(() => {
   if (!props.historicalData || props.historicalData.average === 0) return 0;
-  return ((totalCost.value - props.historicalData.average) / props.historicalData.average) * 100;
+  return (totalCost.value - props.historicalData.average) / props.historicalData.average * 100;
 });
 
 // Methods

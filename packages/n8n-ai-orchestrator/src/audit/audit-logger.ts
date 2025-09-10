@@ -290,11 +290,11 @@ export function extractCostFromAIResponse(response: Record<string, unknown>): {
   if (response?.usage) {
     return {
       tokenUsage: {
-        prompt: response.usage.prompt_tokens || 0,
-        completion: response.usage.completion_tokens || 0,
-        total: response.usage.total_tokens || 0,
+        prompt: (response.usage as { prompt_tokens?: number }).prompt_tokens || 0,
+        completion: (response.usage as { completion_tokens?: number }).completion_tokens || 0,
+        total: (response.usage as { total_tokens?: number }).total_tokens || 0,
       },
-      estimatedCost: response.usage.total_tokens, // Simple token count as cost
+      estimatedCost: (response.usage as { total_tokens?: number }).total_tokens || 0, // Simple token count as cost
     };
   }
   

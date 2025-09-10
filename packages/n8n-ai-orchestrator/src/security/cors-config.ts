@@ -96,7 +96,8 @@ export function validateOrigin(origin: string, allowedOrigins: string[]): boolea
   for (const allowedOrigin of allowedOrigins) {
     if (allowedOrigin.startsWith('*.')) {
       const domain = allowedOrigin.slice(2);
-      if (origin.endsWith(domain)) {
+      // Check if origin ends with domain and has a subdomain
+      if (origin.endsWith(domain) && origin.length > domain.length) {
         return true;
       }
     }

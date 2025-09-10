@@ -8,15 +8,19 @@
       @click="toggleExplanation"
     >
       <IconHelp v-if="!isLoading" />
-      <IconLoader v-else class="spinning" />
+      <IconLoader
+        v-else
+        class="spinning"
+      />
     </button>
 
     <!-- Explanation popup -->
     <transition name="explain">
       <div
-v-if="showExplanation" class="explain-popup"
-:class="{ 'explain-loading': isLoading }"
->
+        v-if="showExplanation"
+        class="explain-popup"
+        :class="{ 'explain-loading': isLoading }"
+      >
         <div class="explain-header">
           <h4>
             <img
@@ -29,32 +33,43 @@ v-if="showExplanation" class="explain-popup"
             {{ node.name || node.type }}
           </h4>
           <button
-class="close-btn" @click="showExplanation = false"
->
+            class="close-btn"
+            @click="showExplanation = false"
+          >
             <IconX />
           </button>
         </div>
 
         <div class="explain-content">
           <!-- Loading state -->
-          <div v-if="isLoading" class="loading-state">
+          <div
+            v-if="isLoading"
+            class="loading-state"
+          >
             <IconLoader class="spinning" />
             <p>Analyzing node configuration...</p>
           </div>
 
           <!-- Error state -->
-          <div v-if="error" class="error-state">
+          <div
+            v-if="error"
+            class="error-state"
+          >
             <IconAlert />
             <p>{{ error }}</p>
-            <button class="retry-btn"
-@click="fetchExplanation"
->
-Try Again
-</button>
+            <button
+              class="retry-btn"
+              @click="fetchExplanation"
+            >
+              Try Again
+            </button>
           </div>
 
           <!-- Explanation content -->
-          <div v-else-if="explanation" class="explanation">
+          <div
+            v-else-if="explanation"
+            class="explanation"
+          >
             <!-- Summary -->
             <div class="explain-section">
               <h5>What it does</h5>
@@ -62,15 +77,22 @@ Try Again
             </div>
 
             <!-- Current configuration -->
-            <div v-if="explanation.configuration" class="explain-section">
+            <div
+              v-if="explanation.configuration"
+              class="explain-section"
+            >
               <h5>Current Configuration</h5>
               <ul class="config-list">
                 <li
-v-for="(config, index) in explanation.configuration" :key="index"
->
+                  v-for="(config, index) in explanation.configuration"
+                  :key="index"
+                >
                   <span class="config-key">{{ config.key }}:</span>
                   <span class="config-value">{{ formatValue(config.value) }}</span>
-                  <span v-if="config.description" class="config-desc">
+                  <span
+                    v-if="config.description"
+                    class="config-desc"
+                  >
                     — {{ config.description }}
                   </span>
                 </li>
@@ -83,9 +105,10 @@ v-for="(config, index) in explanation.configuration" :key="index"
                 <h5>Expects</h5>
                 <div v-if="explanation.inputs && explanation.inputs.length > 0">
                   <div
-v-for="input in explanation.inputs" :key="input.type"
-class="io-item"
->
+                    v-for="input in explanation.inputs"
+                    :key="input.type"
+                    class="io-item"
+                  >
                     <IconArrowRight class="io-icon input" />
                     <div>
                       <strong>{{ input.type }}</strong>
@@ -96,16 +119,21 @@ class="io-item"
                   </div>
                 </div>
                 <p
-v-else class="io-empty">No input required</p>
+                  v-else
+                  class="io-empty"
+                >
+                  No input required
+                </p>
               </div>
 
               <div class="io-block">
                 <h5>Produces</h5>
                 <div v-if="explanation.outputs && explanation.outputs.length > 0">
                   <div
-v-for="output in explanation.outputs" :key="output.type"
-class="io-item"
->
+                    v-for="output in explanation.outputs"
+                    :key="output.type"
+                    class="io-item"
+                  >
                     <IconArrowRight class="io-icon output" />
                     <div>
                       <strong>{{ output.type }}</strong>
@@ -116,7 +144,11 @@ class="io-item"
                   </div>
                 </div>
                 <p
-v-else class="io-empty">No output</p>
+                  v-else
+                  class="io-empty"
+                >
+                  No output
+                </p>
               </div>
             </div>
 
@@ -136,7 +168,10 @@ v-else class="io-empty">No output</p>
                   <div>
                     <strong>{{ issue.title }}</strong>
                     <p>{{ issue.description }}</p>
-                    <p v-if="issue.solution" class="issue-solution">
+                    <p
+                      v-if="issue.solution"
+                      class="issue-solution"
+                    >
                       <strong>Solution:</strong> {{ issue.solution }}
                     </p>
                   </div>
@@ -161,9 +196,15 @@ v-else class="io-empty">No output</p>
                   {{ example.title }}
                 </button>
               </div>
-              <div v-if="explanation.examples[selectedExample]" class="example-content">
+              <div
+                v-if="explanation.examples[selectedExample]"
+                class="example-content"
+              >
                 <p>{{ explanation.examples[selectedExample].description }}</p>
-                <pre v-if="explanation.examples[selectedExample].code" class="example-code">{{
+                <pre
+                  v-if="explanation.examples[selectedExample].code"
+                  class="example-code"
+                >{{
                   explanation.examples[selectedExample].code
                 }}</pre>
               </div>
@@ -194,7 +235,10 @@ v-else class="io-empty">No output</p>
             </div>
 
             <!-- Documentation link -->
-            <div v-if="explanation.documentationUrl" class="explain-footer">
+            <div
+              v-if="explanation.documentationUrl"
+              class="explain-footer"
+            >
               <a
                 :href="explanation.documentationUrl"
                 target="_blank"
@@ -225,16 +269,16 @@ export default {
 </script>
 
 <script setup lang="ts">
-import { ref, watch, getCurrentInstance, toRef, onMounted } from 'vue';
+import { ref, watch, getCurrentInstance, toRef, onMounted, type Ref } from 'vue';
 
 import IconStubs from './icons/IconStubs.vue';
-const IconHelp = IconStubs as any;
-const IconLoader = IconStubs as any;
-const IconX = IconStubs as any;
-const IconAlert = IconStubs as any;
-const IconArrowRight = IconStubs as any;
-const IconBook = IconStubs as any;
-const IconExternalLink = IconStubs as any;
+const IconHelp = IconStubs as unknown;
+const IconLoader = IconStubs as unknown;
+const IconX = IconStubs as unknown;
+const IconAlert = IconStubs as unknown;
+const IconArrowRight = IconStubs as unknown;
+const IconBook = IconStubs as unknown;
+const IconExternalLink = IconStubs as unknown;
 
 // Types
 interface NodeInfo {
@@ -242,14 +286,14 @@ interface NodeInfo {
   name?: string;
   type: string;
   icon?: string;
-  parameters?: Record<string, any>;
+  parameters?: Record<string, unknown>;
 }
 
 interface NodeExplanation {
   summary: string;
   configuration?: Array<{
     key: string;
-    value: any;
+    value: unknown;
     description?: string;
   }>;
   inputs?: Array<{
@@ -283,9 +327,9 @@ const props = defineProps<{
   node: NodeInfo;
 }>();
 
-// const emit = defineEmits<{
-//   'select-node': [nodeType: string];
-// }>();
+defineEmits<{
+  'select-node': [nodeType: string];
+}>();
 
 // State
 const showExplanation = ref(false);
@@ -293,13 +337,13 @@ const showExplanation = ref(false);
 const isLoading = ref(false);
 const error = ref('');
 onMounted(() => {
-  const vm = getCurrentInstance()?.proxy as any;
-  const data = vm?.$data as any;
+  const vm = getCurrentInstance()?.proxy as unknown;
+  const data = vm?.$data as unknown;
   if (!data) return;
   if (Object.prototype.hasOwnProperty.call(data, 'isLoading'))
-    isLoading.value = toRef(data, 'isLoading') as any;
+    isLoading.value = toRef(data, 'isLoading') as Ref<boolean>;
   if (Object.prototype.hasOwnProperty.call(data, 'error'))
-    error.value = toRef(data, 'error') as any;
+    error.value = toRef(data, 'error') as Ref<string>;
 });
 const explanation = ref<NodeExplanation | null>(null);
 const selectedExample = ref(0);
@@ -307,27 +351,27 @@ const selectedExample = ref(0);
 // Expose for setData in tests by defining properties on proxy
 const instance = getCurrentInstance();
 if (instance && instance.proxy) {
-  // @ts-expect-error
+  // @ts-expect-error - Vue instance proxy type definition
   Object.defineProperty(instance.proxy, 'error', {
     get: () => error.value,
     set: (v) => {
-      error.value = v as any;
+      error.value = v as string;
     },
     configurable: true,
   });
-  // @ts-expect-error
+  // @ts-expect-error - Vue instance proxy type definition
   Object.defineProperty(instance.proxy, 'isLoading', {
     get: () => isLoading.value,
     set: (v) => {
-      isLoading.value = v as any;
+      isLoading.value = v as boolean;
     },
     configurable: true,
   });
-  // @ts-expect-error
+  // @ts-expect-error - Vue instance proxy type definition
   Object.defineProperty(instance.proxy, 'explanation', {
     get: () => explanation.value,
     set: (v) => {
-      explanation.value = v as any;
+      explanation.value = v as NodeExplanation | null;
     },
     configurable: true,
   });
@@ -356,8 +400,8 @@ async function fetchExplanation(): Promise<void> {
     await new Promise((resolve) => setTimeout(resolve, 1000));
 
     explanation.value = generateExplanation(props.node);
-  } catch (err: any) {
-    error.value = err.message || 'Failed to generate explanation';
+  } catch (err: unknown) {
+    error.value = (err as Error).message || 'Failed to generate explanation';
   } finally {
     isLoading.value = false;
   }
@@ -506,7 +550,7 @@ function formatParameterName(name: string): string {
 }
 
 // Get parameter-specific descriptions
-function getParameterDescription(nodeType: string, param: string, value: any): string | undefined {
+function getParameterDescription(nodeType: string, param: string, value: unknown): string | undefined {
   const descriptions: Record<string, Record<string, string>> = {
     httpRequest: {
       method: 'HTTP method to use for the request',
@@ -525,7 +569,7 @@ function getParameterDescription(nodeType: string, param: string, value: any): s
 }
 
 // Format values for display
-function formatValue(value: any): string {
+function formatValue(value: unknown): string {
   if (typeof value === 'boolean') {
     return value ? 'Yes' : 'No';
   }

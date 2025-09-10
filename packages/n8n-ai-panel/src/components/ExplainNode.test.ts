@@ -94,7 +94,7 @@ describe('ExplainNode', () => {
       expect(configItems.length).toBeGreaterThan(0);
 
       // Should show URL parameter
-      const urlConfig = configItems.find((item: any) => item.text().includes('Url:'));
+      const urlConfig = configItems.find((item: { text: () => string }) => item.text().includes('Url:'));
       expect(urlConfig?.text()).toContain('https://api.example.com');
     });
 
@@ -118,9 +118,9 @@ describe('ExplainNode', () => {
 
       // Also set the proxy properties for Composition API
       if (errorWrapper.vm.$data) {
-        (errorWrapper.vm.$data as any).error = 'Failed to generate explanation';
-        (errorWrapper.vm.$data as any).isLoading = false;
-        (errorWrapper.vm.$data as any).explanation = null;
+        (errorWrapper.vm.$data as { error: string; isLoading: boolean; explanation: null }).error = 'Failed to generate explanation';
+        (errorWrapper.vm.$data as { error: string; isLoading: boolean; explanation: null }).isLoading = false;
+        (errorWrapper.vm.$data as { error: string; isLoading: boolean; explanation: null }).explanation = null;
       }
 
       // Force update to ensure state changes are reflected

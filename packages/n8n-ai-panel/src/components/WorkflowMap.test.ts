@@ -47,7 +47,7 @@ describe('WorkflowMap', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    (global.fetch as any).mockResolvedValue({
+    (global.fetch as { mockResolvedValue: (value: unknown) => void }).mockResolvedValue({
       ok: true,
       json: async () => mockWorkflowData,
     });
@@ -90,7 +90,7 @@ describe('WorkflowMap', () => {
     });
 
     it('should handle loading errors', async () => {
-      (global.fetch as any).mockRejectedValue(new Error('Network error'));
+      (global.fetch as { mockRejectedValue: (value: unknown) => void }).mockRejectedValue(new Error('Network error'));
 
       const errorWrapper = mount(WorkflowMap);
       await errorWrapper.vm.$nextTick();
@@ -137,7 +137,7 @@ describe('WorkflowMap', () => {
       const tags = wrapper.findAll('.workflow-tag');
       expect(tags.length).toBeGreaterThan(0);
 
-      const tagTexts = tags.map((t: any) => t.text());
+      const tagTexts = tags.map((t: { text: () => string }) => t.text());
       expect(tagTexts).toContain('production');
       expect(tagTexts).toContain('utility');
     });
@@ -410,7 +410,7 @@ describe('WorkflowMap', () => {
 
   describe('error states', () => {
     it('should show error when no workflows found', async () => {
-      (global.fetch as any).mockResolvedValue({
+      (global.fetch as { mockResolvedValue: (value: unknown) => void }).mockResolvedValue({
         ok: true,
         json: async () => ({ workflows: [], dependencies: [], stats: {} }),
       });

@@ -5,6 +5,7 @@ import { Router } from 'express';
 import { introspectAPI } from './introspect-api';
 import { loadBuiltinNodes } from './load-builtin-nodes';
 import { hooksMetrics, HOOKS_METRIC } from './metrics';
+import { OperationBatchSchema } from '@n8n-ai/schemas';
 // Initialize introspect API with builtin nodes
 const builtinNodes = loadBuiltinNodes();
 introspectAPI.registerNodeTypes(builtinNodes);
@@ -12,48 +13,16 @@ introspectAPI.registerNodeTypes(builtinNodes);
 const undoStacks = new Map();
 export function createAIRoutes() {
     const router = Router();
-    // --- CORS (in-router) ---
-    const allowedOrigins = (process.env.N8N_AI_CORS_ORIGINS || '')
-        .split(',')
-        .map((s) => s.trim())
-        .filter(Boolean);
-    router.use((req, res, next) => {
-        try {
-            const origin = req.headers['origin'];
-            if (allowedOrigins.length > 0 && origin) {
-                if (allowedOrigins.includes('*') || allowedOrigins.includes(origin)) {
-                    res.setHeader('Access-Control-Allow-Origin', origin);
-                    res.setHeader('Vary', 'Origin');
-                }
-                else {
-                    return res.status(403).json({ error: 'origin_not_allowed' });
-                }
-            }
-            res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
-            res.setHeader('Access-Control-Allow-Headers', 'Authorization,Content-Type,If-None-Match');
-            res.setHeader('Access-Control-Allow-Credentials', 'true');
-            if (req.method === 'OPTIONS') {
-                return res.status(204).end();
-            }
-        }
-        catch { }
-        next();
-    });
     // --- Security: token auth + basic rate limit ---
     let API_TOKEN = process.env.N8N_AI_API_TOKEN;
-    const REQUIRE_TOKEN = process.env.N8N_AI_REQUIRE_TOKEN === '1' || process.env.NODE_ENV === 'production';
     const rateWindowMs = Number(process.env.N8N_AI_RATELIMIT_WINDOW_MS ?? 15000);
     const rateMax = Number(process.env.N8N_AI_RATELIMIT_MAX ?? 60);
     const rateBuckets = new Map();
     const authMiddleware = (req, res, next) => {
         // Read token dynamically to allow tests to toggle env
         API_TOKEN = process.env.N8N_AI_API_TOKEN;
-        if (!API_TOKEN) {
-            if (!REQUIRE_TOKEN)
-                return next();
-            res.status(401).json({ error: 'unauthorized', reason: 'token_required' });
-            return;
-        }
+        if (!API_TOKEN)
+            return next();
         const header = req.header('authorization') || '';
         const token = header.startsWith('Bearer ') ? header.slice(7) : undefined;
         if (token === API_TOKEN)
@@ -101,7 +70,7 @@ export function createAIRoutes() {
     router.get('/introspect/node/:type', (req, res) => {
         try {
             const { type } = req.params;
-            const version = req.query.version ? parseInt(req.query.version) : undefined;
+            const version = req.query.version ? parseInt(String(req.query.version)) : undefined;
             const node = introspectAPI.getNode(type, version);
             if (!node)
                 return res.status(404).json({ error: 'Node not found', type, version });
@@ -142,8 +111,13 @@ export function createAIRoutes() {
             const { id } = req.params;
             let parsed = { success: true, data: req.body };
             try {
-                const mod = await import('@n8n-ai/schemas');
-                parsed = mod.OperationBatchSchema.safeParse(req.body);
+                const result = OperationBatchSchema.safeParse(req.body);
+                if (result.success) {
+                    parsed = { success: true, data: result.data };
+                }
+                else {
+                    parsed = { success: false, error: result.error };
+                }
             }
             catch { }
             if (!parsed.success) {

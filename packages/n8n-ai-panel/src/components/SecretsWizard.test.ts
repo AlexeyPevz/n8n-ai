@@ -160,7 +160,7 @@ describe('SecretsWizard', () => {
 
       // Should have username and password fields
       const labels = wrapper.findAll('.form-label');
-      const labelTexts = labels.map((l: any) => l.text());
+      const labelTexts = labels.map((l: { text: () => string }) => l.text());
       expect(labelTexts).toContain('Username');
       expect(labelTexts).toContain('Password');
     });
@@ -168,7 +168,7 @@ describe('SecretsWizard', () => {
     it('should toggle password visibility', async () => {
       const passwordGroup = wrapper
         .findAll('.form-group')
-        .find((g: any) => g.text().includes('Password'));
+        .find((g: { text: () => string }) => g.text().includes('Password'));
 
       if (passwordGroup) {
         const input = passwordGroup.find('input');
@@ -254,7 +254,7 @@ describe('SecretsWizard', () => {
       const summaryItems = wrapper.findAll('.summary-item');
       expect(summaryItems).toHaveLength(2);
 
-      summaryItems.forEach((item: any) => {
+      summaryItems.forEach((item: { text: () => string }) => {
         expect(item.find('.status-badge.success').exists()).toBe(true);
         expect(item.text()).toContain('Configured');
       });
