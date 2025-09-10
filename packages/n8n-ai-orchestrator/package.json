@@ -8,11 +8,20 @@
     "build": "tsc -p tsconfig.json",
     "start": "node dist/server.js",
     "lint": "eslint --ext .ts src",
+    "lint:fix": "eslint --ext .ts src --fix",
+    "type-check": "tsc --noEmit",
     "test": "vitest run --exclude src/e2e.test.ts --exclude src/**/*.e2e.test.ts --coverage.enabled=true --coverage.reporter=lcov --coverage.reporter=text",
+    "test:unit": "vitest run --exclude src/e2e.test.ts --exclude src/**/*.e2e.test.ts --exclude src/**/*.edge-cases.test.ts",
+    "test:edge-cases": "vitest run src/**/*.edge-cases.test.ts",
     "test:e2e": "vitest run src/e2e.test.ts",
     "test:with-server": "concurrently -k -s first \"tsx src/test-server.ts\" \"sleep 2 && vitest run src/e2e.test.ts\"",
     "test:rest:e2e": "concurrently -k -s first \"tsx src/test-server.ts\" \"sleep 2 && vitest run src/rest*.e2e.test.ts\"",
-    "test:all": "vitest run --coverage.enabled=true --coverage.reporter=lcov --coverage.reporter=text"
+    "test:all": "vitest run --coverage.enabled=true --coverage.reporter=lcov --coverage.reporter=text",
+    "test:watch": "vitest --watch",
+    "test:ui": "vitest --ui",
+    "clean": "rm -rf dist",
+    "prebuild": "npm run clean",
+    "postbuild": "npm run type-check"
   },
   "dependencies": {
     "@fastify/cors": "^9.0.1",
