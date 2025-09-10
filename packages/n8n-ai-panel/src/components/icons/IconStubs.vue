@@ -1,6 +1,17 @@
 <template>
-  <svg :class="cls" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true">
-    <circle cx="8" cy="8" r="6" fill="currentColor" />
+  <svg
+    :class="cls"
+    viewBox="0 0 16 16"
+    width="16"
+    height="16"
+    aria-hidden="true"
+  >
+    <circle
+      cx="8"
+      cy="8"
+      r="6"
+      fill="currentColor"
+    />
   </svg>
 </template>
 

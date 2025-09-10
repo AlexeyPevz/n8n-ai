@@ -4,13 +4,23 @@
     <div class="map-header">
       <h2>Workflow Dependencies Map</h2>
       <div class="map-controls">
-        <input v-model="searchTerm"
-class="search-input" placeholder="Search workflows"
-/>
+        <input
+          v-model="searchTerm"
+          class="search-input"
+          placeholder="Search workflows"
+        >
         <button
-class="filter-active" @click="toggleActiveFilter">Active Only</button>
+          class="filter-active"
+          @click="toggleActiveFilter"
+        >
+          Active Only
+        </button>
         <button
-class="clear-filters" @click="clearFilters">Clear</button>
+          class="clear-filters"
+          @click="clearFilters"
+        >
+          Clear
+        </button>
         <div class="tag-filters">
           <button
             v-for="tag in allTags"
@@ -24,17 +34,41 @@ class="clear-filters" @click="clearFilters">Clear</button>
           </button>
         </div>
         <button
-class="layout-button" @click="setLayout('hierarchical')">Hierarchical</button>
+          class="layout-button"
+          @click="setLayout('hierarchical')"
+        >
+          Hierarchical
+        </button>
         <button
-class="layout-button" @click="setLayout('force')">Force</button>
+          class="layout-button"
+          @click="setLayout('force')"
+        >
+          Force
+        </button>
         <button
-class="layout-button" @click="setLayout('grid')">Grid</button>
+          class="layout-button"
+          @click="setLayout('grid')"
+        >
+          Grid
+        </button>
         <button
-class="zoom-in" @click="zoomIn">+</button>
+          class="zoom-in"
+          @click="zoomIn"
+        >
+          +
+        </button>
         <button
-class="zoom-out" @click="zoomOut">-</button>
+          class="zoom-out"
+          @click="zoomOut"
+        >
+          -
+        </button>
         <button
-class="fit-to-screen" @click="fitToScreen">Fit</button>
+          class="fit-to-screen"
+          @click="fitToScreen"
+        >
+          Fit
+        </button>
         <button
           :disabled="isLoading"
           class="btn-refresh refresh-button"
@@ -44,17 +78,33 @@ class="fit-to-screen" @click="fitToScreen">Fit</button>
           <span v-if="!isLoading">🔄 Refresh</span>
           <span v-else>⏳ Loading...</span>
         </button>
-        <select v-model="viewDepth" @change="updateMap" class="depth-selector">
-          <option value="1">Depth: 1</option>
-          <option value="2">Depth: 2</option>
-          <option value="3">Depth: 3</option>
-          <option value="4">Depth: 4</option>
-          <option value="5">Depth: 5</option>
+        <select
+          v-model="viewDepth"
+          class="depth-selector"
+          @change="updateMap"
+        >
+          <option value="1">
+            Depth: 1
+          </option>
+          <option value="2">
+            Depth: 2
+          </option>
+          <option value="3">
+            Depth: 3
+          </option>
+          <option value="4">
+            Depth: 4
+          </option>
+          <option value="5">
+            Depth: 5
+          </option>
         </select>
         <label class="checkbox-label">
-          <input v-model="showExternal"
-type="checkbox" @change="updateMap"
-/>
+          <input
+            v-model="showExternal"
+            type="checkbox"
+            @change="updateMap"
+          >
           Show External
         </label>
       </div>
@@ -62,17 +112,29 @@ type="checkbox" @change="updateMap"
 
     <!-- Loading / Error / Empty states -->
     <div
-v-if="isLoading" class="loading-container">Loading workflow map...</div>
+      v-if="isLoading"
+      class="loading-container"
+    >
+      Loading workflow map...
+    </div>
     <div
-v-if="errorMessage" class="error-state">Failed to load workflow map</div>
-    <div v-if="!isLoading && !errorMessage && uiWorkflows.length === 0" class="empty-state">
+      v-if="errorMessage"
+      class="error-state"
+    >
+      Failed to load workflow map
+    </div>
+    <div
+      v-if="!isLoading && !errorMessage && uiWorkflows.length === 0"
+      class="empty-state"
+    >
       No workflows found
     </div>
 
     <!-- Statistics -->
     <div
-v-if="stats" class="map-stats stats-panel"
->
+      v-if="stats"
+      class="map-stats stats-panel"
+    >
       <div class="stat-item">
         <span class="stat-label">Workflows:</span>
         <span class="stat-value">{{ stats.totalWorkflows }} workflows</span>
@@ -86,8 +148,9 @@ v-if="stats" class="map-stats stats-panel"
         <span class="stat-value">{{ stats.activeWorkflows }} active</span>
       </div>
       <div
-v-if="stats.executionsToday != null" class="stat-item"
->
+        v-if="stats.executionsToday != null"
+        class="stat-item"
+      >
         <span class="stat-label">Executions:</span>
         <span class="stat-value">{{ stats.executionsToday }} executions today</span>
       </div>
@@ -101,9 +164,14 @@ v-if="stats.executionsToday != null" class="stat-item"
 
     <!-- Map Visualization -->
     <div
-ref="mapContainer" class="map-visualization"
->
-      <svg ref="svgElement" width="100%" height="100%">
+      ref="mapContainer"
+      class="map-visualization"
+    >
+      <svg
+        ref="svgElement"
+        width="100%"
+        height="100%"
+      >
         <defs>
           <!-- Arrow marker for edges -->
           <marker
@@ -114,7 +182,10 @@ ref="mapContainer" class="map-visualization"
             refY="3.5"
             orient="auto"
           >
-            <polygon points="0 0, 10 3.5, 0 7" fill="#666" />
+            <polygon
+              points="0 0, 10 3.5, 0 7"
+              fill="#666"
+            />
           </marker>
 
           <!-- Patterns for node types -->
@@ -126,8 +197,16 @@ ref="mapContainer" class="map-visualization"
             height="4"
             patternUnits="userSpaceOnUse"
           >
-            <rect width="4" height="4" fill="#f8f8f8" />
-            <path d="M 0,4 l 4,-4 M -1,1 l 2,-2 M 3,5 l 2,-2" stroke="#ddd" stroke-width="1" />
+            <rect
+              width="4"
+              height="4"
+              fill="#f8f8f8"
+            />
+            <path
+              d="M 0,4 l 4,-4 M -1,1 l 2,-2 M 3,5 l 2,-2"
+              stroke="#ddd"
+              stroke-width="1"
+            />
           </pattern>
         </defs>
 
@@ -177,17 +256,22 @@ ref="mapContainer" class="map-visualization"
 
               <!-- Node icon -->
               <text
-x="-40" y="5"
-font-size="20" text-anchor="middle"
->
+                x="-40"
+                y="5"
+                font-size="20"
+                text-anchor="middle"
+              >
                 {{ getNodeIcon(node) }}
               </text>
 
               <!-- Node label -->
               <text
-x="10" y="0"
-font-size="12" text-anchor="middle" fill="#333"
->
+                x="10"
+                y="0"
+                font-size="12"
+                text-anchor="middle"
+                fill="#333"
+              >
                 {{ truncateLabel(node.name, 15) }}
               </text>
 
@@ -227,32 +311,60 @@ font-size="12" text-anchor="middle" fill="#333"
         <div class="workflow-name">
           {{ wf.name }}
         </div>
-        <div class="node-count">{{ wf.nodeCount }} nodes</div>
-        <div class="status-badge" :class="{ active: wf.active }">
+        <div class="node-count">
+          {{ wf.nodeCount }} nodes
+        </div>
+        <div
+          class="status-badge"
+          :class="{ active: wf.active }"
+        >
           {{ wf.active ? 'Active' : 'Inactive' }}
         </div>
         <div class="workflow-tags">
-          <span v-for="tag in wf.tags || []" :key="tag" class="workflow-tag">{{ tag }}</span>
+          <span
+            v-for="tag in wf.tags || []"
+            :key="tag"
+            class="workflow-tag"
+          >{{ tag }}</span>
         </div>
         <div
-v-if="wf.status === 'running'" class="execution-status">Running</div>
+          v-if="wf.status === 'running'"
+          class="execution-status"
+        >
+          Running
+        </div>
         <div
           v-if="wf.progress != null"
           class="execution-progress"
           :style="{ width: (wf.progress || 0) + '%' }"
         />
-        <div v-if="wf.cost != null" class="workflow-cost">
+        <div
+          v-if="wf.cost != null"
+          class="workflow-cost"
+        >
           {{ formatCurrency(wf.cost) }}
         </div>
-        <div v-if="selectedWorkflowId === wf.id" class="workflow-details">
+        <div
+          v-if="selectedWorkflowId === wf.id"
+          class="workflow-details"
+        >
           <div>{{ wf.name }}</div>
           <div>{{ wf.nodeCount }} nodes</div>
           <div>{{ wf.active ? 'Active' : 'Inactive' }}</div>
         </div>
       </div>
 
-      <svg class="workflow-connections" width="0" height="0" aria-hidden="true">
-        <g v-for="dep in uiDependencies" :key="dep.from + '-' + dep.to" class="workflow-connection">
+      <svg
+        class="workflow-connections"
+        width="0"
+        height="0"
+        aria-hidden="true"
+      >
+        <g
+          v-for="dep in uiDependencies"
+          :key="dep.from + '-' + dep.to"
+          class="workflow-connection"
+        >
           <path d="M0 0 L10 0" />
         </g>
       </svg>
@@ -266,7 +378,11 @@ v-if="wf.status === 'running'" class="execution-status">Running</div>
     >
       <div class="tooltip-content">
         <h4>{{ tooltip.title }}</h4>
-        <div v-for="(value, key) in tooltip.details" :key="key" class="tooltip-item">
+        <div
+          v-for="(value, key) in tooltip.details"
+          :key="key"
+          class="tooltip-item"
+        >
           <span class="tooltip-label">{{ key }}:</span>
           <span class="tooltip-value">{{ value }}</span>
         </div>
@@ -274,12 +390,19 @@ v-if="wf.status === 'running'" class="execution-status">Running</div>
     </div>
 
     <!-- WebSocket Status -->
-    <div class="ws-status" :class="{ 'ws-connected': wsConnected }">
+    <div
+      class="ws-status"
+      :class="{ 'ws-connected': wsConnected }"
+    >
       <span class="ws-indicator" />
       <span>{{ wsConnected ? 'Live' : 'Offline' }}</span>
     </div>
     <div
-v-if="!wsConnected" class="connection-status disconnected">Disconnected</div>
+      v-if="!wsConnected"
+      class="connection-status disconnected"
+    >
+      Disconnected
+    </div>
   </div>
 </template>
 
@@ -302,30 +425,30 @@ const activeTag = ref('');
 const isRefreshing = ref(false);
 const selectedWorkflowId = ref<string | null>(null);
 const stats = computed(() => {
-  if (!mapData.value) return null as any;
+  if (!mapData.value) return null;
   return {
     totalWorkflows:
-      (mapData.value as any).stats?.totalWorkflows ?? (mapData.value as any).workflows?.length ?? 0,
-    activeWorkflows: (mapData.value as any).stats?.activeWorkflows ?? 0,
+      (mapData.value as { stats?: { totalWorkflows?: number }; workflows?: unknown[] }).stats?.totalWorkflows ?? (mapData.value as { workflows?: unknown[] }).workflows?.length ?? 0,
+    activeWorkflows: (mapData.value as { stats?: { activeWorkflows?: number } }).stats?.activeWorkflows ?? 0,
     totalConnections:
-      (mapData.value as any).stats?.totalConnections ??
-      (mapData.value as any).dependencies?.length ??
+      (mapData.value as { stats?: { totalConnections?: number }; dependencies?: unknown[] }).stats?.totalConnections ??
+      (mapData.value as { dependencies?: unknown[] }).dependencies?.length ??
       0,
-    executionsToday: (mapData.value as any).stats?.executionsToday,
+    executionsToday: (mapData.value as { stats?: { executionsToday?: number } }).stats?.executionsToday,
   };
 });
-const uiWorkflows = computed(() => (mapData.value as any)?.workflows ?? []);
-const uiDependencies = computed(() => (mapData.value as any)?.dependencies ?? []);
+const uiWorkflows = computed(() => (mapData.value as { workflows?: unknown[] })?.workflows ?? []);
+const uiDependencies = computed(() => (mapData.value as { dependencies?: unknown[] })?.dependencies ?? []);
 const allTags = computed(() =>
-  Array.from(new Set((uiWorkflows.value || []).flatMap((w: any) => w.tags || []))),
+  Array.from(new Set((uiWorkflows.value || []).flatMap((w: unknown) => (w as { tags?: string[] }).tags || []))),
 );
 const visibleWorkflows = computed(() =>
-  uiWorkflows.value.map((w: any) => ({
+  uiWorkflows.value.map((w: unknown) => ({
     ...w,
     hidden:
-      (onlyActive.value && !w.active) ||
-      (activeTag.value && !(w.tags || []).includes(activeTag.value)) ||
-      (searchTerm.value && !w.name.toLowerCase().includes(searchTerm.value.toLowerCase())),
+      onlyActive.value && !w.active ||
+      activeTag.value && !(w.tags || []).includes(activeTag.value) ||
+      searchTerm.value && !w.name.toLowerCase().includes(searchTerm.value.toLowerCase()),
     highlighted: false,
   })),
 );
@@ -347,7 +470,7 @@ const tooltip = ref({
   x: 0,
   y: 0,
   title: '',
-  details: {} as Record<string, any>,
+  details: {} as Record<string, unknown>,
 });
 
 // Pan & Zoom
@@ -370,9 +493,9 @@ async function doRefresh() {
       edges.value = [];
     }
     // Copy/augment to UI overlay
-    const augmented = { ...data } as any;
+    const augmented = { ...data } as { workflows?: unknown[]; dependencies?: unknown[]; stats?: unknown };
     if (Array.isArray(augmented.workflows)) {
-      augmented.workflows = augmented.workflows.map((wf: any) => ({
+      augmented.workflows = augmented.workflows.map((wf: unknown) => ({
         ...wf,
         // Provide defaults so tests can assert presence without WS
         status: wf.active ? 'running' : undefined,
@@ -380,7 +503,7 @@ async function doRefresh() {
         cost: wf.id === 'wf1' ? 0.05 : undefined,
       }));
     }
-    (mapData as any).value = augmented as any;
+    mapData.value = augmented as MapData;
   } catch (error) {
     console.error('Failed to load workflow map:', error);
     errorMessage.value = 'failed';
@@ -401,7 +524,10 @@ function clearFilters() {
   onlyActive.value = false;
   activeTag.value = '';
 }
-function setLayout(_mode: string) {}
+function setLayout(_mode: string) {
+  // Layout setter placeholder
+  console.log('Layout mode:', _mode);
+}
 function zoomIn() {
   currentScale = Math.min(5, currentScale * 1.1);
   updateViewTransform();
@@ -468,7 +594,7 @@ function layoutGraph(data: MapData) {
 
   // Initialize nodes with positions
   (data.nodes || []).forEach((node, index) => {
-    const angle = (index / data.nodes.length) * 2 * Math.PI;
+    const angle = index / data.nodes.length * 2 * Math.PI;
     const radius = 300;
     const layoutNode = {
       ...node,
@@ -490,7 +616,7 @@ function layoutGraph(data: MapData) {
         const dy = node2.y! - node1.y!;
         const distance = Math.sqrt(dx * dx + dy * dy);
         if (distance < 150) {
-          const force = ((150 - distance) / distance) * 0.5;
+          const force = (150 - distance) / distance * 0.5;
           node1.x! -= dx * force;
           node1.y! -= dy * force;
           node2.x! += dx * force;
@@ -507,7 +633,7 @@ function layoutGraph(data: MapData) {
         const dx = target.x! - source.x!;
         const dy = target.y! - source.y!;
         const distance = Math.sqrt(dx * dx + dy * dy);
-        const force = ((distance - 200) / distance) * 0.1;
+        const force = (distance - 200) / distance * 0.1;
         source.x! += dx * force;
         source.y! += dy * force;
         target.x! -= dx * force;
@@ -633,10 +759,11 @@ function formatPercentage(value: number): string {
 function handleNodeClick(_node: MapNode) {
   // Node click handler placeholder
   // TODO: Navigate to workflow or show details
+  console.log('Node clicked:', _node);
 }
 
 function handleNodeHover(node: MapNode, event: MouseEvent) {
-  const details: Record<string, any> = {
+  const details: Record<string, unknown> = {
     Type: node.type,
     ID: node.id,
   };
@@ -653,7 +780,7 @@ function handleNodeHover(node: MapNode, event: MouseEvent) {
 }
 
 function handleEdgeHover(edge: MapEdge, event: MouseEvent) {
-  const details: Record<string, any> = {
+  const details: Record<string, unknown> = {
     Type: edge.type,
     From: edge.source,
     To: edge.target,
@@ -670,7 +797,7 @@ function handleEdgeHover(edge: MapEdge, event: MouseEvent) {
   showTooltip('Connection', details, event);
 }
 
-function showTooltip(title: string, details: Record<string, any>, event: MouseEvent) {
+function showTooltip(title: string, details: Record<string, unknown>, event: MouseEvent) {
   const rect = mapContainer.value!.getBoundingClientRect();
   tooltip.value = {
     visible: true,
@@ -727,7 +854,7 @@ function connectWebSocket() {
   };
 }
 
-function handleWebSocketMessage(message: any) {
+function handleWebSocketMessage(message: { type: string; data?: unknown }) {
   switch (message.type) {
     case 'workflow_status':
     case 'execution_status':
@@ -741,8 +868,8 @@ function handleWebSocketMessage(message: any) {
       break;
     case 'stats_update':
       if (mapData.value) {
-        (mapData.value as any).stats = {
-          ...((mapData.value as any).stats || {}),
+        (mapData.value as { stats?: unknown }).stats = {
+          ...(mapData.value as { stats?: unknown }).stats || {},
           ...message.stats,
         };
       }
@@ -761,7 +888,7 @@ function handleWebSocketMessage(message: any) {
 function updateNodeStatus(workflowId: string, status: string) {
   const node = nodes.value.find((n) => n.id === workflowId);
   if (node) {
-    node.status = status as any;
+    node.status = status as 'running' | 'success' | 'error' | 'waiting';
   }
 }
 
@@ -819,9 +946,9 @@ onMounted(() => {
   connectWebSocket();
   // Simulate stats update shortly after mount to satisfy tests
   setTimeout(() => {
-    if (mapData.value && (mapData.value as any).stats) {
-      (mapData.value as any).stats = {
-        ...((mapData.value as any).stats || {}),
+    if (mapData.value && (mapData.value as { stats?: unknown }).stats) {
+      (mapData.value as { stats?: unknown }).stats = {
+        ...(mapData.value as { stats?: unknown }).stats || {},
         totalWorkflows: 3,
         activeWorkflows: 2,
         totalConnections: 2,

@@ -9,15 +9,20 @@
       @mouseup="onMouseUp"
       @mouseleave="onMouseUp"
     >
-      <div class="scene" :style="sceneStyle">
+      <div
+        class="scene"
+        :style="sceneStyle"
+      >
         <!-- Простая визуализация нод и связей -->
         <svg
-class="connections-layer" :width="canvasSize.width"
-:height="canvasSize.height"
->
+          class="connections-layer"
+          :width="canvasSize.width"
+          :height="canvasSize.height"
+        >
           <g
-v-for="connection in connections" :key="`${connection.from}-${connection.to}`"
->
+            v-for="connection in connections"
+            :key="`${connection.from}-${connection.to}`"
+          >
             >
             <path
               :d="getConnectionPath(connection)"
@@ -41,14 +46,17 @@ v-for="connection in connections" :key="`${connection.from}-${connection.to}`"
           <div class="node-name">
             {{ node.name }}
           </div>
-          <div v-if="statusById[node.id]" class="node-overlay">
+          <div
+            v-if="statusById[node.id]"
+            class="node-overlay"
+          >
             <span class="st">{{ statusById[node.id].status }}</span>
-            <span class="cost"
-              >$ {{ (statusById[node.id].estimatedCostCents / 100).toFixed(2) }}</span
-            >
+            <span class="cost">$ {{ (statusById[node.id].estimatedCostCents / 100).toFixed(2) }}</span>
           </div>
-          <div v-if="node.annotation"
-class="node-annotation">
+          <div
+            v-if="node.annotation"
+            class="node-annotation"
+          >
             {{ node.annotation }}
           </div>
         </div>
@@ -109,7 +117,7 @@ const nodePositions = computed(() => {
 
   props.nodes.forEach((node, index) => {
     positions[node.id] = {
-      x: x + (index % 3) * 200,
+      x: x + index % 3 * 200,
       y: y + Math.floor(index / 3) * 150,
     };
   });

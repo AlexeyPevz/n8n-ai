@@ -77,7 +77,7 @@ describe('CostTooltip', () => {
       expect(costItems.length).toBeGreaterThan(0);
 
       // Should show AI costs (highest)
-      const aiItem = costItems.find((item: any) =>
+      const aiItem = costItems.find((item: { text: () => string }) =>
         item.find('.cost-type').text().includes('AI Processing'),
       );
       expect(aiItem).toBeTruthy();
@@ -103,7 +103,7 @@ describe('CostTooltip', () => {
       expect(costBars.length).toBeGreaterThan(0);
 
       // Bars should have width style
-      costBars.forEach((bar: any) => {
+      costBars.forEach((bar: { text: () => string }) => {
         const style = bar.attributes('style');
         expect(style).toMatch(/width:\s*\d+(\.\d+)?%/);
       });
@@ -120,7 +120,7 @@ describe('CostTooltip', () => {
         expect(tips.length).toBeGreaterThan(0);
 
         // Should show API batching tip
-        const apiTip = tips.find((tip: any) => tip.text().includes('batching'));
+        const apiTip = tips.find((tip: { text: () => string }) => tip.text().includes('batching'));
         expect(apiTip).toBeTruthy();
       }
     });

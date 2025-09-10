@@ -3,9 +3,10 @@
     <!-- Tab Navigation -->
     <nav class="tab-nav">
       <button
-class="tab-button" :class="{ active: activeTab === 'ai' }"
-@click="activeTab = 'ai'"
->
+        class="tab-button"
+        :class="{ active: activeTab === 'ai' }"
+        @click="activeTab = 'ai'"
+      >
         🤖 AI Assistant
       </button>
       <button
@@ -30,11 +31,12 @@ class="tab-button" :class="{ active: activeTab === 'ai' }"
           @blur="closeExprLater"
         />
         <div
-v-if="exprOpen && exprItems.length" class="expr-suggest"
->
+          v-if="exprOpen && exprItems.length"
+          class="expr-suggest"
+        >
           <div class="hdr">
-Подсказки выражений
-</div>
+            Подсказки выражений
+          </div>
           <ul>
             <li
               v-for="(s, i) in exprItems"
@@ -46,13 +48,13 @@ v-if="exprOpen && exprItems.length" class="expr-suggest"
             </li>
           </ul>
           <div class="hint">
-Enter — вставить • ↑/↓ — навигация • Esc — закрыть
-</div>
+            Enter — вставить • ↑/↓ — навигация • Esc — закрыть
+          </div>
         </div>
       </div>
       <button @click="plan">
-Plan
-</button>
+        Plan
+      </button>
       <ErrorCard
         v-if="lastError"
         :code="lastError.code"
@@ -64,29 +66,38 @@ Plan
         @action="onErrorAction"
       />
       <ProgressBar
-v-if="progress >= 0" :value="progress"
-/>
+        v-if="progress >= 0"
+        :value="progress"
+      />
     </section>
 
     <section v-if="planItems.length">
       <h3>Plan</h3>
       <ul>
         <li
-v-for="(p, i) in planItems" :key="i"
->
+          v-for="(p, i) in planItems"
+          :key="i"
+        >
           {{ p }}
         </li>
       </ul>
       <button @click="preview">
-Preview Diff
-</button>
+        Preview Diff
+      </button>
     </section>
 
     <section v-if="diff">
       <h3>Diff Preview</h3>
-      <div v-if="liveOverlay.length" style="margin: 6px 0; font-size: 12px; color: #334155">
+      <div
+        v-if="liveOverlay.length"
+        style="margin: 6px 0; font-size: 12px; color: #334155"
+      >
         Live:
-        <span v-for="wf in liveOverlay" :key="wf.id" style="margin-right: 10px">
+        <span
+          v-for="wf in liveOverlay"
+          :key="wf.id"
+          style="margin-right: 10px"
+        >
           <strong>{{ wf.name }}</strong> — {{ wf.status }} · $
           {{ (wf.estimatedCostCents / 100).toFixed(2) }}
         </span>
@@ -103,8 +114,9 @@ Preview Diff
 
       <!-- Canvas visualization -->
       <div
-v-if="currentWorkflow" class="canvas-wrapper"
->
+        v-if="currentWorkflow"
+        class="canvas-wrapper"
+      >
         <WorkflowCanvas
           :nodes="currentWorkflow.workflow?.nodes || currentWorkflow.nodes || []"
           :connections="currentWorkflow.workflow?.connections || currentWorkflow.connections || []"
@@ -114,46 +126,55 @@ v-if="currentWorkflow" class="canvas-wrapper"
       </div>
       <ul v-if="diffItems.length">
         <li
-v-for="(item, i) in diffItems" :key="i"
-:class="['diff-item', item.kind]"
->
+          v-for="(item, i) in diffItems"
+          :key="i"
+          :class="['diff-item', item.kind]"
+        >
           <span
-class="badge" :class="item.kind"
->{{ item.badge }}</span>
+            class="badge"
+            :class="item.kind"
+          >{{ item.badge }}</span>
           <span class="text">{{ item.text }}</span>
         </li>
       </ul>
       <pre v-else>{{ diff }}</pre>
-      <button :disabled="hasErrors"
-@click="apply"
->
-Apply
-</button>
+      <button
+        :disabled="hasErrors"
+        @click="apply"
+      >
+        Apply
+      </button>
       <button @click="undo">
-Undo
-</button>
+        Undo
+      </button>
       <button @click="test">
-Test
-</button>
+        Test
+      </button>
       <button @click="gitExport">
-Git Export
-</button>
-      <div v-if="gitMessage" class="git-msg">
+        Git Export
+      </button>
+      <div
+        v-if="gitMessage"
+        class="git-msg"
+      >
         {{ gitMessage }}
       </div>
       <div
-v-if="lints.length" class="lints"
->
+        v-if="lints.length"
+        class="lints"
+      >
         <div
-v-for="(l, i) in lints" :key="i"
-:class="['lint', l.level]"
->
+          v-for="(l, i) in lints"
+          :key="i"
+          :class="['lint', l.level]"
+        >
           <strong>[{{ l.level }}]</strong> {{ l.message }} <span v-if="l.node">({{ l.node }})</span>
         </div>
       </div>
       <div
-v-if="simStats" class="sim"
->
+        v-if="simStats"
+        class="sim"
+      >
         <div class="sim-row">
           Nodes visited: <strong>{{ simStats.nodesVisited }}</strong>
         </div>
@@ -162,12 +183,14 @@ v-if="simStats" class="sim"
           {{ simStats.p95DurationMs }}ms)
         </div>
         <div
-v-if="simStats.dataShapes" class="sim-shapes"
->
+          v-if="simStats.dataShapes"
+          class="sim-shapes"
+        >
           <div
-v-for="(shape, node) in simStats.dataShapes" :key="node"
-class="shape"
->
+            v-for="(shape, node) in simStats.dataShapes"
+            :key="node"
+            class="shape"
+          >
             <div class="shape-title">
               {{ node }}
             </div>
@@ -179,14 +202,22 @@ class="shape"
 
     <section>
       <h3>Audit Logs</h3>
-      <button @click="refreshAudit">Refresh Audit</button>
-      <div v-if="auditError" class="lints">
+      <button @click="refreshAudit">
+        Refresh Audit
+      </button>
+      <div
+        v-if="auditError"
+        class="lints"
+      >
         <div class="lint error">
           {{ auditError }}
         </div>
       </div>
       <ul v-if="auditItems.length">
-        <li v-for="(a, i) in auditItems" :key="i">
+        <li
+          v-for="(a, i) in auditItems"
+          :key="i"
+        >
           <strong>{{ a.workflowId }}</strong>: {{ a.appliedOperations }} ops — {{ new Date(a.ts).toLocaleString() }}
           <span v-if="a.userId"> ({{ a.userId }})</span>
         </li>
@@ -194,7 +225,10 @@ class="shape"
     </section>
 
     <!-- Workflow Map Tab -->
-    <section v-if="activeTab === 'map'" class="map-section">
+    <section
+      v-if="activeTab === 'map'"
+      class="map-section"
+    >
       <WorkflowMap />
     </section>
   </main>
@@ -466,6 +500,7 @@ async function fetchWorkflowState() {
 function handleNodeClick(_node: unknown) {
   // Node clicked handler (placeholder)
   // Можно добавить логику для показа деталей ноды
+  console.log('Node clicked:', _node);
 }
 
 async function apply() {

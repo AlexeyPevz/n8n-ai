@@ -2,7 +2,7 @@ export interface MapNode {
   id: string;
   name: string;
   type: 'workflow' | 'webhook' | 'external';
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
   x?: number;
   y?: number;
   status?: 'running' | 'success' | 'error' | 'waiting';
@@ -13,7 +13,7 @@ export interface MapEdge {
   target: string;
   type: 'execute_workflow' | 'http_webhook' | 'trigger_webhook';
   probability?: number;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
 export interface MapData {
